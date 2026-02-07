@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Couleurs de base -->
+    <color name="black">#000000</color>
+    <color name="splash_background">#000000</color>
+    
+    <!-- Couleurs pour votre app -->
+    <color name="primary_color">#DC143C</color>
+    <color name="white">#FFFFFF</color>
+</resources>

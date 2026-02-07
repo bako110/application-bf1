@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Segment 1 (top) -->
+    <item
+        android:width="12dp"
+        android:height="12dp"
+        android:gravity="center_horizontal|top">
+        <shape android:shape="oval">
+            <solid android:color="#DC143C" />
+        </shape>
+    </item>
+    
+    <!-- Segment 2 (right) -->
+    <item
+        android:width="12dp"
+        android:height="12dp"
+        android:gravity="right|center_vertical">
+        <shape android:shape="oval">
+            <solid android:color="#DC143C" />
+        </shape>
+    </item>
+    
+    <!-- Segment 3 (bottom) -->
+    <item
+        android:width="12dp"
+        android:height="12dp"
+        android:gravity="center_horizontal|bottom">
+        <shape android:shape="oval">
+            <solid android:color="#DC143C" />
+        </shape>
+    </item>
+    
+    <!-- Segment 4 (left) -->
+    <item
+        android:width="12dp"
+        android:height="12dp"
+        android:gravity="left|center_vertical">
+        <shape android:shape="oval">
+            <solid android:color="#DC143C" />
+        </shape>
+    </item>
+    
+</layer-list>
