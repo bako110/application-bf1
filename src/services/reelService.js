@@ -119,6 +119,29 @@ class ReelService {
       throw error.response?.data || error.message;
     }
   }
+
+  // Vérifier si l'utilisateur a liké un reel
+  async checkLiked(reelId) {
+    try {
+      const response = await api.get(`/likes/check/reel/${reelId}`);
+      return response.data.liked;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Récupérer tous les likes de l'utilisateur pour les reels
+  async getMyLikedReels() {
+    try {
+      const response = await api.get('/likes/my-likes', { 
+        params: { content_type: 'reel' } 
+      });
+      return response.data.map(like => like.content_id);
+    } catch (error) {
+      console.error('Error loading liked reels:', error);
+      return [];
+    }
+  }
 }
 
 export default new ReelService();

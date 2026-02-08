@@ -15,22 +15,16 @@ class LikeService {
       throw { message: 'contentId et contentType sont requis' };
     }
 
-    // Normaliser le contentType
-    const normalizedType = contentType.toLowerCase();
-    if (normalizedType !== 'movie' && normalizedType !== 'show') {
-      throw { message: `contentType invalide: ${contentType}. Doit être "movie" ou "show"` };
-    }
-
-    console.log('Toggle like:', { content_id: contentId, content_type: normalizedType });
+    console.log('Toggle like:', { content_id: contentId, content_type: contentType });
 
     try {
       const response = await api.post('/likes/toggle', {
         content_id: contentId,
-        content_type: normalizedType,
+        content_type: contentType,
       });
       return response.data;
     } catch (error) {
-      console.error('Erreur toggle like:', error.response?.data || error);
+      console.error('❌ Erreur toggle like:', error.response?.data || error);
       throw error.response?.data || error.message;
     }
   }

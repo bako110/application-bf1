@@ -25,6 +25,7 @@ export default function TrendingShowsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState('list'); // 'grid' ou 'list'
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -55,6 +56,8 @@ export default function TrendingShowsScreen({ navigation }) {
 
   useEffect(() => {
     if (shows.length > 0) {
+      fadeAnim.setValue(0);
+      slideAnim.setValue(30);
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -68,7 +71,7 @@ export default function TrendingShowsScreen({ navigation }) {
         })
       ]).start();
     }
-  }, [shows]);
+  }, [shows, viewMode]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -85,7 +88,7 @@ export default function TrendingShowsScreen({ navigation }) {
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Ionicons name="trending-up" size={24} color={colors.primary} />
-            <Text style={styles.headerTitle}>Tendances</Text>
+            <Text style={styles.headerTitle}>Émissions Tendances</Text>
           </View>
           <View style={styles.placeholder} />
         </LinearGradient>
@@ -106,7 +109,7 @@ export default function TrendingShowsScreen({ navigation }) {
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Ionicons name="trending-up" size={24} color={colors.primary} />
-            <Text style={styles.headerTitle}>Tendances</Text>
+            <Text style={styles.headerTitle}>Émissions Tendances</Text>
           </View>
           <View style={styles.placeholder} />
         </LinearGradient>
@@ -135,9 +138,18 @@ export default function TrendingShowsScreen({ navigation }) {
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Ionicons name="trending-up" size={24} color={colors.primary} />
-          <Text style={styles.headerTitle}>Tendances</Text>
+          <Text style={styles.headerTitle}>Émissions Tendances</Text>
         </View>
-        <View style={styles.placeholder} />
+        <TouchableOpacity 
+          onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+          style={styles.viewToggle}
+        >
+          <Ionicons 
+            name={viewMode === 'grid' ? 'list' : 'grid'} 
+            size={24} 
+            color={colors.text} 
+          />
+        </TouchableOpacity>
       </LinearGradient>
 
       <ScrollView
@@ -159,17 +171,17 @@ export default function TrendingShowsScreen({ navigation }) {
           </Animated.View>
         ) : (
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <View style={styles.grid}>
+            <View style={viewMode === 'grid' ? styles.grid : styles.listContainer}>
               {displayShows.map((show, index) => (
               <TouchableOpacity 
                 key={show.id || index} 
-                style={styles.showCard}
+                style={viewMode === 'grid' ? styles.showCard : styles.showCardList}
                 activeOpacity={0.9}
                 onPress={() => navigation.navigate('ShowDetail', { showId: show.id || show._id, isTrending: true })}
               >
                 <Image 
                   source={{ uri: show.image_url || show.image }} 
-                  style={styles.showImage}
+                  style={viewMode === 'grid' ? styles.showImage : styles.showImageList}
                 />
                 <LinearGradient
                   colors={['transparent', 'rgba(0,0,0,0.9)']}
@@ -221,9 +233,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
+    paddingTop: 40,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 12,
   },
   backButton: {
     width: 40,
@@ -244,9 +256,18 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  viewToggle: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   content: {
     flex: 1,
     paddingHorizontal: 12,
+  },
+  listContainer: {
+    paddingTop: 8,
   },
   grid: {
     flexDirection: 'row',
@@ -262,8 +283,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.surface,
   },
+  showCardList: {
+    width: '100%',
+    height: 140,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+  },
   showImage: {
     width: '100%',
+    height: '100%',
+  },
+  showImageList: {
+    width: 120,
     height: '100%',
   },
   showOverlay: {

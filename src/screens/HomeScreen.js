@@ -160,14 +160,24 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity
             onPress={() => {
               if (liveShows.length > 0) {
-                navigation.navigate('LiveShowFullScreen', {
-                  stream: {
-                    url: liveShows[0].stream_url || liveShows[0].video_url,
-                    title: liveShows[0].title,
-                    description: liveShows[0].description,
-                    image_url: liveShows[0].image_url
-                  }
-                });
+                const currentLive = liveShows[0];
+                // Si c'est un live en cours, lancer la lecture
+                if (currentLive.is_live) {
+                  navigation.navigate('LiveShowFullScreen', {
+                    stream: {
+                      url: currentLive.stream_url || currentLive.video_url,
+                      title: currentLive.title,
+                      description: currentLive.description,
+                      image_url: currentLive.image_url
+                    }
+                  });
+                } else {
+                  // Si c'est un live programmé, afficher les détails
+                  navigation.navigate('ShowDetail', { 
+                    showId: currentLive.id || currentLive._id,
+                    isLive: true 
+                  });
+                }
               }
             }}
             disabled={liveShows.length === 0}
@@ -176,7 +186,9 @@ export default function HomeScreen({ navigation }) {
             <Animated.View style={[styles.programmedLiveContainer, { opacity: blinkAnim }]}>
               <View style={styles.programmedLiveDot} />
               <Text style={styles.programmedLiveText}>
-                {liveShows.length > 0 ? 'Live en cours' : 'Aucun live'}
+                {liveShows.length > 0 
+                  ? (liveShows[0].is_live ? 'Live en cours' : 'Live programmé')
+                  : 'Aucun live'}
               </Text>
             </Animated.View>
           </TouchableOpacity>
@@ -185,14 +197,24 @@ export default function HomeScreen({ navigation }) {
         {liveShows.length > 0 ? (
           <TouchableOpacity
             style={styles.liveCardFull}
-            onPress={() => navigation.navigate('LiveShowFullScreen', {
-              stream: {
-                url: liveShows[0].stream_url || liveShows[0].video_url,
-                title: liveShows[0].title,
-                description: liveShows[0].description,
-                image_url: liveShows[0].image_url
+            onPress={() => {
+              const currentLive = liveShows[0];
+              if (currentLive.is_live) {
+                navigation.navigate('LiveShowFullScreen', {
+                  stream: {
+                    url: currentLive.stream_url || currentLive.video_url,
+                    title: currentLive.title,
+                    description: currentLive.description,
+                    image_url: currentLive.image_url
+                  }
+                });
+              } else {
+                navigation.navigate('ShowDetail', { 
+                  showId: currentLive.id || currentLive._id,
+                  isLive: true 
+                });
               }
-            })}
+            }}
           >
             <Image
               source={{ uri: liveShows[0].image_url || 'https://via.placeholder.com/400x250' }}
@@ -204,10 +226,37 @@ export default function HomeScreen({ navigation }) {
             >
               <View style={styles.liveBadgeFull}>
                 <View style={styles.liveIndicatorFull} />
-                <Text style={styles.liveTextFull}>EN DIRECT</Text>
+                <Text style={styles.liveTextFull}>
+                  {liveShows[0].is_live ? 'EN DIRECT' : 'PROGRAMMÉ'}
+                </Text>
               </View>
               <Text style={styles.liveTitleFull}>{liveShows[0].title}</Text>
-              <Text style={styles.liveDescriptionFull} numberOfLines={2}>{liveShows[0].description}</Text>
+              
+              {/* Afficher le motif/objectif du live */}
+              {liveShows[0].description && (
+                <View style={styles.liveObjectiveContainer}>
+                  <Text style={styles.liveObjectiveLabel}>
+                    {liveShows[0].is_live ? '' : 'Objectif: '}
+                  </Text>
+                  <Text style={styles.liveDescriptionFull} numberOfLines={2}>
+                    {liveShows[0].description}
+                  </Text>
+                </View>
+              )}
+              
+              {!liveShows[0].is_live && liveShows[0].start_time && (
+                <View style={styles.scheduledTimeContainer}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={styles.scheduledTimeText}>
+                    {new Date(liveShows[0].start_time).toLocaleString('fr-FR', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Text>
+                </View>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         ) : (
@@ -219,12 +268,12 @@ export default function HomeScreen({ navigation }) {
         )}
       </View>
 
-      {/* Breaking News */}
+      {/* Flash Info */}
       <View style={styles.section}>
         <View style={styles.sectionHeaderWithButton}>
           <View style={styles.sectionHeader}>
             <Ionicons name="flash" size={24} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Breaking News</Text>
+            <Text style={styles.sectionTitle}>Flash Info</Text>
           </View>
           <TouchableOpacity style={styles.seeMoreButton} onPress={() => navigation.navigate('BreakingNews')}>
             <Text style={styles.seeMoreText}>Voir plus</Text>
@@ -319,7 +368,7 @@ export default function HomeScreen({ navigation }) {
               <TouchableOpacity 
                 key={video.id || video._id} 
                 style={styles.videoCard}
-                onPress={() => navigation.navigate('ShowDetail', { showId: video.id || video._id })}
+                onPress={() => navigation.navigate('ShowDetail', { showId: video.id || video._id, isReplay: true })}
               >
                 <Image source={{ uri: video.image_url || video.image || 'https://via.placeholder.com/300x200' }} style={styles.videoImage} />
                 <View style={styles.videoDurationBadge}>
@@ -400,7 +449,7 @@ export default function HomeScreen({ navigation }) {
               <TouchableOpacity 
                 key={interview.id || interview._id} 
                 style={styles.interviewCard}
-                onPress={() => navigation.navigate('ShowDetail', { showId: interview.id || interview._id })}
+                onPress={() => navigation.navigate('ShowDetail', { showId: interview.id || interview._id, isInterview: true })}
               >
                 <Image source={{ uri: interview.image_url || interview.image || 'https://via.placeholder.com/300x200' }} style={styles.interviewImage} />
                 <LinearGradient
@@ -457,7 +506,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   liveSectionTitle: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
     marginLeft: 12,
@@ -523,19 +572,44 @@ const styles = StyleSheet.create({
   },
   liveTextFull: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   liveTitleFull: {
     color: colors.text,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   liveDescriptionFull: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 12,
     lineHeight: 20,
+  },
+  scheduledTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    backgroundColor: 'rgba(220, 20, 60, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  scheduledTimeText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  liveObjectiveContainer: {
+    marginTop: 8,
+  },
+  liveObjectiveLabel: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
   section: {
     marginTop: 28,
@@ -555,7 +629,7 @@ const styles = StyleSheet.create({
   },
   seeMoreText: {
     color: colors.primary,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   sectionHeader: {
@@ -563,7 +637,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
   },
@@ -599,18 +673,18 @@ const styles = StyleSheet.create({
   },
   newsBadgeText: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   newsTitle: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   newsTime: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
   },
   trendingCard: {
     width: 160,
@@ -628,7 +702,7 @@ const styles = StyleSheet.create({
   },
   trendingTitle: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 6,
   },
@@ -639,7 +713,7 @@ const styles = StyleSheet.create({
   },
   trendingViews: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
   },
   videoCard: {
     width: 200,
@@ -663,7 +737,7 @@ const styles = StyleSheet.create({
   },
   videoDuration: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   videoInfo: {
@@ -671,13 +745,13 @@ const styles = StyleSheet.create({
   },
   videoTitle: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 6,
   },
   videoDate: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
   },
   programCard: {
     width: 180,
@@ -700,7 +774,7 @@ const styles = StyleSheet.create({
   },
   programTitle: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: 'bold',
     marginBottom: 6,
   },
@@ -711,7 +785,7 @@ const styles = StyleSheet.create({
   },
   programScheduleText: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
     marginLeft: 4,
   },
   interviewCard: {
@@ -746,18 +820,18 @@ const styles = StyleSheet.create({
   },
   interviewBadgeText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   interviewTitle: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   interviewGuest: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
   },
   noLiveContainer: {
     alignItems: 'center',
@@ -770,14 +844,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   noLiveText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   noLiveSubtext: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
   },
@@ -790,7 +864,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 12,
     marginTop: 12,
   },
 });

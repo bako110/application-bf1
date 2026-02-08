@@ -20,6 +20,7 @@ export default function InterviewsScreen({ navigation }) {
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState('list');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -48,6 +49,8 @@ export default function InterviewsScreen({ navigation }) {
 
   useEffect(() => {
     if (interviews.length > 0) {
+      fadeAnim.setValue(0);
+      slideAnim.setValue(30);
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -61,7 +64,7 @@ export default function InterviewsScreen({ navigation }) {
         })
       ]).start();
     }
-  }, [interviews]);
+  }, [interviews, viewMode]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -83,7 +86,16 @@ export default function InterviewsScreen({ navigation }) {
             <Ionicons name="mic" size={24} color={colors.primary} />
             <Text style={styles.headerTitle}>Interviews</Text>
           </View>
-          <View style={styles.placeholder} />
+          <TouchableOpacity 
+            onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+            style={styles.viewToggle}
+          >
+            <Ionicons 
+              name={viewMode === 'grid' ? 'list' : 'grid'} 
+              size={24} 
+              color={colors.text} 
+            />
+          </TouchableOpacity>
         </LinearGradient>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -129,17 +141,18 @@ export default function InterviewsScreen({ navigation }) {
           </Animated.View>
         ) : (
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            {interviews.map((interview, index) => (
-              <TouchableOpacity 
-                key={interview.id || index} 
-                style={styles.interviewCard}
-                activeOpacity={0.9}
-                onPress={() => navigation.navigate('ShowDetail', { showId: interview.id })}
-              >
-                <Image 
-                  source={{ uri: interview.image_url || interview.image || 'https://via.placeholder.com/400x250' }} 
-                  style={styles.interviewImage}
-                />
+            <View style={viewMode === 'grid' ? styles.gridContainer : styles.listContainer}>
+              {interviews.map((interview, index) => (
+                <TouchableOpacity 
+                  key={interview.id || index} 
+                  style={viewMode === 'grid' ? styles.interviewCard : styles.interviewCardList}
+                  activeOpacity={0.9}
+                  onPress={() => navigation.navigate('ShowDetail', { showId: interview.id, isInterview: true })}
+                >
+                  <Image 
+                    source={{ uri: interview.image_url || interview.image || 'https://via.placeholder.com/400x250' }} 
+                    style={viewMode === 'grid' ? styles.interviewImage : styles.interviewImageList}
+                  />
                 <LinearGradient
                   colors={['transparent', 'rgba(0,0,0,0.95)']}
                   style={styles.interviewOverlay}
@@ -161,7 +174,8 @@ export default function InterviewsScreen({ navigation }) {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-            ))}
+              ))}
+            </View>
           </Animated.View>
         )}
       </ScrollView>
@@ -178,8 +192,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingBottom: 16,
+    paddingTop: 40,
+    paddingBottom: 12,
     paddingHorizontal: 16,
   },
   backButton: {
@@ -198,9 +212,21 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 44,
   },
+  viewToggle: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   content: {
     flex: 1,
     paddingTop: 16,
+  },
+  gridContainer: {
+    paddingHorizontal: 0,
+  },
+  listContainer: {
+    paddingHorizontal: 0,
   },
   interviewCard: {
     marginHorizontal: 16,
@@ -214,9 +240,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  interviewCardList: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    height: 140,
+  },
   interviewImage: {
     width: '100%',
     height: 220,
+  },
+  interviewImageList: {
+    width: 120,
+    height: '100%',
   },
   interviewOverlay: {
     position: 'absolute',

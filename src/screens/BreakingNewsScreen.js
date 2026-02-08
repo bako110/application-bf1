@@ -24,6 +24,7 @@ export default function BreakingNewsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Tous');
+  const [viewMode, setViewMode] = useState('list'); // 'grid' ou 'list'
   const fadeAnim = new Animated.Value(0);
 
   const categories = ['Tous', 'Politique', 'Économie', 'Sport', 'Culture', 'Tech'];
@@ -62,7 +63,7 @@ export default function BreakingNewsScreen({ navigation }) {
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [selectedCategory, news]);
+  }, [selectedCategory, news, viewMode]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -82,9 +83,18 @@ export default function BreakingNewsScreen({ navigation }) {
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Ionicons name="flash" size={24} color={colors.primary} />
-          <Text style={styles.headerTitle}>Breaking News</Text>
+          <Text style={styles.headerTitle}>Flash Info</Text>
         </View>
-        <View style={styles.placeholder} />
+        <TouchableOpacity 
+          onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+          style={styles.viewToggle}
+        >
+          <Ionicons 
+            name={viewMode === 'grid' ? 'list' : 'grid'} 
+            size={24} 
+            color={colors.text} 
+          />
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Categories */}
@@ -121,37 +131,55 @@ export default function BreakingNewsScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        <Animated.View style={{ opacity: fadeAnim }}>
+        <Animated.View style={[{ opacity: fadeAnim }, viewMode === 'grid' ? styles.gridContainer : styles.listContainer]}>
           {filteredNews.map((news, index) => (
             <TouchableOpacity 
               key={news.id} 
-              style={styles.newsCard}
+              style={viewMode === 'grid' ? styles.newsCardGrid : styles.newsCardList}
               activeOpacity={0.9}
               onPress={() => navigation.navigate('NewsDetail', { newsId: news.id || news._id })}
             >
-              <Image source={{ uri: news.image_url || news.image }} style={styles.newsImage} />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.95)']}
-                style={styles.newsOverlay}
-              >
-                <View style={styles.newsBadge}>
-                  <Ionicons name="flash" size={12} color="#fff" />
-                  <Text style={styles.newsBadgeText}>{news.category}</Text>
-                </View>
-                <Text style={styles.newsTitle}>{news.title}</Text>
-                <Text style={styles.newsDescription} numberOfLines={2}>
-                  {news.description}
-                </Text>
-                <View style={styles.newsMeta}>
-                  <View style={styles.authorContainer}>
-                    <Ionicons name="person-circle" size={16} color={colors.textSecondary} />
-                    <Text style={styles.authorText}>{news.author}</Text>
+              <Image source={{ uri: news.image_url || news.image }} style={viewMode === 'grid' ? styles.newsImageGrid : styles.newsImageList} />
+              {viewMode === 'grid' ? (
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.95)']}
+                  style={styles.newsOverlay}
+                >
+                  <View style={styles.newsBadge}>
+                    <Ionicons name="flash" size={12} color="#fff" />
+                    <Text style={styles.newsBadgeText}>{news.category}</Text>
                   </View>
-                  <Text style={styles.newsTime}>
-                    {formatRelativeTime(news.created_at || news.time)}
+                  <Text style={styles.newsTitle}>{news.title}</Text>
+                  <Text style={styles.newsDescription} numberOfLines={2}>
+                    {news.description}
                   </Text>
+                  <View style={styles.newsMeta}>
+                    <View style={styles.authorContainer}>
+                      <Ionicons name="person-circle" size={16} color={colors.textSecondary} />
+                      <Text style={styles.authorText}>{news.author}</Text>
+                    </View>
+                    <Text style={styles.newsTime}>
+                      {formatRelativeTime(news.created_at || news.time)}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              ) : (
+                <View style={styles.newsContentList}>
+                  <View style={styles.newsBadge}>
+                    <Ionicons name="flash" size={10} color="#fff" />
+                    <Text style={styles.newsBadgeText}>{news.category}</Text>
+                  </View>
+                  <Text style={styles.newsTitleList} numberOfLines={2}>{news.title}</Text>
+                  <Text style={styles.newsDescriptionList} numberOfLines={2}>
+                    {news.description}
+                  </Text>
+                  <View style={styles.newsMetaList}>
+                    <Text style={styles.newsTimeList}>
+                      {formatRelativeTime(news.created_at || news.time)}
+                    </Text>
+                  </View>
                 </View>
-              </LinearGradient>
+              )}
             </TouchableOpacity>
           ))}
         </Animated.View>
@@ -170,9 +198,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
+    paddingTop: 40,
+    paddingBottom: 12,
     paddingHorizontal: 16,
-    paddingBottom: 16,
   },
   backButton: {
     width: 40,
@@ -190,8 +218,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
   },
-  placeholder: {
+  viewToggle: {
     width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  listContainer: {
+    flexDirection: 'column',
   },
   categoriesContainer: {
     maxHeight: 60,
@@ -226,17 +265,55 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  newsCard: {
-    width: '100%',
-    height: 280,
+  newsCardGrid: {
+    width: '48%',
+    height: 220,
     marginBottom: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.surface,
   },
-  newsImage: {
+  newsCardList: {
+    width: '100%',
+    height: 120,
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+  },
+  newsImageGrid: {
     width: '100%',
     height: '100%',
+  },
+  newsImageList: {
+    width: 120,
+    height: '100%',
+  },
+  newsContentList: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  newsTitleList: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  newsDescriptionList: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  newsMetaList: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  newsTimeList: {
+    color: colors.textSecondary,
+    fontSize: 11,
   },
   newsOverlay: {
     position: 'absolute',

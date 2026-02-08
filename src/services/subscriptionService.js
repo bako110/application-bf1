@@ -1,5 +1,6 @@
 import api from '../config/api';
 import authService from './authService';
+import locationService from './locationService';
 
 class SubscriptionService {
   // Créer un abonnement premium
@@ -16,7 +17,7 @@ class SubscriptionService {
     }
 
     try {
-      // Récupérer le plan pour calculer les dates
+      // Récupérer le plan pour calculer les dates et le prix
       const plan = await this.getPlanById(planId);
       if (!plan) {
         throw new Error('Plan non trouvé');
@@ -26,6 +27,12 @@ class SubscriptionService {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + plan.duration_months);
 
+      // Récupérer les informations de localisation
+      const { isInCountry } = await locationService.getLocationStatus();
+      const priceMultiplier = await locationService.getPriceMultiplier();
+      
+      console.log(`💰 Création abonnement: Prix base=${plan.basePrice} FCFA, Multiplicateur=x${priceMultiplier}, Prix final=${plan.price} FCFA`);
+
       const response = await api.post('/subscriptions/', {
         user_id: user.id,
         start_date: startDate.toISOString(),
@@ -34,6 +41,9 @@ class SubscriptionService {
         payment_method: paymentMethod,
         transaction_id: transactionId,
         offer: plan.code,
+        is_in_country: isInCountry,
+        price_multiplier: priceMultiplier,
+        final_price: Math.round(plan.price),
       });
       return response.data;
     } catch (error) {
@@ -84,18 +94,32 @@ class SubscriptionService {
         params: { active_only: true }
       });
       
+      // Récupérer le multiplicateur de prix selon la localisation
+      const priceMultiplier = await locationService.getPriceMultiplier();
+      const { isInCountry } = await locationService.getLocationStatus();
+      
+      console.log(`💰 Multiplicateur de prix: x${priceMultiplier} (${isInCountry ? 'AU PAYS' : 'À L\'ÉTRANGER'})`);
+      
       // Transformer les données du backend pour l'affichage
-      return response.data.map(plan => ({
-        id: plan.id,
-        code: plan.code,
-        name: plan.name,
-        price: plan.price_cents / 100, // Convertir centimes en unités
-        currency: plan.currency,
-        duration: `${plan.duration_months} mois`,
-        duration_months: plan.duration_months,
-        features: this.getFeaturesByDuration(plan.duration_months),
-        savings: this.calculateSavings(plan.duration_months, plan.price_cents),
-      }));
+      return response.data.map(plan => {
+        const basePrice = plan.price_cents / 100;
+        const adjustedPrice = basePrice * priceMultiplier;
+        
+        return {
+          id: plan.id,
+          code: plan.code,
+          name: plan.name,
+          basePrice: basePrice, // Prix de base
+          price: adjustedPrice, // Prix ajusté selon localisation
+          priceMultiplier: priceMultiplier,
+          isInCountry: isInCountry,
+          currency: plan.currency,
+          duration: `${plan.duration_months} mois`,
+          duration_months: plan.duration_months,
+          features: this.getFeaturesByDuration(plan.duration_months),
+          savings: this.calculateSavings(plan.duration_months, plan.price_cents * priceMultiplier),
+        };
+      });
     } catch (error) {
       console.error('Erreur chargement plans:', error);
       return [];

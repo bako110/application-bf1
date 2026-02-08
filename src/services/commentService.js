@@ -11,13 +11,14 @@ class CommentService {
     }
 
     try {
-      const response = await api.post('/comments', {
+      const response = await api.post('/comments/', {
         content_id: contentId,
         content_type: contentType,
         text: text,
       });
       return response.data;
     } catch (error) {
+      console.error('❌ Erreur création commentaire:', error.response?.data || error.message);
       throw error.response?.data || error.message;
     }
   }

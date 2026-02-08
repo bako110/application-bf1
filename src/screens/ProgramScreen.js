@@ -146,36 +146,14 @@ function ProgramScreen({ navigation }) {
   const applyFilters = () => {
     setFilterModal(false);
 
-    // Si un filtre de date est sélectionné, on ajuste la journée sélectionnée
+    // Si un filtre de date spécifique est sélectionné, désélectionner le jour
+    // pour afficher toutes les sections qui correspondent au filtre
     if (selectedDateFilter !== 'Tous') {
-      const today = new Date();
-      let targetDate = null;
-
-      switch (selectedDateFilter) {
-        case 'Aujourd\'hui':
-          targetDate = today.toISOString().split('T')[0];
-          break;
-        case 'Demain':
-          const tomorrow = new Date(today);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          targetDate = tomorrow.toISOString().split('T')[0];
-          break;
-        case 'Week-end':
-          // Chercher le prochain week-end dans les sections disponibles
-          const weekendSection = groupedShows.find(section => {
-            const date = new Date(section.date);
-            const day = date.getDay();
-            return day === 6 || day === 0; // Samedi ou Dimanche
-          });
-          if (weekendSection) {
-            targetDate = weekendSection.date;
-          }
-          break;
-      }
-
-      if (targetDate && groupedShows.some(section => section.date === targetDate)) {
-        setSelectedDay(targetDate);
-      }
+      // Ne pas sélectionner de jour spécifique, laisser le filtre gérer l'affichage
+      setSelectedDay(null);
+    } else if (selectedDay === null && groupedShows.length > 0) {
+      // Si aucun filtre de date et aucun jour sélectionné, sélectionner le premier jour
+      setSelectedDay(groupedShows[0].date);
     }
   };
 
@@ -191,12 +169,8 @@ function ProgramScreen({ navigation }) {
     startAnimations();
   }, []);
 
-  // Recharger quand le filtre de type change
-  useEffect(() => {
-    if (selectedType !== 'Tous') {
-      loadProgram();
-    }
-  }, [selectedType]);
+  // Ne pas recharger automatiquement quand le filtre change
+  // Les filtres sont appliqués côté client sur les données déjà chargées
 
   useFocusEffect(
     React.useCallback(() => {
@@ -411,7 +385,10 @@ function ProgramScreen({ navigation }) {
               style={[styles.dayCard, isSelected && styles.dayCardActive]}
               onPress={() => {
                 setSelectedDay(section.date);
-                setSelectedDateFilter('Tous'); // Réinitialiser le filtre de date quand on clique sur un jour
+                // Réinitialiser tous les filtres de date quand on clique sur un jour spécifique
+                if (selectedDateFilter !== 'Tous') {
+                  setSelectedDateFilter('Tous');
+                }
               }}
             >
               <Text style={[styles.dayName, isSelected && styles.dayNameActive]}>
@@ -442,12 +419,13 @@ function ProgramScreen({ navigation }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {groupedShows
           .filter(section => {
-            // Si un filtre de date est actif, on montre toutes les sections qui contiennent des émissions filtrées
+            // Si un filtre de date est actif, afficher toutes les sections correspondantes
             if (selectedDateFilter !== 'Tous') {
-              return filterShows(section.data, section.date).length > 0;
+              const filteredData = filterShows(section.data, section.date);
+              return filteredData.length > 0;
             }
-            // Sinon, on montre seulement la journée sélectionnée
-            return section.date === selectedDay;
+            // Sinon, afficher seulement le jour sélectionné (ou tous si aucun jour sélectionné)
+            return selectedDay === null || section.date === selectedDay;
           })
           .map(section => {
             const filteredData = filterShows(section.data, section.date);

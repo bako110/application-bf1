@@ -20,10 +20,17 @@ export default function LoginScreen({ navigation }) {
     setError('');
     try {
       await login(identifier.trim(), password);
-      // Rediriger vers le profil après connexion réussie
-      navigation.replace('ProfileMain');
+      
+      console.log('✅ [LoginScreen] Connexion réussie, redirection...');
+      
+      // Petit délai pour s'assurer que l'état est mis à jour
+      setTimeout(() => {
+        // Rediriger vers le profil après connexion réussie
+        navigation.replace('ProfileMain');
+      }, 100);
+      
     } catch (e) {
-      console.error('Login error:', e);
+      console.error('❌ [LoginScreen] Erreur de connexion:', e);
       setError(e?.detail || e?.message || 'Identifiants invalides. Veuillez réessayer.');
     } finally {
       setLoading(false);

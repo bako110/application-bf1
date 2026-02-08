@@ -13,6 +13,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors } from '../contexts/ThemeContext';
 import showService from '../services/showService';
+import api from '../config/api';
 import ContentActions from '../components/contentActions';
 import PremiumModal from '../components/premiumModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,11 +22,14 @@ import { formatLongDate, formatRelativeTime } from '../utils/dateUtils';
 const { width } = Dimensions.get('window');
 
 export default function ShowDetailScreen({ route, navigation }) {
-  const { showId, isTrending, isPopularProgram } = route.params;
+  const { showId, isTrending, isPopularProgram, isReplay = false, isInterview = false } = route.params || {};
   const { isPremium } = useAuth();
   const [show, setShow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  
+  // Déterminer le contentType selon le type de contenu
+  const contentType = isReplay ? 'replay' : (isInterview ? 'interview' : (isTrending ? 'trending_show' : (isPopularProgram ? 'popular_program' : 'show')));
 
   useEffect(() => {
     loadShow();
@@ -33,21 +37,40 @@ export default function ShowDetailScreen({ route, navigation }) {
 
   const loadShow = async () => {
     try {
+      console.log('📺 ShowDetailScreen - Params:', { showId, isReplay, isTrending, isPopularProgram, isInterview });
+      console.log('📺 Types:', { 
+        isReplay: typeof isReplay, 
+        isReplayValue: isReplay,
+        isInterview: typeof isInterview,
+        isInterviewValue: isInterview,
+        isTrending: typeof isTrending,
+        isTrendingValue: isTrending 
+      });
+      
       let data;
-      if (isTrending) {
-        // Importer le service trending shows
+      if (isReplay === true) {
+        console.log('✅ Chargement depuis /replays/', showId);
+        const response = await api.get(`/replays/${showId}`);
+        data = response.data;
+      } else if (isInterview === true) {
+        console.log('✅ Chargement depuis /interviews/', showId);
+        const response = await api.get(`/interviews/${showId}`);
+        data = response.data;
+      } else if (isTrending) {
+        console.log('✅ Chargement depuis trending shows');
         const trendingShowService = require('../services/trendingShowService').default;
         data = await trendingShowService.getTrendingShowById(showId);
       } else if (isPopularProgram) {
-        // Importer le service popular programs
+        console.log('✅ Chargement depuis popular programs');
         const popularProgramService = require('../services/popularProgramService').default;
         data = await popularProgramService.getProgramById(showId);
       } else {
+        console.log('✅ Chargement depuis /shows/', showId);
         data = await showService.getShowById(showId);
       }
       setShow(data);
     } catch (error) {
-      console.error('Erreur chargement émission:', error);
+      console.error('❌ Erreur chargement émission:', error);
     }
     setLoading(false);
   };
@@ -57,12 +80,22 @@ export default function ShowDetailScreen({ route, navigation }) {
       setShowPremiumModal(true);
       return;
     }
-    const url = show?.is_live ? show?.live_url : show?.replay_url;
+    
+    // Déterminer l'URL selon le type de contenu
+    let url;
+    if (isReplay) {
+      // Pour les replays, utiliser video_url
+      url = show?.video_url || show?.replay_url || show?.url;
+    } else {
+      // Pour les shows, utiliser live_url ou replay_url
+      url = show?.is_live ? show?.live_url : show?.replay_url;
+    }
+    
     navigation.navigate('LiveShowFullScreen', {
       stream: {
         url,
         title: show?.title,
-        host: show?.host,
+        host: show?.host || 'BF1',
         is_live: !!show?.is_live,
       },
     });
@@ -160,7 +193,7 @@ export default function ShowDetailScreen({ route, navigation }) {
         {/* Actions (Like, Comment, Favorite) */}
         <ContentActions
           contentId={showId}
-          contentType="show"
+          contentType={contentType}
           navigation={navigation}
         />
 

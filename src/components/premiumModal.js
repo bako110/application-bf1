@@ -126,44 +126,64 @@ const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
                 <Text style={styles.emptyText}>Aucun plan disponible pour le moment</Text>
               </View>
             ) : isAuthenticated ? (
-              plans.map((plan) => (
-              <View key={plan.id} style={styles.planCard}>
-                <View style={styles.planHeader}>
-                  <Text style={styles.planName}>{plan.name}</Text>
-                  {plan.savings && (
-                    <View style={styles.savingsBadge}>
-                      <Text style={styles.savingsText}>{plan.savings}</Text>
+              <>
+                {plans.length > 0 && !plans[0].isInCountry && (
+                  <View style={styles.locationBanner}>
+                    <Ionicons name="location" size={20} color={colors.primary} />
+                    <Text style={styles.locationBannerText}>
+                      Tarif international appliqué (x{plans[0].priceMultiplier})
+                    </Text>
+                  </View>
+                )}
+                
+                {plans.map((plan) => (
+                  <View key={plan.id} style={styles.planCard}>
+                    <View style={styles.planHeader}>
+                      <Text style={styles.planName}>{plan.name}</Text>
+                      {plan.savings && (
+                        <View style={styles.savingsBadge}>
+                          <Text style={styles.savingsText}>{plan.savings}</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </View>
 
-                <View style={styles.priceContainer}>
-                  <Text style={styles.price}>{plan.price} {plan.currency || 'FCFA'}</Text>
-                  <Text style={styles.duration}>/ {plan.duration}</Text>
-                </View>
-
-                <View style={styles.featuresContainer}>
-                  {plan.features.map((feature, index) => (
-                    <View key={index} style={styles.featureItem}>
-                      <Text style={styles.checkmark}>✓</Text>
-                      <Text style={styles.featureText}>{feature}</Text>
+                    <View style={styles.priceContainer}>
+                      <Text style={styles.price}>{Math.round(plan.price).toLocaleString()} {plan.currency || 'FCFA'}</Text>
+                      <Text style={styles.duration}>/ {plan.duration}</Text>
                     </View>
-                  ))}
-                </View>
+                    
+                    {!plan.isInCountry && plan.basePrice !== plan.price && (
+                      <View style={styles.priceInfoContainer}>
+                        <Ionicons name="information-circle" size={16} color={colors.textSecondary} />
+                        <Text style={styles.priceInfo}>
+                          Prix au Burkina Faso : {Math.round(plan.basePrice).toLocaleString()} FCFA
+                        </Text>
+                      </View>
+                    )}
 
-                <TouchableOpacity
-                  style={[styles.subscribeButton, subscribing && styles.subscribeButtonDisabled]}
-                  onPress={() => handleSubscribe(plan)}
-                  disabled={subscribing}
-                >
-                  {subscribing ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.subscribeButtonText}>S'abonner</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-              ))
+                    <View style={styles.featuresContainer}>
+                      {plan.features.map((feature, index) => (
+                        <View key={index} style={styles.featureItem}>
+                          <Text style={styles.checkmark}>✓</Text>
+                          <Text style={styles.featureText}>{feature}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    <TouchableOpacity
+                      style={[styles.subscribeButton, subscribing && styles.subscribeButtonDisabled]}
+                      onPress={() => handleSubscribe(plan)}
+                      disabled={subscribing}
+                    >
+                      {subscribing ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.subscribeButtonText}>S'abonner</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </>
             ) : null}
 
             <Text style={styles.disclaimer}>
@@ -349,6 +369,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 16,
+  },
+  locationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface || '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.primary || '#DC143C',
+    gap: 12,
+  },
+  locationBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text || '#FFFFFF',
+    fontWeight: '600',
+  },
+  priceInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(220, 20, 60, 0.1)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    gap: 8,
+  },
+  priceInfo: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textSecondary || '#AAAAAA',
+    fontStyle: 'italic',
   },
 });
 

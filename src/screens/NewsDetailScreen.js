@@ -8,6 +8,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  Share,
+  Linking,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -21,6 +24,7 @@ const { width } = Dimensions.get('window');
 export default function NewsDetailScreen({ route, navigation }) {
   const { newsId } = route.params;
   const [news, setNews] = useState(null);
+  const [relatedNews, setRelatedNews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,10 +35,55 @@ export default function NewsDetailScreen({ route, navigation }) {
     try {
       const data = await newsService.getNewsById(newsId);
       setNews(data);
+      
+      // Charger les actualités similaires
+      const allNews = await newsService.getAllNews({ limit: 20 });
+      const filtered = allNews
+        .filter(item => item.id !== newsId && item._id !== newsId)
+        .slice(0, 6);
+      setRelatedNews(filtered);
     } catch (error) {
       console.error('Erreur chargement actualité:', error);
     }
     setLoading(false);
+  };
+
+  // Fonction de partage sur Facebook
+  const shareOnFacebook = () => {
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://bf1tv.com/news/' + newsId)}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Erreur', 'Impossible d\'ouvrir Facebook');
+    });
+  };
+
+  // Fonction de partage sur Twitter
+  const shareOnTwitter = () => {
+    const text = encodeURIComponent(news?.title || 'Actualité BF1');
+    const url = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent('https://bf1tv.com/news/' + newsId)}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Erreur', 'Impossible d\'ouvrir Twitter');
+    });
+  };
+
+  // Fonction de partage sur WhatsApp
+  const shareOnWhatsApp = () => {
+    const text = encodeURIComponent(`${news?.title || 'Actualité BF1'} - https://bf1tv.com/news/${newsId}`);
+    const url = `whatsapp://send?text=${text}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Erreur', 'WhatsApp n\'est pas installé sur cet appareil');
+    });
+  };
+
+  // Fonction de partage natif
+  const shareNative = async () => {
+    try {
+      await Share.share({
+        message: `${news?.title || 'Actualité BF1'} - https://bf1tv.com/news/${newsId}`,
+        title: news?.title || 'Actualité BF1',
+      });
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de partager');
+    }
   };
 
   if (loading) {
@@ -110,7 +159,7 @@ export default function NewsDetailScreen({ route, navigation }) {
         {/* Actions (Like, Comment, Favorite) */}
         <ContentActions
           contentId={newsId}
-          contentType="news"
+          contentType="breaking_news"
           navigation={navigation}
         />
 
@@ -133,20 +182,56 @@ export default function NewsDetailScreen({ route, navigation }) {
         <View style={styles.shareSection}>
           <Text style={styles.shareSectionTitle}>Partager cet article</Text>
           <View style={styles.shareButtons}>
-            <TouchableOpacity style={styles.shareButton}>
+            <TouchableOpacity style={styles.shareButton} onPress={shareOnFacebook}>
               <Ionicons name="logo-facebook" size={24} color="#1877F2" />
+              <Text style={styles.shareButtonText}>Facebook</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.shareButton}>
+            <TouchableOpacity style={styles.shareButton} onPress={shareOnTwitter}>
               <Ionicons name="logo-twitter" size={24} color="#1DA1F2" />
+              <Text style={styles.shareButtonText}>Twitter</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.shareButton}>
+            <TouchableOpacity style={styles.shareButton} onPress={shareOnWhatsApp}>
               <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
+              <Text style={styles.shareButtonText}>WhatsApp</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.shareButton}>
-              <Ionicons name="share-social" size={24} color={colors.text} />
+            <TouchableOpacity style={styles.shareButton} onPress={shareNative}>
+              <Ionicons name="share-social" size={24} color={colors.primary} />
+              <Text style={styles.shareButtonText}>Plus</Text>
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Autres actualités */}
+        {relatedNews.length > 0 && (
+          <View style={styles.relatedSection}>
+            <View style={styles.relatedHeader}>
+              <Ionicons name="newspaper" size={20} color={colors.primary} />
+              <Text style={styles.relatedTitle}>Autres actualités</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {relatedNews.map((item) => (
+                <TouchableOpacity
+                  key={item.id || item._id}
+                  style={styles.relatedCard}
+                  onPress={() => navigation.push('NewsDetail', { newsId: item.id || item._id })}
+                >
+                  <Image
+                    source={{ uri: item.image_url || item.image }}
+                    style={styles.relatedImage}
+                  />
+                  <View style={styles.relatedContent}>
+                    <Text style={styles.relatedCardTitle} numberOfLines={2}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.relatedTime}>
+                      {formatRelativeTime(item.created_at)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -292,14 +377,65 @@ const styles = StyleSheet.create({
   },
   shareButtons: {
     flexDirection: 'row',
-    gap: 16,
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 16,
   },
   shareButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    gap: 6,
+  },
+  shareButtonText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  relatedSection: {
+    marginTop: 32,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+  },
+  relatedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  relatedTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  relatedCard: {
+    width: 200,
+    marginRight: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  relatedImage: {
+    width: '100%',
+    height: 120,
+  },
+  relatedContent: {
+    padding: 12,
+  },
+  relatedCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  relatedTime: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 });

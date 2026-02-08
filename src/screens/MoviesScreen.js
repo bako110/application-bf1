@@ -28,7 +28,7 @@ export default function MoviesScreen({ navigation }) {
   const [likesData, setLikesData] = useState({}); // {movieId: {liked: bool, count: number}}
   const [selectedGenre, setSelectedGenre] = useState('Tous');
   const [sortBy, setSortBy] = useState('recent'); // recent, popular, title
-  const [viewMode, setViewMode] = useState('row'); // row, grid, list
+  const [viewMode, setViewMode] = useState('list'); // row, grid, list
   const [filterModalVisible, setFilterModalVisible] = useState(false);
 
   const genres = ['Tous', 'Action', 'Drame', 'Comédie', 'Thriller', 'Romance', 'Documentaire'];
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     marginLeft: 12,
-    fontSize: 16,
+    fontSize: 14,
     color: colors.text,
   },
   filtersWrapper: {
@@ -491,8 +491,7 @@ const styles = StyleSheet.create({
   },
   filtersContent: {
     paddingHorizontal: 16,
-    alignItems: 'center',
-    height: 48,
+    paddingVertical: 4,
   },
   filterButton: {
     flexDirection: 'row',
@@ -510,7 +509,7 @@ const styles = StyleSheet.create({
   },
   filterText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     marginLeft: 6,
   },
@@ -566,13 +565,13 @@ const styles = StyleSheet.create({
   },
   movieTitle: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 4,
   },
   movieGenre: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
   },
   emptyContainer: {
     flex: 1,
@@ -582,7 +581,7 @@ const styles = StyleSheet.create({
     marginTop: 60,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 16,
@@ -596,12 +595,12 @@ const styles = StyleSheet.create({
   },
   clearSearchText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   likeCount: {
     color: colors.text,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
     marginTop: 2,
   },
@@ -626,13 +625,12 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   genreText: {
-    fontSize: 13,
+    fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '500',
   },
   genreTextActive: {
     color: colors.text,
-    fontWeight: '600',
   },
   optionsBar: {
     flexDirection: 'row',
@@ -661,13 +659,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(220, 20, 60, 0.15)',
   },
   sortText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '500',
   },
   sortTextActive: {
     color: colors.primary,
-    fontWeight: '600',
   },
   viewToggle: {
     flexDirection: 'row',
@@ -705,13 +702,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   movieListTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 4,
   },
   movieListGenre: {
-    fontSize: 13,
+    fontSize: 11,
     color: colors.textSecondary,
     marginBottom: 8,
   },
@@ -730,7 +727,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   premiumTagText: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#FFD700',
     fontWeight: '600',
   },
@@ -740,7 +737,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   likesInfoText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '500',
   },
@@ -778,7 +775,7 @@ const styles = StyleSheet.create({
   },
   filterBadgeText: {
     color: colors.primary,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   modalOverlay: {
@@ -806,7 +803,7 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 16,
@@ -821,12 +818,12 @@ const styles = StyleSheet.create({
   },
   resetBtnText: {
     color: colors.primary,
-    fontSize: 14,
+    fontSize: 12,
     marginLeft: 4,
     fontWeight: '500',
   },
   modalLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: colors.textSecondary,
     marginTop: 12,
     marginBottom: 8,
@@ -856,7 +853,7 @@ const styles = StyleSheet.create({
   filterBtnText: {
     color: colors.primary,
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 11,
   },
   filterBtnTextActive: {
     color: '#fff',
@@ -878,7 +875,7 @@ const styles = StyleSheet.create({
   modalCancelBtnText: {
     color: colors.primary,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
   },
   modalApplyBtn: {
@@ -891,7 +888,7 @@ const styles = StyleSheet.create({
   modalApplyBtnText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
   },
   moviesRowContent: {

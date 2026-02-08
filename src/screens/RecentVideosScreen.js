@@ -19,6 +19,7 @@ export default function RecentVideosScreen({ navigation }) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState('list');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -52,6 +53,8 @@ export default function RecentVideosScreen({ navigation }) {
 
   useEffect(() => {
     if (videos.length > 0) {
+      fadeAnim.setValue(0);
+      slideAnim.setValue(30);
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -65,7 +68,7 @@ export default function RecentVideosScreen({ navigation }) {
         })
       ]).start();
     }
-  }, [videos]);
+  }, [videos, viewMode]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -87,7 +90,16 @@ export default function RecentVideosScreen({ navigation }) {
           <Ionicons name="play-circle" size={24} color={colors.primary} />
           <Text style={styles.headerTitle}>Vidéos Récentes</Text>
         </View>
-        <View style={styles.placeholder} />
+        <TouchableOpacity 
+          onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+          style={styles.viewToggle}
+        >
+          <Ionicons 
+            name={viewMode === 'grid' ? 'list' : 'grid'} 
+            size={24} 
+            color={colors.text} 
+          />
+        </TouchableOpacity>
       </LinearGradient>
 
       <ScrollView
@@ -112,11 +124,11 @@ export default function RecentVideosScreen({ navigation }) {
             {videos.map((video, index) => (
               <TouchableOpacity 
                 key={video.id || video._id || index} 
-                style={styles.videoCard}
+                style={viewMode === 'grid' ? styles.videoCard : styles.videoCardList}
                 activeOpacity={0.9}
-                onPress={() => navigation.navigate('ShowDetail', { showId: video.id || video._id })}
+                onPress={() => navigation.navigate('ShowDetail', { showId: video.id || video._id, isReplay: true })}
               >
-              <Image source={{ uri: video.image_url || video.image || 'https://via.placeholder.com/400x250' }} style={styles.videoImage} />
+              <Image source={{ uri: video.image_url || video.image || 'https://via.placeholder.com/400x250' }} style={viewMode === 'grid' ? styles.videoImage : styles.videoImageList} />
               <View style={styles.durationBadge}>
                 <Ionicons name="time" size={12} color="#fff" />
                 <Text style={styles.durationText}>{video.duration || 'N/A'}</Text>
@@ -156,9 +168,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
+    paddingTop: 40,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 12,
   },
   backButton: {
     width: 40,
@@ -179,6 +191,12 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  viewToggle: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   content: {
     flex: 1,
     paddingHorizontal: 16,
@@ -190,9 +208,22 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.surface,
   },
+  videoCardList: {
+    width: '100%',
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    height: 140,
+  },
   videoImage: {
     width: '100%',
     height: 200,
+  },
+  videoImageList: {
+    width: 120,
+    height: '100%',
   },
   durationBadge: {
     position: 'absolute',

@@ -1,5 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import authService from '../services/authService';
+import locationService from '../services/locationService';
 
 const AuthContext = createContext({});
 
@@ -31,9 +33,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (identifier, password) => {
-    const { user: loggedUser } = await authService.login(identifier, password);
+    const { user: loggedUser, token } = await authService.login(identifier, password);
+    
+    // Mettre à jour immédiatement l'état
     setUser(loggedUser);
     setIsAuthenticated(true);
+    
+    // Forcer un rechargement complet pour s'assurer que tout est synchronisé
+    await loadUser();
+    
+    // Déterminer la localisation pour adapter les prix d'abonnement
+    console.log('📍 [AuthContext] Détection de la localisation...');
+    locationService.determineLocation().then((location) => {
+      console.log('📍 [AuthContext] Localisation détectée:', location);
+    }).catch((error) => {
+      console.error('❌ [AuthContext] Erreur localisation:', error);
+    });
+    
+    // Émettre un événement pour notifier tous les composants
+    DeviceEventEmitter.emit('userLoggedIn', loggedUser);
+    
+    console.log('✅ [AuthContext] Connexion réussie, utilisateur:', loggedUser?.username);
+    console.log('📢 [AuthContext] Événement userLoggedIn émis');
+    
+    return { user: loggedUser, token };
   };
 
   const register = async (userData) => {
@@ -46,6 +69,12 @@ export const AuthProvider = ({ children }) => {
     await authService.logout();
     setUser(null);
     setIsAuthenticated(false);
+    
+    // Émettre un événement pour notifier tous les composants
+    DeviceEventEmitter.emit('userLoggedOut');
+    
+    console.log('✅ [AuthContext] Déconnexion réussie');
+    console.log('📢 [AuthContext] Événement userLoggedOut émis');
   };
 
   const refreshUser = async () => {

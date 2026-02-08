@@ -1,19 +1,80 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Image } from 'react-native';
+import axios from 'axios';
+import { API_ROOT_URL } from '../config/api';
 
 const { width, height } = Dimensions.get('window');
 
-const Splash = () => {
-  const scaleAnim = useRef(new Animated.Value(0.3)).current;
+interface SplashProps {
+  onReady?: () => void;
+}
+
+const Splash: React.FC<SplashProps> = ({ onReady }) => {
+  // Animations principales - Agrandissement progressif + mouvement continu
+  const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
   const taglineSlide = useRef(new Animated.Value(30)).current;
   
   const [taglineText, setTaglineText] = useState('');
   const fullTagline = "La chaine au coeur de nos défis";
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  const [statusMessage, setStatusMessage] = useState('Connexion au serveur...');
+  const startTimeRef = useRef(Date.now());
+
+  // Vérifier la connexion au backend
+  useEffect(() => {
+    checkBackendHealth();
+  }, []);
+
+  const checkBackendHealth = async () => {
+    let retries = 0;
+    const maxRetries = 10;
+    const retryDelay = 2000; // 2 secondes entre chaque tentative
+    const minDisplayTime = 3000; // 3 secondes minimum d'affichage
+
+    const attemptConnection = async (): Promise<boolean> => {
+      try {
+        setStatusMessage(`Connexion au serveur... (${retries + 1}/${maxRetries})`);
+        const response = await axios.get(`${API_ROOT_URL}/health`, {
+          timeout: 5000,
+        });
+        
+        if (response.data && response.data.status === 'healthy') {
+          setBackendStatus('connected');
+          setStatusMessage('Serveur connecté ✓');
+          
+          // Calculer le temps écoulé depuis le début
+          const elapsedTime = Date.now() - startTimeRef.current;
+          const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
+          
+          // Attendre le temps restant pour garantir 3 secondes minimum
+          setTimeout(() => {
+            if (onReady) onReady();
+          }, remainingTime);
+          
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.log('Backend health check failed:', error);
+        retries++;
+        
+        if (retries < maxRetries) {
+          setStatusMessage(`Reconnexion... (${retries}/${maxRetries})`);
+          await new Promise<void>(resolve => setTimeout(() => resolve(), retryDelay));
+          return attemptConnection();
+        } else {
+          setBackendStatus('error');
+          setStatusMessage('Impossible de se connecter au serveur');
+          return false;
+        }
+      }
+    };
+
+    await attemptConnection();
+  };
 
   // Typewriter effect
   useEffect(() => {
@@ -29,33 +90,23 @@ const Splash = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Main animation sequence
+  // Main animation sequence - AGRANDISSEMENT + MOUVEMENT CONTINU
   useEffect(() => {
-    // Logo entrance with bounce
-    Animated.sequence([
-      Animated.spring(scaleAnim, {
+    // 1. Agrandissement progressif de l'image (de 0 à 1)
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
         toValue: 1,
-        friction: 4,
-        tension: 40,
+        duration: 1500,
         useNativeDriver: true,
       }),
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 1500,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Rotation effect
-    Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 8000,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    // Pulsing effect
+    // 2. Pulsation continue (mouvement constant)
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -71,23 +122,7 @@ const Splash = () => {
       ])
     ).start();
 
-    // Glow animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Tagline animation
+    // 3. Tagline animation
     setTimeout(() => {
       Animated.parallel([
         Animated.timing(taglineOpacity, {
@@ -105,65 +140,27 @@ const Splash = () => {
     }, 800);
   }, []);
 
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  // Interpolate glow
-  const glowOpacity = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.8],
-  });
 
   return (
     <View style={styles.container}>
-      {/* Animated background */}
-      <Animated.View style={[styles.particle, { opacity: glowOpacity, transform: [{ scale: pulseAnim }] }]} />
-      
       <View style={styles.content}>
-        {/* Logo container with animations */}
+        {/* Logo container avec agrandissement progressif */}
         <Animated.View
           style={[
             styles.logoContainer,
             {
               opacity: fadeAnim,
               transform: [
-                { scale: scaleAnim },
-                { scale: pulseAnim },
+                { scale: Animated.multiply(scaleAnim, pulseAnim) },
               ],
             },
           ]}
         >
-          {/* Outer rotating ring */}
-          <Animated.View
-            style={[
-              styles.outerRing,
-              {
-                transform: [{ rotate: spin }],
-              },
-            ]}
-          >
-            <View style={styles.ringSegment} />
-            <View style={[styles.ringSegment, styles.ringSegment2]} />
-            <View style={[styles.ringSegment, styles.ringSegment3]} />
-            <View style={[styles.ringSegment, styles.ringSegment4]} />
-          </Animated.View>
-          
-          {/* Main circle with BF1 */}
-          <View style={styles.mainCircle}>
-            <Text style={styles.logoText}>BF1</Text>
-          </View>
-          
-          {/* Glow effect */}
-          <Animated.View
-            style={[
-              styles.glow,
-              {
-                opacity: glowOpacity,
-                transform: [{ scale: pulseAnim }],
-              },
-            ]}
+          {/* Image du logo BF1 */}
+          <Image
+            source={require('../../assets/splash.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
           />
         </Animated.View>
 
@@ -181,10 +178,23 @@ const Splash = () => {
           <View style={styles.cursor} />
         </Animated.View>
 
-        {/* Loading dots */}
-        <Animated.View style={[styles.loadingContainer, { opacity: taglineOpacity }]}>
-          <LoadingDots />
+        {/* Status message */}
+        <Animated.View style={[styles.statusContainer, { opacity: taglineOpacity }]}>
+          <Text style={[
+            styles.statusText,
+            backendStatus === 'connected' && styles.statusSuccess,
+            backendStatus === 'error' && styles.statusError,
+          ]}>
+            {statusMessage}
+          </Text>
         </Animated.View>
+
+        {/* Loading dots */}
+        {backendStatus === 'checking' && (
+          <Animated.View style={[styles.loadingContainer, { opacity: taglineOpacity }]}>
+            <LoadingDots />
+          </Animated.View>
+        )}
       </View>
     </View>
   );
@@ -257,80 +267,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  particle: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: '#DC143C',
-    opacity: 0.1,
-  },
   content: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoContainer: {
-    width: 140,
-    height: 140,
+    width: 200,
+    height: 200,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 40,
   },
-  outerRing: {
-    position: 'absolute',
-    width: 160,
-    height: 160,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  ringSegment: {
-    position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#DC143C',
-    top: 0,
-  },
-  ringSegment2: {
-    right: 0,
-    top: 'auto',
-    left: 'auto',
-  },
-  ringSegment3: {
-    bottom: 0,
-    top: 'auto',
-  },
-  ringSegment4: {
-    left: 0,
-    top: 'auto',
-    right: 'auto',
-  },
-  mainCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#DC143C',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#DC143C',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 20,
-  },
-  logoText: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    letterSpacing: 2,
-  },
-  glow: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: '#DC143C',
-    opacity: 0.3,
+  logoImage: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
   },
   taglineContainer: {
     flexDirection: 'row',
@@ -364,6 +315,21 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: '#DC143C',
+  },
+  statusContainer: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#AAAAAA',
+    fontWeight: '500',
+  },
+  statusSuccess: {
+    color: '#4CAF50',
+  },
+  statusError: {
+    color: '#DC143C',
   },
 });
 

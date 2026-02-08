@@ -15,6 +15,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -39,6 +40,7 @@ export default function ReelScreen() {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editText, setEditText] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
@@ -58,6 +60,19 @@ export default function ReelScreen() {
     loadReels();
     loadCurrentUser();
   }, []);
+
+  // Pause video when leaving the screen
+  useFocusEffect(
+    React.useCallback(() => {
+      // Screen is focused - resume video if it was playing
+      setPaused(false);
+      
+      return () => {
+        // Screen is unfocused - pause all videos
+        setPaused(true);
+      };
+    }, [])
+  );
 
   const loadCurrentUser = async () => {
     const user = await authService.getCurrentUser();
@@ -81,6 +96,15 @@ export default function ReelScreen() {
         };
       });
       setReelStats(stats);
+
+      // Charger les reels déjà likés par l'utilisateur
+      try {
+        const likedReelIds = await reelService.getMyLikedReels();
+        setLikedReels(new Set(likedReelIds));
+        console.log(`✅ ${likedReelIds.length} reels likés chargés`);
+      } catch (err) {
+        console.log('Could not load liked reels:', err);
+      }
     } catch (err) {
       console.error('Error loading reels:', err);
       setError(err.message || 'Erreur lors du chargement des reels');
@@ -174,9 +198,10 @@ export default function ReelScreen() {
   };
 
   const submitComment = async () => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || submittingComment) return;
 
     try {
+      setSubmittingComment(true);
       await reelService.createComment(selectedReelId, commentText.trim());
       
       // Mettre à jour le compteur
@@ -198,6 +223,8 @@ export default function ReelScreen() {
       } else {
         Alert.alert('Erreur', 'Impossible de publier le commentaire');
       }
+    } finally {
+      setSubmittingComment(false);
     }
   };
 
@@ -532,15 +559,19 @@ export default function ReelScreen() {
                 multiline
               />
               <TouchableOpacity
-                style={[styles.sendButton, !commentText.trim() && styles.sendButtonDisabled]}
+                style={[styles.sendButton, (!commentText.trim() || submittingComment) && styles.sendButtonDisabled]}
                 onPress={submitComment}
-                disabled={!commentText.trim()}
+                disabled={!commentText.trim() || submittingComment}
               >
-                <Ionicons
-                  name="send"
-                  size={20}
-                  color={commentText.trim() ? colors.primary : colors.textSecondary}
-                />
+                {submittingComment ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Ionicons
+                    name="send"
+                    size={20}
+                    color={commentText.trim() ? colors.primary : colors.textSecondary}
+                  />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -571,7 +602,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   cameraButton: {
@@ -651,7 +682,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 6,
   },
@@ -685,7 +716,7 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#fff',
     marginTop: 10,
-    fontSize: 16,
+    fontSize: 14,
   },
   errorContainer: {
     flex: 1,
@@ -696,7 +727,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -708,7 +739,7 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   // Styles Modal Commentaires
@@ -735,7 +766,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: colors.text || '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   commentsList: {
@@ -783,7 +814,7 @@ const styles = StyleSheet.create({
   },
   emptyCommentsText: {
     color: colors.text || '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     marginTop: 12,
   },

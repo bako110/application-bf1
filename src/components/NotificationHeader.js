@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import notificationService from '../services/notificationService';
+import authService from '../services/authService';
 
 // Badge de notification
 const NotificationBadge = ({ count }) => {
@@ -40,7 +41,7 @@ const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMa
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Notifications</Text>
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <Ionicons name="close" size={24} color="#FF6B00" />
+                  <Ionicons name="close" size={24} color="#DC143C" />
                 </TouchableOpacity>
               </View>
               
@@ -56,7 +57,7 @@ const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMa
                       onPress={() => onMarkAsRead(notification.id, notification.is_read)}
                     >
                       <View style={styles.notificationIcon}>
-                        <Ionicons name="notifications" size={20} color="#FF6B00" />
+                        <Ionicons name="notifications" size={20} color="#DC143C" />
                       </View>
                       <View style={styles.notificationContent}>
                         <Text style={styles.notificationMessage}>
@@ -102,10 +103,19 @@ export default function NotificationHeader() {
   const [modalVisible, setModalVisible] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    loadNotifications();
+    checkAuthAndLoadNotifications();
   }, []);
+
+  const checkAuthAndLoadNotifications = async () => {
+    const isAuth = await authService.isAuthenticated();
+    setIsAuthenticated(isAuth);
+    if (isAuth) {
+      loadNotifications();
+    }
+  };
 
   const loadNotifications = async () => {
     try {
@@ -145,6 +155,11 @@ export default function NotificationHeader() {
     }
   };
 
+  // Ne rien afficher si l'utilisateur n'est pas connecté
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <>
       <TouchableOpacity 
@@ -154,7 +169,7 @@ export default function NotificationHeader() {
         <Ionicons 
           name="notifications-outline" 
           size={24} 
-          color="#FF6B00" 
+          color="#DC143C" 
         />
         <NotificationBadge count={unreadCount} />
       </TouchableOpacity>
@@ -233,13 +248,13 @@ const styles = StyleSheet.create({
     borderBottomColor: '#2C2C2E',
   },
   unreadNotification: {
-    backgroundColor: 'rgba(255, 107, 0, 0.1)',
+    backgroundColor: 'rgba(220, 20, 60, 0.1)',
   },
   notificationIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 107, 0, 0.2)',
+    backgroundColor: 'rgba(220, 20, 60, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -260,7 +275,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF6B00',
+    backgroundColor: '#DC143C',
     marginLeft: 8,
   },
   emptyNotifications: {
@@ -277,7 +292,7 @@ const styles = StyleSheet.create({
   markAllReadButton: {
     margin: 20,
     padding: 16,
-    backgroundColor: '#FF6B00',
+    backgroundColor: '#DC143C',
     borderRadius: 12,
     alignItems: 'center',
   },

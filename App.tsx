@@ -27,7 +27,7 @@ import { ThemeProvider } from './src/contexts/ThemeContext';
 import notificationService from './src/services/notificationService';
 
 // Components
-// import Splash from './src/components/Splash';
+import Splash from './src/components/Splash';
 
 // Screens
 import HomeStack from './src/screens/HomeStack';
@@ -38,6 +38,23 @@ import MoviesStack from './src/screens/MoviesStack';
 import ProfileStack from './src/screens/ProfileStack';
 
 const Tab = createBottomTabNavigator();
+
+// ===== Main App Component =====
+function App() {
+  const [isReady, setIsReady] = useState(false);
+
+  // Afficher le splash screen jusqu'à ce que le backend soit prêt
+  if (!isReady) {
+    return <Splash onReady={() => setIsReady(true)} />;
+  }
+
+  return <MainApp />;
+}
+
+// ===== Main App Content =====
+function MainApp() {
+  return <AppContent />;
+}
 
 // ===== Notification Badge =====
 const NotificationBadge = ({ count }: { count: number }) => {
@@ -188,7 +205,7 @@ const HeaderRightWithNotifications = () => {
 };
 
 // ===== Main App =====
-export default function App() {
+function AppContent() {
   const [showSplash, setShowSplash] = useState(true);
   const isDarkMode = useColorScheme() === 'dark';
 
@@ -297,3 +314,5 @@ const styles = StyleSheet.create({
   markAllReadButton: { margin: 20, padding: 16, backgroundColor: '#DC143C', borderRadius: 12, alignItems: 'center' },
   markAllReadText: { fontSize: 16, fontWeight: '600', color: '#FFF' },
 });
+
+export default App;

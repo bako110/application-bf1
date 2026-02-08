@@ -3,9 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuration de l'API
 // Pour tester sur appareil physique, utilisez votre IP locale
-// const API_BASE_URL = 'http://10.205.158.178:8000/api/v1';
-// const API_BASE_URL = 'http://localhost:8000/api/v1';
-const API_BASE_URL = 'https://backend-bf1.onrender.com/api/v1';
+export const API_BASE_URL = 'http://10.205.158.178:8000/api/v1';
+// export const API_BASE_URL = 'http://localhost:8000/api/v1';
+// export const API_BASE_URL = 'https://backend-bf1.onrender.com/api/v1';
+// export const API_ROOT_URL = 'https://backend-bf1.onrender.com';
+export const API_ROOT_URL = 'http://10.205.158.178:8000';
 
 // Instance Axios configurée
 const api = axios.create({
