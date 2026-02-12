@@ -3,12 +3,15 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator 
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '../contexts/ThemeContext';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation, route }) {
   const { login } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Récupérer le paramètre pour savoir si on doit revenir au modal de souscription
+  const returnToSubscription = route?.params?.returnToSubscription;
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
@@ -26,7 +29,10 @@ export default function LoginScreen({ navigation }) {
       // Petit délai pour s'assurer que l'état est mis à jour
       setTimeout(() => {
         // Rediriger vers le profil après connexion réussie
-        navigation.replace('ProfileMain');
+        // Si returnToSubscription est true, ProfileMain affichera automatiquement le modal
+        navigation.replace('ProfileMain', { 
+          showSubscriptionModal: returnToSubscription 
+        });
       }, 100);
       
     } catch (e) {
@@ -77,28 +83,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
     padding: 24,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 24,
-    color: colors.text,
+    color: '#FFFFFF',
   },
   input: {
     width: '100%',
     padding: 12,
     borderWidth: 1,
-    borderColor: colors.surface,
+    borderColor: '#1A0000',
     borderRadius: 8,
     marginBottom: 16,
-    color: colors.text,
-    backgroundColor: colors.surface,
+    color: '#FFFFFF',
+    backgroundColor: '#1A0000',
   },
   button: {
     width: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -110,7 +116,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   link: {
-    color: colors.primary,
+    color: '#DC143C',
     marginTop: 8,
     fontSize: 15,
   },

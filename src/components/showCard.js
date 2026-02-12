@@ -8,7 +8,10 @@ export default function ShowCard({ show, onPress, showTime = true, compact = fal
   const formatTime = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    // Extraire l'heure et les minutes directement sans conversion de fuseau horaire
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
   };
 
   const formatDate = (dateString) => {
@@ -34,7 +37,7 @@ export default function ShowCard({ show, onPress, showTime = true, compact = fal
           </Text>
           {showTime && show.start_time && (
             <View style={styles.timeContainer}>
-              <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+              <Ionicons name="time-outline" size={14} color={'#B0B0B0'} />
               <Text style={styles.timeText}>{formatTime(show.start_time)}</Text>
             </View>
           )}
@@ -82,7 +85,7 @@ export default function ShowCard({ show, onPress, showTime = true, compact = fal
           <View style={styles.metaContainer}>
             {showTime && show.start_time && (
               <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                <Ionicons name="time-outline" size={16} color={'#B0B0B0'} />
                 <Text style={styles.metaText}>
                   {formatDate(show.start_time)} • {formatTime(show.start_time)}
                 </Text>
@@ -91,7 +94,7 @@ export default function ShowCard({ show, onPress, showTime = true, compact = fal
             
             {show.host && (
               <View style={styles.metaItem}>
-                <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
+                <Ionicons name="person-outline" size={16} color={'#B0B0B0'} />
                 <Text style={styles.metaText}>{show.host}</Text>
               </View>
             )}
@@ -134,7 +137,7 @@ const styles = StyleSheet.create({
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.error,
+    backgroundColor: '#FF0000',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
@@ -145,11 +148,11 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.text,
+    backgroundColor: '#FFFFFF',
     marginRight: 6,
   },
   liveText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
     letterSpacing: 0.5,
@@ -160,12 +163,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   description: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -182,23 +185,23 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginLeft: 6,
   },
   categoryTag: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   categoryTagText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: 'bold',
   },
   compactCard: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
@@ -220,7 +223,7 @@ const styles = StyleSheet.create({
   compactTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   timeContainer: {
@@ -230,12 +233,12 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginLeft: 4,
   },
   categoryBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -244,13 +247,13 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   liveBadgeCompact: {
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: colors.error,
+    backgroundColor: '#FF0000',
     padding: 6,
     borderRadius: 20,
   },

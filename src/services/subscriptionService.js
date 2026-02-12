@@ -4,7 +4,7 @@ import locationService from './locationService';
 
 class SubscriptionService {
   // Créer un abonnement premium
-  async createSubscription(planId, paymentMethod = 'mobile_money', transactionId = null) {
+  async createSubscription(planId, paymentMethod = 'mobile_money', paymentData = {}) {
     // Vérifier l'authentification
     const isAuth = await authService.isAuthenticated();
     if (!isAuth) {
@@ -32,6 +32,10 @@ class SubscriptionService {
       const priceMultiplier = await locationService.getPriceMultiplier();
       
       console.log(`💰 Création abonnement: Prix base=${plan.basePrice} FCFA, Multiplicateur=x${priceMultiplier}, Prix final=${plan.price} FCFA`);
+      console.log(`💳 Méthode de paiement: ${paymentMethod}`, paymentData);
+
+      // Générer un ID de transaction unique
+      const transactionId = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
       const response = await api.post('/subscriptions/', {
         user_id: user.id,
@@ -44,9 +48,17 @@ class SubscriptionService {
         is_in_country: isInCountry,
         price_multiplier: priceMultiplier,
         final_price: Math.round(plan.price),
+        // Données de paiement additionnelles (pour traçabilité)
+        payment_details: {
+          method: paymentMethod,
+          ...paymentData
+        }
       });
+      
+      console.log('✅ Abonnement créé avec succès:', response.data);
       return response.data;
     } catch (error) {
+      console.error('❌ Erreur création abonnement:', error);
       throw error.response?.data || error.message;
     }
   }

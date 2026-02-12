@@ -67,7 +67,7 @@ export default function MoviePlayerScreen({ route, navigation }) {
   if (error) {
     return (
       <View style={styles.errorContainer}>
-        <Ionicons name="film-outline" size={72} color={colors.error} />
+        <Ionicons name="film-outline" size={72} color={'#FF0000'} />
         <Text style={styles.errorTitle}>Lecture impossible</Text>
         <Text style={styles.errorText}>{error}</Text>
 
@@ -114,7 +114,7 @@ export default function MoviePlayerScreen({ route, navigation }) {
 
       {(isLoading || isBuffering) && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={'#DC143C'} />
           <Text style={styles.loadingText}>{isBuffering ? 'Mise en mémoire tampon…' : 'Chargement…'}</Text>
         </View>
       )}
@@ -227,26 +227,26 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
   },
   errorTitle: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
     marginTop: 16,
     marginBottom: 8,
   },
   errorText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 20,
   },
   backButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 10,

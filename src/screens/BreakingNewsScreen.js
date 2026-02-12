@@ -16,6 +16,7 @@ import { colors } from '../contexts/ThemeContext';
 import newsService from '../services/newsService';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatRelativeTime } from '../utils/dateUtils';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 
 const { width } = Dimensions.get('window');
 
@@ -25,7 +26,7 @@ export default function BreakingNewsScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [viewMode, setViewMode] = useState('list'); // 'grid' ou 'list'
-  const fadeAnim = new Animated.Value(0);
+  const fadeAnim = new Animated.Value(1); // Initialisé à 1 pour être visible immédiatement
 
   const categories = ['Tous', 'Politique', 'Économie', 'Sport', 'Culture', 'Tech'];
 
@@ -39,13 +40,29 @@ export default function BreakingNewsScreen({ navigation }) {
     }, [])
   );
 
+  // Rafraîchissement automatique en arrière-plan toutes les 10 secondes
+  const loadNewsSilently = async () => {
+    try {
+      const data = await newsService.getAllNews({ limit: 100 });
+      setNews(data);
+    } catch (error) {
+      console.error('Error loading news silently:', error);
+    }
+  };
+  
+  useAutoRefresh(loadNewsSilently, 10000, true);
+
   const loadNews = async () => {
     try {
       setLoading(true);
       const data = await newsService.getAllNews({ limit: 100 });
-      setNews(data);
+      console.log('📰 Flash Info - Données reçues:', data?.length || 0, 'actualités');
+      if (data && data.length > 0) {
+        console.log('📰 Première actualité:', data[0]);
+      }
+      setNews(data || []);
     } catch (error) {
-      console.error('Error loading news:', error);
+      console.error('❌ Error loading news:', error);
       setNews([]);
     } finally {
       setLoading(false);
@@ -56,14 +73,7 @@ export default function BreakingNewsScreen({ navigation }) {
     ? news
     : news.filter(item => (item.category || item.edition) === selectedCategory);
 
-  useEffect(() => {
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [selectedCategory, news, viewMode]);
+  console.log('📰 News totales:', news.length, '| Filtrées:', filteredNews.length, '| Catégorie:', selectedCategory);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -71,32 +81,16 @@ export default function BreakingNewsScreen({ navigation }) {
     setRefreshing(false);
   };
 
+  // Exposer toggleViewMode et viewMode via les params de navigation
+  useEffect(() => {
+    navigation.setParams({
+      toggleViewMode: () => setViewMode(viewMode === 'grid' ? 'list' : 'grid'),
+      viewMode: viewMode
+    });
+  }, [navigation, viewMode]);
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#000000', '#1a1a1a']}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Ionicons name="flash" size={24} color={colors.primary} />
-          <Text style={styles.headerTitle}>Flash Info</Text>
-        </View>
-        <TouchableOpacity 
-          onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-          style={styles.viewToggle}
-        >
-          <Ionicons 
-            name={viewMode === 'grid' ? 'list' : 'grid'} 
-            size={24} 
-            color={colors.text} 
-          />
-        </TouchableOpacity>
-      </LinearGradient>
-
       {/* Categories */}
       <ScrollView 
         horizontal 
@@ -128,11 +122,29 @@ export default function BreakingNewsScreen({ navigation }) {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#DC143C'} />
         }
       >
-        <Animated.View style={[{ opacity: fadeAnim }, viewMode === 'grid' ? styles.gridContainer : styles.listContainer]}>
-          {filteredNews.map((news, index) => (
+        {loading && news.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Chargement des actualités...</Text>
+          </View>
+        ) : filteredNews.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="newspaper-outline" size={60} color={'#666'} />
+            <Text style={styles.emptyText}>Aucune actualité disponible</Text>
+            <Text style={styles.emptySubtext}>
+              {selectedCategory !== 'Tous' 
+                ? `Aucune actualité dans la catégorie "${selectedCategory}"`
+                : 'Revenez plus tard pour voir les dernières actualités'}
+            </Text>
+          </View>
+        ) : (
+          <Animated.View 
+            key={`news-list-${filteredNews.length}-${viewMode}`}
+            style={[{ opacity: fadeAnim }, viewMode === 'grid' ? styles.gridContainer : styles.listContainer]}
+          >
+            {filteredNews.map((news, index) => (
             <TouchableOpacity 
               key={news.id} 
               style={viewMode === 'grid' ? styles.newsCardGrid : styles.newsCardList}
@@ -155,7 +167,7 @@ export default function BreakingNewsScreen({ navigation }) {
                   </Text>
                   <View style={styles.newsMeta}>
                     <View style={styles.authorContainer}>
-                      <Ionicons name="person-circle" size={16} color={colors.textSecondary} />
+                      <Ionicons name="person-circle" size={16} color={'#B0B0B0'} />
                       <Text style={styles.authorText}>{news.author}</Text>
                     </View>
                     <Text style={styles.newsTime}>
@@ -182,7 +194,8 @@ export default function BreakingNewsScreen({ navigation }) {
               )}
             </TouchableOpacity>
           ))}
-        </Animated.View>
+          </Animated.View>
+        )}
         <View style={styles.bottomPadding} />
       </ScrollView>
     </View>
@@ -192,13 +205,13 @@ export default function BreakingNewsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 40,
+    paddingTop: 35,
     paddingBottom: 12,
     paddingHorizontal: 16,
   },
@@ -216,7 +229,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   viewToggle: {
     width: 40,
@@ -234,7 +247,7 @@ const styles = StyleSheet.create({
   },
   categoriesContainer: {
     maxHeight: 60,
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   categoriesContent: {
     paddingHorizontal: 16,
@@ -245,16 +258,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#330000',
   },
   categoryButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#DC143C',
+    borderColor: '#DC143C',
   },
   categoryText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -271,7 +284,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
   },
   newsCardList: {
     width: '100%',
@@ -279,7 +292,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     flexDirection: 'row',
   },
   newsImageGrid: {
@@ -296,13 +309,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   newsTitleList: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   newsDescriptionList: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 12,
     lineHeight: 16,
     marginBottom: 8,
@@ -312,7 +325,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   newsTimeList: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 11,
   },
   newsOverlay: {
@@ -325,7 +338,7 @@ const styles = StyleSheet.create({
   newsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
@@ -339,14 +352,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   newsTitle: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 8,
     lineHeight: 26,
   },
   newsDescription: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
@@ -362,15 +375,47 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   authorText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 13,
   },
   newsTime: {
-    color: colors.primary,
+    color: '#DC143C',
     fontSize: 12,
     fontWeight: '600',
   },
   bottomPadding: {
-    height: 30,
+    height: 100,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    color: '#B0B0B0',
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

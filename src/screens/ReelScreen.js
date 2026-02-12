@@ -19,20 +19,23 @@ import { useFocusEffect } from '@react-navigation/native';
 import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
+import ExpandableText from '../components/ExpandableText';
+import ReelVideoPlayer from '../components/ReelVideoPlayer';
 import reelService from '../services/reelService';
 import commentService from '../services/commentService';
 import authService from '../services/authService';
+import viewService from '../services/viewService';
 import { formatRelativeTime } from '../utils/dateUtils';
+import usePagination from '../hooks/usePagination';
+import LoadingFooter from '../components/LoadingFooter';
 
 const { width, height } = Dimensions.get('window');
 
-export default function ReelScreen() {
-  const [reels, setReels] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+function ReelScreen({ navigation }) {
+  const { colors } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(false); // false = lecture automatique
   const [likedReels, setLikedReels] = useState(new Set());
   const [reelStats, setReelStats] = useState({}); // {reelId: {likes, comments, shares}}
   const [commentModalVisible, setCommentModalVisible] = useState(false);
@@ -44,31 +47,65 @@ export default function ReelScreen() {
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editText, setEditText] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [selectedReelForOptions, setSelectedReelForOptions] = useState(null);
+
+  // Pagination
+  const fetchReels = async (skip, limit) => {
+    return await reelService.getAllReels({ skip, limit });
+  };
+
+  const {
+    data: reels,
+    loading,
+    loadingMore,
+    refreshing,
+    hasMore,
+    error,
+    loadInitial,
+    refresh,
+    loadMore,
+    setData: setReels,
+  } = usePagination(fetchReels, 10);
   
   const flatListRef = useRef(null);
+  const viewedReelsRef = useRef(new Set()); // Track viewed reels
+  
   const onViewableItemsChangedRef = useRef(({ viewableItems }) => {
     if (viewableItems.length > 0) {
-      setCurrentIndex(viewableItems[0].index);
+      const currentReel = viewableItems[0];
+      setCurrentIndex(currentReel.index);
+      
+      // Incrémenter les vues pour le reel visible
+      const reelId = currentReel.item?.id || currentReel.item?._id;
+      if (reelId && !viewedReelsRef.current.has(reelId)) {
+        viewedReelsRef.current.add(reelId);
+        viewService.incrementView(reelId, 'reel');
+      }
     }
   }).current;
   const viewabilityConfigRef = useRef({
     itemVisiblePercentThreshold: 50,
   }).current;
 
-  // Load reels on component mount
+  // Load current user on component mount
   useEffect(() => {
-    loadReels();
     loadCurrentUser();
   }, []);
 
   // Pause video when leaving the screen
   useFocusEffect(
     React.useCallback(() => {
-      // Screen is focused - resume video if it was playing
+      // Reprendre la lecture quand l'écran est actif
       setPaused(false);
       
+      // Charger uniquement si vide
+      if (reels.length === 0) {
+        loadInitial();
+      }
+      
+      // Mettre en pause quand l'écran n'est plus actif
       return () => {
-        // Screen is unfocused - pause all videos
         setPaused(true);
       };
     }, [])
@@ -79,37 +116,12 @@ export default function ReelScreen() {
     setCurrentUser(user);
   };
 
-  const loadReels = async () => {
+  const loadReelsSilently = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const data = await reelService.getAllReels({ limit: 50 });
+      const data = await reelService.getAllReels({ limit: reels.length || 10 });
       setReels(data);
-      
-      // Initialiser les stats pour chaque reel
-      const stats = {};
-      data.forEach(reel => {
-        stats[reel.id] = {
-          likes: reel.likes_count || reel.likes || 0,
-          comments: reel.comments_count || reel.comments || 0,
-          shares: reel.shares_count || reel.shares || 0
-        };
-      });
-      setReelStats(stats);
-
-      // Charger les reels déjà likés par l'utilisateur
-      try {
-        const likedReelIds = await reelService.getMyLikedReels();
-        setLikedReels(new Set(likedReelIds));
-        console.log(`✅ ${likedReelIds.length} reels likés chargés`);
-      } catch (err) {
-        console.log('Could not load liked reels:', err);
-      }
-    } catch (err) {
-      console.error('Error loading reels:', err);
-      setError(err.message || 'Erreur lors du chargement des reels');
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error loading reels silently:', error);
     }
   };
 
@@ -329,14 +341,16 @@ export default function ReelScreen() {
 
     return (
       <View style={styles.reelContainer}>
-        <Video
-          source={{ uri: item.videoUrl || item.video_url }}
-          style={styles.video}
-          resizeMode="cover"
-          repeat
-          paused={!isActive || paused}
-          volume={1.0}
-          muted={false}
+        <ReelVideoPlayer
+          videoUrl={item.videoUrl || item.video_url}
+          isActive={isActive}
+          paused={paused}
+          onError={(error) => console.error('Reel video error:', error)}
+          onBuffer={({ isBuffering }) => {
+            if (isBuffering) {
+              console.log('Reel buffering...');
+            }
+          }}
         />
 
         <TouchableOpacity
@@ -352,12 +366,19 @@ export default function ReelScreen() {
         </TouchableOpacity>
 
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
+          colors={['transparent', 'rgba(0,0,0,0.7)']}
           style={styles.bottomGradient}
         >
           <View style={styles.infoContainer}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.description}>{item.description}</Text>
+            <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
+              {item.title || 'Titre du reel'}
+            </Text>
+            <ExpandableText
+              text={item.description || 'Description du reel'}
+              numberOfLines={3}
+              style={styles.description}
+              expandedStyle={styles.description}
+            />
           </View>
         </LinearGradient>
 
@@ -390,7 +411,13 @@ export default function ReelScreen() {
             <Text style={styles.actionText}>{reelStats[item.id]?.shares || 0}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => {
+              setSelectedReelForOptions(item);
+              setShowOptionsModal(true);
+            }}
+          >
             <Ionicons name="ellipsis-vertical" size={28} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -398,11 +425,20 @@ export default function ReelScreen() {
     );
   };
 
+  const styles = createStyles(colors);
+
+  // Masquer le header - doit être avant tout return conditionnel
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
+
   if (loading && reels.length === 0) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={'#DC143C'} />
           <Text style={styles.loadingText}>Chargement des reels...</Text>
         </View>
       </View>
@@ -413,9 +449,9 @@ export default function ReelScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color={colors.primary} />
+          <Ionicons name="alert-circle" size={48} color={'#DC143C'} />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadReels}>
+          <TouchableOpacity style={styles.retryButton} onPress={loadReelsSilently}>
             <Text style={styles.retryButtonText}>Réessayer</Text>
           </TouchableOpacity>
         </View>
@@ -426,13 +462,9 @@ export default function ReelScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
-
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Reels</Text>
-        <TouchableOpacity style={styles.cameraButton}>
-          <Ionicons name="camera" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      
+      {/* Spacer pour compenser l'espace du header */}
+      <View style={{ height: 20 }} />
 
       <FlatList
         ref={flatListRef}
@@ -449,6 +481,11 @@ export default function ReelScreen() {
         removeClippedSubviews
         maxToRenderPerBatch={2}
         windowSize={3}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={<LoadingFooter loading={loadingMore} hasMore={hasMore} />}
+        refreshing={refreshing}
+        onRefresh={refresh}
       />
 
       {/* Modal Commentaires */}
@@ -467,14 +504,14 @@ export default function ReelScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Commentaires</Text>
               <TouchableOpacity onPress={closeCommentModal}>
-                <Ionicons name="close" size={28} color={colors.text} />
+                <Ionicons name="close" size={28} color={'#FFFFFF'} />
               </TouchableOpacity>
             </View>
 
             {/* Liste des commentaires */}
             <ScrollView style={styles.commentsList}>
               {loadingComments ? (
-                <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+                <ActivityIndicator size="large" color={'#DC143C'} style={{ marginTop: 20 }} />
               ) : comments.length > 0 ? (
                 comments.map((comment) => {
                   const isOwner = currentUser && comment.user_id === currentUser.id;
@@ -526,13 +563,13 @@ export default function ReelScreen() {
                             onPress={() => handleEditComment(comment)}
                             style={styles.actionButton}
                           >
-                            <Ionicons name="create-outline" size={18} color={colors.primary} />
+                            <Ionicons name="create-outline" size={18} color={'#DC143C'} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => handleDeleteComment(comment.id)}
                             style={styles.actionButton}
                           >
-                            <Ionicons name="trash-outline" size={18} color={colors.error} />
+                            <Ionicons name="trash-outline" size={18} color={'#FF0000'} />
                           </TouchableOpacity>
                         </View>
                       )}
@@ -541,7 +578,7 @@ export default function ReelScreen() {
                 })
               ) : (
                 <View style={styles.emptyComments}>
-                  <Ionicons name="chatbubble-outline" size={48} color={colors.textSecondary} />
+                  <Ionicons name="chatbubble-outline" size={48} color={'#B0B0B0'} />
                   <Text style={styles.emptyCommentsText}>Aucun commentaire</Text>
                   <Text style={styles.emptyCommentsSubtext}>Soyez le premier à commenter</Text>
                 </View>
@@ -553,7 +590,7 @@ export default function ReelScreen() {
               <TextInput
                 style={styles.commentInput}
                 placeholder="Ajouter un commentaire..."
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={'#B0B0B0'}
                 value={commentText}
                 onChangeText={setCommentText}
                 multiline
@@ -564,12 +601,12 @@ export default function ReelScreen() {
                 disabled={!commentText.trim() || submittingComment}
               >
                 {submittingComment ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <ActivityIndicator size="small" color={'#DC143C'} />
                 ) : (
                   <Ionicons
                     name="send"
                     size={20}
-                    color={commentText.trim() ? colors.primary : colors.textSecondary}
+                    color={commentText.trim() ? '#DC143C' : '#B0B0B0'}
                   />
                 )}
               </TouchableOpacity>
@@ -577,14 +614,90 @@ export default function ReelScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Modal Options */}
+      <Modal
+        visible={showOptionsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowOptionsModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.optionsOverlay}
+          activeOpacity={1}
+          onPress={() => setShowOptionsModal(false)}
+        >
+          <View style={styles.optionsContainer}>
+            <View style={styles.optionsHeader}>
+              <Text style={styles.optionsTitle}>Options</Text>
+              <TouchableOpacity onPress={() => setShowOptionsModal(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                if (selectedReelForOptions) {
+                  handleShare(selectedReelForOptions.id);
+                }
+                setShowOptionsModal(false);
+              }}
+            >
+              <Ionicons name="share-social" size={24} color="#fff" />
+              <Text style={styles.optionText}>Partager</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                Alert.alert('Copié', 'Lien copié dans le presse-papier');
+                setShowOptionsModal(false);
+              }}
+            >
+              <Ionicons name="link" size={24} color="#fff" />
+              <Text style={styles.optionText}>Copier le lien</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                Alert.alert('Enregistré', 'Reel enregistré dans vos favoris');
+                setShowOptionsModal(false);
+              }}
+            >
+              <Ionicons name="bookmark" size={24} color="#fff" />
+              <Text style={styles.optionText}>Enregistrer</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                Alert.alert('Signalé', 'Ce contenu a été signalé');
+                setShowOptionsModal(false);
+              }}
+            >
+              <Ionicons name="flag" size={24} color="#DC143C" />
+              <Text style={[styles.optionText, { color: '#DC143C' }]}>Signaler</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.optionItem, styles.cancelOption]}
+              onPress={() => setShowOptionsModal(false)}
+            >
+              <Text style={styles.cancelText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: colors.background,
   },
   header: {
     position: 'absolute',
@@ -640,13 +753,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 200,
+    height: 250,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
     justifyContent: 'flex-end',
-    paddingBottom: 20,
-    paddingHorizontal: 16,
   },
   infoContainer: {
-    marginBottom: 10,
+    marginBottom: 20,
+    maxWidth: '80%',
   },
   userInfo: {
     flexDirection: 'row',
@@ -657,7 +771,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -682,14 +796,20 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 6,
+    marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   description: {
     color: '#fff',
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   actionsContainer: {
     position: 'absolute',
@@ -735,7 +855,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: colors.primary || '#FF6B6B',
+    backgroundColor: '#DC143C',
   },
   retryButtonText: {
     color: '#fff',
@@ -749,7 +869,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    backgroundColor: colors.background || '#1a1a1a',
+    backgroundColor: '#000000',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: '80%',
@@ -762,10 +882,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border || '#333',
+    borderBottomColor: '#330000',
   },
   modalTitle: {
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -777,13 +897,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border || '#333',
+    borderBottomColor: '#330000',
   },
   commentAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary || '#FF6B6B',
+    backgroundColor: '#DC143C',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -792,19 +912,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   commentUsername: {
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   commentText: {
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 4,
   },
   commentTime: {
-    color: colors.textSecondary || '#999',
+    color: '#B0B0B0' || '#999',
     fontSize: 12,
   },
   emptyComments: {
@@ -813,13 +933,13 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   emptyCommentsText: {
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
     marginTop: 12,
   },
   emptyCommentsSubtext: {
-    color: colors.textSecondary || '#999',
+    color: '#B0B0B0' || '#999',
     fontSize: 14,
     marginTop: 4,
   },
@@ -829,16 +949,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.border || '#333',
-    backgroundColor: colors.background || '#1a1a1a',
+    borderTopColor: '#330000',
+    backgroundColor: '#000000',
   },
   commentInput: {
     flex: 1,
-    backgroundColor: colors.surface || '#2a2a2a',
+    backgroundColor: '#1A0000',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     maxHeight: 100,
     marginRight: 12,
   },
@@ -848,7 +968,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surface || '#2a2a2a',
+    backgroundColor: '#1A0000',
   },
   sendButtonDisabled: {
     opacity: 0.5,
@@ -866,14 +986,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   editInput: {
-    backgroundColor: colors.background || '#0a0a0a',
+    backgroundColor: '#000000',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
     borderWidth: 1,
-    borderColor: colors.primary || '#DC143C',
+    borderColor: '#DC143C',
     marginBottom: 8,
     minHeight: 60,
   },
@@ -887,10 +1007,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border || '#333',
+    borderColor: '#330000',
   },
   cancelButtonText: {
-    color: colors.textSecondary || '#999',
+    color: '#B0B0B0' || '#999',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -898,11 +1018,60 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: colors.primary || '#DC143C',
+    backgroundColor: '#DC143C',
   },
   saveButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
+  optionsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  optionsContainer: {
+    backgroundColor: '#1a1a1a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 30,
+  },
+  optionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  optionsTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  optionText: {
+    color: '#fff',
+    fontSize: 16,
+    marginLeft: 16,
+  },
+  cancelOption: {
+    borderBottomWidth: 0,
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  cancelText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 });
+
+export default ReelScreen;

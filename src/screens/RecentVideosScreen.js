@@ -14,12 +14,14 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { colors } from '../contexts/ThemeContext';
 import api from '../config/api';
 import { useFocusEffect } from '@react-navigation/native';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 
-export default function RecentVideosScreen({ navigation }) {
+function RecentVideosScreen({ navigation }) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('list');
+  const [hasAnimated, setHasAnimated] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -32,6 +34,23 @@ export default function RecentVideosScreen({ navigation }) {
       loadVideos();
     }, [])
   );
+
+  // Rafraîchissement automatique en arrière-plan toutes les 10 secondes
+  const loadVideosSilently = async () => {
+    try {
+      const response = await api.get('/replays');
+      const data = response.data.map(replay => ({
+        ...replay,
+        id: replay._id || replay.id,
+        image_url: replay.thumbnail || replay.image_url,
+      }));
+      setVideos(data);
+    } catch (error) {
+      console.error('Error loading videos silently:', error);
+    }
+  };
+  
+  useAutoRefresh(loadVideosSilently, 10000, true);
 
   const loadVideos = async () => {
     try {
@@ -52,7 +71,7 @@ export default function RecentVideosScreen({ navigation }) {
   };
 
   useEffect(() => {
-    if (videos.length > 0) {
+    if (videos.length > 0 && !hasAnimated) {
       fadeAnim.setValue(0);
       slideAnim.setValue(30);
       Animated.parallel([
@@ -67,8 +86,9 @@ export default function RecentVideosScreen({ navigation }) {
           useNativeDriver: true,
         })
       ]).start();
+      setHasAnimated(true);
     }
-  }, [videos, viewMode]);
+  }, [videos.length > 0]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -76,42 +96,27 @@ export default function RecentVideosScreen({ navigation }) {
     setRefreshing(false);
   };
 
+  // Exposer toggleViewMode et viewMode via les params de navigation
+  useEffect(() => {
+    navigation.setParams({
+      toggleViewMode: () => setViewMode(viewMode === 'grid' ? 'list' : 'grid'),
+      viewMode: viewMode
+    });
+  }, [navigation, viewMode]);
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#000000', '#1a1a1a']}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Ionicons name="play-circle" size={24} color={colors.primary} />
-          <Text style={styles.headerTitle}>Vidéos Récentes</Text>
-        </View>
-        <TouchableOpacity 
-          onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-          style={styles.viewToggle}
-        >
-          <Ionicons 
-            name={viewMode === 'grid' ? 'list' : 'grid'} 
-            size={24} 
-            color={colors.text} 
-          />
-        </TouchableOpacity>
-      </LinearGradient>
-
       <ScrollView
         style={styles.content}
+        contentContainerStyle={{ paddingTop: 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#DC143C'} />
         }
       >
         {videos.length === 0 ? (
           <Animated.View style={[styles.emptyContainer, { opacity: fadeAnim }]}>
-            <Ionicons name="videocam-outline" size={80} color={colors.textSecondary} />
+            <Ionicons name="videocam-outline" size={80} color={'#B0B0B0'} />
             <Text style={styles.emptyTitle}>Aucune vidéo récente</Text>
             <Text style={styles.emptySubtitle}>Les replays apparaîtront ici</Text>
             <TouchableOpacity style={styles.refreshButton} onPress={loadVideos}>
@@ -134,7 +139,7 @@ export default function RecentVideosScreen({ navigation }) {
                 <Text style={styles.durationText}>{video.duration || 'N/A'}</Text>
               </View>
               <View style={styles.playButton}>
-                <Ionicons name="play" size={30} color={colors.primary} />
+                <Ionicons name="play" size={30} color={'#DC143C'} />
               </View>
               <View style={styles.videoInfo}>
                 <View style={styles.categoryBadge}>
@@ -143,7 +148,7 @@ export default function RecentVideosScreen({ navigation }) {
                 <Text style={styles.videoTitle} numberOfLines={2}>{video.title}</Text>
                 <View style={styles.videoMeta}>
                   <View style={styles.metaItem}>
-                    <Ionicons name="eye" size={14} color={colors.textSecondary} />
+                    <Ionicons name="eye" size={14} color={'#B0B0B0'} />
                     <Text style={styles.metaText}>{video.views_count || video.views || 0} vues</Text>
                   </View>
                   <Text style={styles.dateText}>{video.created_at ? new Date(video.created_at).toLocaleDateString('fr-FR') : 'Récemment'}</Text>
@@ -162,13 +167,13 @@ export default function RecentVideosScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 40,
+    paddingTop: 35,
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
@@ -186,7 +191,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   placeholder: {
     width: 40,
@@ -206,14 +211,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
   },
   videoCardList: {
     width: '100%',
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     flexDirection: 'row',
     height: 140,
   },
@@ -258,7 +263,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   categoryBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -271,7 +276,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   videoTitle: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
@@ -288,11 +293,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 13,
   },
   dateText: {
-    color: colors.primary,
+    color: '#DC143C',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -309,20 +314,20 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginTop: 20,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginTop: 8,
     textAlign: 'center',
   },
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
@@ -335,3 +340,5 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
+
+export default RecentVideosScreen;

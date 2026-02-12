@@ -178,14 +178,14 @@ const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequir
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Commentaires</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={28} color={colors.text} />
+              <Ionicons name="close" size={28} color={'#FFFFFF'} />
             </TouchableOpacity>
           </View>
 
           {/* Liste des commentaires */}
           <ScrollView style={styles.commentsList}>
             {loading ? (
-              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color={'#DC143C'} style={{ marginTop: 20 }} />
             ) : comments.length > 0 ? (
               comments.map((comment) => {
                 const isOwner = currentUser && comment.user_id === currentUser.id;
@@ -237,13 +237,13 @@ const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequir
                           onPress={() => handleEditComment(comment)}
                           style={styles.actionButton}
                         >
-                          <Ionicons name="create-outline" size={18} color={colors.primary} />
+                          <Ionicons name="create-outline" size={18} color={'#DC143C'} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handleDeleteComment(comment.id)}
                           style={styles.actionButton}
                         >
-                          <Ionicons name="trash-outline" size={18} color={colors.error} />
+                          <Ionicons name="trash-outline" size={18} color={'#FF0000'} />
                         </TouchableOpacity>
                       </View>
                     )}
@@ -252,7 +252,7 @@ const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequir
               })
             ) : (
               <View style={styles.emptyComments}>
-                <Ionicons name="chatbubble-outline" size={48} color={colors.textSecondary} />
+                <Ionicons name="chatbubble-outline" size={48} color="#B0B0B0" />
                 <Text style={styles.emptyCommentsText}>Aucun commentaire</Text>
                 <Text style={styles.emptyCommentsSubtext}>Soyez le premier à commenter</Text>
               </View>
@@ -264,7 +264,7 @@ const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequir
             <TextInput
               style={styles.commentInput}
               placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor="#B0B0B0"
               value={commentText}
               onChangeText={setCommentText}
               multiline
@@ -284,12 +284,12 @@ const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequir
               disabled={!commentText.trim() || submitting}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color={'#DC143C'} />
               ) : (
                 <Ionicons
                   name="send"
                   size={20}
-                  color={commentText.trim() ? colors.primary : colors.textSecondary}
+                  color={commentText.trim() ? '#DC143C' : '#B0B0B0'}
                 />
               )}
             </TouchableOpacity>
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: colors.background || '#1a1a1a',
+    backgroundColor: '#000000',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: '80%',
@@ -320,10 +320,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border || '#333',
+    borderBottomColor: '#330000',
   },
   modalTitle: {
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -335,13 +335,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border || '#333',
+    borderBottomColor: '#330000',
   },
   commentAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary || '#FF6B6B',
+    backgroundColor: '#DC143C',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -350,19 +350,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   commentUsername: {
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   commentText: {
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 4,
   },
   commentTime: {
-    color: colors.textSecondary || '#999',
+    color: '#B0B0B0' || '#999',
     fontSize: 12,
   },
   commentActions: {
@@ -378,14 +378,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   editInput: {
-    backgroundColor: colors.background || '#0a0a0a',
+    backgroundColor: '#000000',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
     borderWidth: 1,
-    borderColor: colors.primary || '#DC143C',
+    borderColor: '#DC143C',
     marginBottom: 8,
     minHeight: 60,
   },
@@ -399,10 +399,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border || '#333',
+    borderColor: '#330000',
   },
   cancelButtonText: {
-    color: colors.textSecondary || '#999',
+    color: '#B0B0B0' || '#999',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: colors.primary || '#DC143C',
+    backgroundColor: '#DC143C',
   },
   saveButtonText: {
     color: '#fff',
@@ -423,13 +423,13 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   emptyCommentsText: {
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     marginTop: 12,
   },
   emptyCommentsSubtext: {
-    color: colors.textSecondary || '#999',
+    color: '#B0B0B0' || '#999',
     fontSize: 14,
     marginTop: 4,
   },
@@ -439,16 +439,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.border || '#333',
-    backgroundColor: colors.background || '#1a1a1a',
+    borderTopColor: '#330000',
+    backgroundColor: '#000000',
   },
   commentInput: {
     flex: 1,
-    backgroundColor: colors.surface || '#2a2a2a',
+    backgroundColor: '#1A0000',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    color: colors.text || '#fff',
+    color: '#FFFFFF',
     maxHeight: 100,
     marginRight: 12,
   },
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surface || '#2a2a2a',
+    backgroundColor: '#1A0000',
   },
   sendButtonDisabled: {
     opacity: 0.5,

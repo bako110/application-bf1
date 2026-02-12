@@ -25,16 +25,21 @@ import { ThemeProvider } from './src/contexts/ThemeContext';
 
 // Services
 import notificationService from './src/services/notificationService';
+import reminderNotificationService from './src/services/reminderNotificationService';
+import pushNotificationService from './src/services/pushNotificationService';
+import websocketService from './src/services/websocketService';
 
 // Components
 import Splash from './src/components/Splash';
+import ProfileTabLabel from './src/components/ProfileTabLabel';
+import FloatingMenuButton from './src/components/FloatingMenuButton';
 
 // Screens
 import HomeStack from './src/screens/HomeStack';
-import LiveStack from './src/screens/LiveStack';
+import LiveScreen from './src/screens/LiveScreen';
 import ReelScreen from './src/screens/ReelScreen';
 import ProgramStack from './src/screens/ProgramStack';
-import MoviesStack from './src/screens/MoviesStack';
+import ReplayStack from './src/screens/ReplayStack';
 import ProfileStack from './src/screens/ProfileStack';
 
 const Tab = createBottomTabNavigator();
@@ -209,6 +214,28 @@ function AppContent() {
   const [showSplash, setShowSplash] = useState(true);
   const isDarkMode = useColorScheme() === 'dark';
 
+  // Initialiser le service de notifications au démarrage
+  useEffect(() => {
+    reminderNotificationService.initialize();
+    reminderNotificationService.syncAllReminders();
+    
+    // Initialiser les notifications push
+    notificationService.initializePushNotifications();
+    
+    // Connecter au WebSocket pour les notifications en temps réel
+    websocketService.connect();
+    
+    // Replanifier les notifications quotidiennes toutes les heures
+    const rescheduleInterval = setInterval(() => {
+      pushNotificationService.rescheduleDailyNotifications();
+    }, 60 * 60 * 1000); // Toutes les heures
+    
+    return () => {
+      clearInterval(rescheduleInterval);
+      websocketService.disconnect();
+    };
+  }, []);
+
   // useEffect(() => {
   //   const timer = setTimeout(() => setShowSplash(false), 1800);
   //   return () => clearTimeout(timer);
@@ -224,13 +251,14 @@ function AppContent() {
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
             <Tab.Navigator
               screenOptions={({ route }) => ({
+                headerShown: false,
                 tabBarIcon: ({ focused, color, size }) => {
                   let iconName = 'home';
                   switch (route.name) {
                     case 'Accueil': iconName = focused ? 'home' : 'home-outline'; break;
                     case 'Reel': iconName = focused ? 'play-circle' : 'play-circle-outline'; break;
-                    case 'Programme': iconName = focused ? 'calendar' : 'calendar-outline'; break;
-                    case 'Films': iconName = focused ? 'film' : 'film-outline'; break;
+                    case 'Live': iconName = focused ? 'radio' : 'radio-outline'; break;
+                    case 'Replay': iconName = focused ? 'play-back' : 'play-back-outline'; break;
                     case 'Profil': iconName = focused ? 'person' : 'person-outline'; break;
                   }
                   return <Ionicons name={iconName as any} size={size} color={color} />;
@@ -243,17 +271,24 @@ function AppContent() {
                   height: 80,
                   paddingBottom: 28,
                 },
-                headerStyle: { backgroundColor: '#000000' },
-                headerTintColor: '#FFFFFF',
-                headerTitleStyle: { fontWeight: 'bold' },
               })}
             >
               <Tab.Screen name="Accueil" component={HomeStack} options={{ headerShown: false }} />
               <Tab.Screen name="Reel" component={ReelScreen} options={{ headerShown: false }} />
-              <Tab.Screen name="Programme" component={ProgramStack} />
-              <Tab.Screen name="Films" component={MoviesStack} />
-              <Tab.Screen name="Profil" component={ProfileStack} />
+              <Tab.Screen name="Live" component={LiveScreen} options={{ headerShown: false }} />
+              <Tab.Screen name="Replay" component={ReplayStack} />
+              <Tab.Screen 
+                name="Profil" 
+                component={ProfileStack}
+                options={{
+                  headerShown: false,
+                  tabBarLabel: ({ focused, color }) => (
+                    <ProfileTabLabel focused={focused} color={color} />
+                  )
+                }}
+              />
             </Tab.Navigator>
+            <FloatingMenuButton />
           </NavigationContainer>
         </AuthProvider>
       </ThemeProvider>

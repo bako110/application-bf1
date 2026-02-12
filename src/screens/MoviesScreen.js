@@ -14,15 +14,16 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
 import movieService from '../services/movieService';
 import likeService from '../services/likeService';
+import usePagination from '../hooks/usePagination';
+import LoadingFooter from '../components/LoadingFooter';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function MoviesScreen({ navigation }) {
-  const [movies, setMovies] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { colors } = useTheme();
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [likesData, setLikesData] = useState({}); // {movieId: {liked: bool, count: number}}
@@ -33,38 +34,41 @@ export default function MoviesScreen({ navigation }) {
 
   const genres = ['Tous', 'Action', 'Drame', 'Comédie', 'Thriller', 'Romance', 'Documentaire'];
 
-  useEffect(() => {
-    loadMovies();
-  }, [filter]);
-
-  // Rafraîchir les films quand l'écran devient actif
-  useFocusEffect(
-    React.useCallback(() => {
-      loadMovies();
-    }, [filter])
-  );
-
-  const loadMovies = async () => {
-    try {
-      setLoading(true);
-      let data;
-      if (filter === 'premium') {
-        data = await movieService.getPremiumMovies();
-      } else if (filter === 'free') {
-        data = await movieService.getFreeMovies();
-      } else {
-        data = await movieService.getAllMovies({ limit: 50 });
-      }
-      setMovies(data);
-      
-      // Charger les likes pour chaque film
-      await loadLikesData(data);
-    } catch (error) {
-      console.error('Error loading movies:', error);
-    } finally {
-      setLoading(false);
+  // Pagination
+  const fetchMovies = async (skip, limit) => {
+    if (filter === 'premium') {
+      return await movieService.getPremiumMovies({ skip, limit });
+    } else if (filter === 'free') {
+      return await movieService.getFreeMovies({ skip, limit });
+    } else {
+      return await movieService.getAllMovies({ skip, limit });
     }
   };
+
+  const {
+    data: movies,
+    loading,
+    loadingMore,
+    refreshing,
+    hasMore,
+    error,
+    loadInitial,
+    refresh,
+    loadMore,
+    setData: setMovies,
+  } = usePagination(fetchMovies, 20);
+
+  useEffect(() => {
+    loadInitial();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (movies.length === 0) {
+        loadInitial();
+      }
+    }, [])
+  );
 
   const loadLikesData = async (moviesData) => {
     const likesInfo = {};
@@ -128,16 +132,18 @@ export default function MoviesScreen({ navigation }) {
       }
     });
 
+  const styles = createStyles(colors);
+
   return (
     <View style={styles.container}>
       {/* Compact Header with Search and Filter */}
       <View style={styles.compactHeader}>
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={colors.textSecondary} />
+          <Ionicons name="search" size={20} color={'#B0B0B0'} />
           <TextInput
             style={styles.searchInput}
             placeholder="Rechercher un film..."
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={'#B0B0B0'}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -173,7 +179,7 @@ export default function MoviesScreen({ navigation }) {
             }} 
             style={styles.resetBtn}
           >
-            <Ionicons name="refresh" size={16} color={colors.primary} />
+            <Ionicons name="refresh" size={16} color={'#DC143C'} />
             <Text style={styles.resetBtnText}>Réinitialiser</Text>
           </TouchableOpacity>
 
@@ -283,7 +289,7 @@ export default function MoviesScreen({ navigation }) {
       {/* Movies Display */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={'#DC143C'} />
         </View>
       ) : viewMode === 'row' ? (
         <ScrollView 
@@ -318,7 +324,7 @@ export default function MoviesScreen({ navigation }) {
                   <Ionicons 
                     name={likesData[movie.id]?.liked ? "heart" : "heart-outline"}
                     size={20} 
-                    color={likesData[movie.id]?.liked ? colors.error : colors.text}
+                    color={likesData[movie.id]?.liked ? '#FF0000' : '#FFFFFF'}
                   />
                   {likesData[movie.id]?.count > 0 && (
                     <Text style={styles.likeCount}>{likesData[movie.id].count}</Text>
@@ -336,7 +342,7 @@ export default function MoviesScreen({ navigation }) {
             ))
           ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="film-outline" size={60} color={colors.textSecondary} />
+              <Ionicons name="film-outline" size={60} color={'#B0B0B0'} />
               <Text style={styles.emptyText}>
                 {searchQuery ? 'Aucun film trouvé' : 'Aucun film disponible'}
               </Text>
@@ -377,7 +383,7 @@ export default function MoviesScreen({ navigation }) {
                       <Ionicons 
                         name={likesData[movie.id]?.liked ? "heart" : "heart-outline"}
                         size={20} 
-                        color={likesData[movie.id]?.liked ? colors.error : colors.text}
+                        color={likesData[movie.id]?.liked ? '#FF0000' : '#FFFFFF'}
                       />
                       {likesData[movie.id]?.count > 0 && (
                         <Text style={styles.likeCount}>{likesData[movie.id].count}</Text>
@@ -417,7 +423,7 @@ export default function MoviesScreen({ navigation }) {
                           </View>
                         )}
                         <View style={styles.likesInfo}>
-                          <Ionicons name="heart" size={14} color={colors.error} />
+                          <Ionicons name="heart" size={14} color={'#FF0000'} />
                           <Text style={styles.likesInfoText}>{likesData[movie.id]?.count || 0}</Text>
                         </View>
                       </View>
@@ -432,7 +438,7 @@ export default function MoviesScreen({ navigation }) {
                       <Ionicons 
                         name={likesData[movie.id]?.liked ? "heart" : "heart-outline"}
                         size={24} 
-                        color={likesData[movie.id]?.liked ? colors.error : colors.textSecondary}
+                        color={likesData[movie.id]?.liked ? '#FF0000' : '#B0B0B0'}
                       />
                     </TouchableOpacity>
                   </TouchableOpacity>
@@ -441,7 +447,7 @@ export default function MoviesScreen({ navigation }) {
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="film-outline" size={60} color={colors.textSecondary} />
+              <Ionicons name="film-outline" size={60} color={'#B0B0B0'} />
               <Text style={styles.emptyText}>
                 {searchQuery ? 'Aucun film trouvé' : 'Aucun film disponible'}
               </Text>
@@ -461,7 +467,7 @@ export default function MoviesScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -470,6 +476,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.searchBackground,
     backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -479,7 +486,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 14,
-    color: colors.text,
+    color: '#FFFFFF',
   },
   filtersWrapper: {
     height: 48,
@@ -514,12 +521,18 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   filterTextActive: {
-    color: colors.text,
+    color: colors.primary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   moviesContainer: {
     flex: 1,
@@ -569,6 +582,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 4,
   },
+  movieMetaText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+  },
   movieGenre: {
     color: colors.textSecondary,
     fontSize: 11,
@@ -579,6 +596,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 40,
     marginTop: 60,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
   },
   emptyText: {
     fontSize: 14,
@@ -656,7 +680,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sortButtonActive: {
-    backgroundColor: 'rgba(220, 20, 60, 0.15)',
+    backgroundColor: colors.primary,
   },
   sortText: {
     fontSize: 11,
@@ -664,7 +688,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   sortTextActive: {
-    color: colors.primary,
+    color: colors.text,
   },
   viewToggle: {
     flexDirection: 'row',
@@ -676,7 +700,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   viewButtonActive: {
-    backgroundColor: 'rgba(220, 20, 60, 0.15)',
+    backgroundColor: colors.primary,
   },
   moviesList: {
     paddingHorizontal: 16,
@@ -694,7 +718,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 120,
     borderRadius: 8,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   movieListInfo: {
     flex: 1,
@@ -710,7 +734,6 @@ const styles = StyleSheet.create({
   movieListGenre: {
     fontSize: 11,
     color: colors.textSecondary,
-    marginBottom: 8,
   },
   movieListMeta: {
     flexDirection: 'row',
@@ -750,7 +773,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
     gap: 12,
   },
   filterIconButton: {
@@ -817,14 +841,14 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   resetBtnText: {
-    color: colors.primary,
+    color: '#DC143C',
     fontSize: 12,
     marginLeft: 4,
     fontWeight: '500',
   },
   modalLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginTop: 12,
     marginBottom: 8,
     fontWeight: '600',
@@ -838,7 +862,7 @@ const styles = StyleSheet.create({
   filterBtn: {
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: '#DC143C',
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginRight: 8,
@@ -847,11 +871,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#DC143C',
+    borderColor: '#DC143C',
   },
   filterBtnText: {
-    color: colors.primary,
+    color: '#DC143C',
     fontWeight: '600',
     fontSize: 11,
   },
@@ -869,18 +893,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginRight: 8,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: '#DC143C',
     backgroundColor: 'transparent',
   },
   modalCancelBtnText: {
-    color: colors.primary,
+    color: '#DC143C',
     fontWeight: 'bold',
     fontSize: 14,
     textAlign: 'center',
   },
   modalApplyBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     borderRadius: 16,
     paddingVertical: 12,
     marginLeft: 8,

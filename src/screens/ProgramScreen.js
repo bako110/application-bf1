@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Pressable, Animated } from 'react-native';
+import { Modal, Pressable, Animated, Alert } from 'react-native';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { colors } from '../contexts/ThemeContext';
 import showService from '../services/showService';
 import ShowCard from '../components/showCard';
 import Logo from '../components/logo';
+import reminderNotificationService from '../services/reminderNotificationService';
+import ExpandableText from '../components/ExpandableText';
 
 function ProgramScreen({ navigation }) {
   const [weekShows, setWeekShows] = useState([]);
@@ -85,19 +87,58 @@ function ProgramScreen({ navigation }) {
         // Supprimer le rappel
         await showService.deleteReminder(existingReminder.id);
         setMyReminders(prev => prev.filter(r => r.id !== existingReminder.id));
+        
+        // Annuler la notification planifiée
+        await reminderNotificationService.cancelReminderNotification(existingReminder.id);
       } else {
-        // Créer un rappel (15 minutes avant)
-        const newReminder = await showService.createReminder(programId, 15, 'push');
-        setMyReminders(prev => [...prev, newReminder]);
+        // Créer un rappel (5 minutes avant)
+        const newReminder = await showService.createReminder(programId, 5, 'push');
+        
+        // Vérifier si le rappel n'est pas déjà dans la liste (cas où il existait déjà côté serveur)
+        setMyReminders(prev => {
+          const alreadyExists = prev.some(r => r.id === newReminder.id);
+          if (alreadyExists) {
+            return prev;
+          }
+          return [...prev, newReminder];
+        });
+        
+        // Planifier la notification
+        await reminderNotificationService.scheduleReminderNotification(newReminder);
       }
     } catch (error) {
       console.error('Error toggling reminder:', error);
+      // Si l'erreur est 401 (non authentifié), afficher un message approprié
+      if (error?.status === 401 || error?.detail?.includes('connecté')) {
+        Alert.alert(
+          'Connexion requise',
+          'Vous devez être connecté pour créer des rappels de programmes.',
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
   // Filtrage des émissions
   const filterShows = (shows, sectionDate) => {
     return shows.filter(show => {
+      // Vérifier que l'émission correspond bien à la date de la section
+      const showDate = new Date(show.startTime);
+      const sectionDateObj = new Date(sectionDate);
+      const now = new Date();
+      
+      // Comparer uniquement la date (jour/mois/année) sans l'heure
+      if (showDate.toDateString() !== sectionDateObj.toDateString()) {
+        return false; // L'émission n'est pas à cette date
+      }
+
+      // Pour la journée en cours, masquer les programmes dont l'heure est passée
+      if (sectionDateObj.toDateString() === now.toDateString()) {
+        if (showDate < now && !show.isLive) {
+          return false; // Programme passé (sauf s'il est en direct)
+        }
+      }
+
       let typeOk = selectedType === 'Tous' || show.type === selectedType;
       let statusOk = true;
       let dateOk = true;
@@ -110,7 +151,6 @@ function ProgramScreen({ navigation }) {
 
       // Filtre par date (nouveau)
       if (selectedDateFilter !== 'Tous') {
-        const showDate = new Date(show.startTime);
         const today = new Date();
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -169,6 +209,13 @@ function ProgramScreen({ navigation }) {
     startAnimations();
   }, []);
 
+  // Exposer la fonction setFilterModal via les params de navigation
+  useEffect(() => {
+    navigation.setParams({
+      openFilterModal: () => setFilterModal(true)
+    });
+  }, [navigation]);
+
   // Ne pas recharger automatiquement quand le filtre change
   // Les filtres sont appliqués côté client sur les données déjà chargées
 
@@ -201,8 +248,26 @@ function ProgramScreen({ navigation }) {
       // Récupérer la grille des programmes de la semaine depuis le backend
       const response = await showService.getProgramWeek(0, selectedType !== 'Tous' ? selectedType : null);
       
+      console.log('📦 [DEBUG FRONTEND] Réponse brute du backend:', response);
+      
       // Extraire les données
       const { days, types_available, total_count } = response;
+      
+      console.log(`📺 [DEBUG FRONTEND] Nombre de jours reçus: ${days?.length}`);
+      
+      // Afficher les 3 premiers programmes reçus
+      if (days && days.length > 0 && days[0].programs && days[0].programs.length > 0) {
+        console.log('🔍 [DEBUG FRONTEND] Premiers programmes reçus:');
+        days[0].programs.slice(0, 3).forEach((prog, i) => {
+          console.log(`   Programme ${i+1}:`);
+          console.log(`   - Titre: ${prog.title}`);
+          console.log(`   - start_time (brut): ${prog.start_time}`);
+          console.log(`   - Type de start_time: ${typeof prog.start_time}`);
+          const date = new Date(prog.start_time);
+          console.log(`   - Date objet: ${date}`);
+          console.log(`   - Heure extraite: ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`);
+        });
+      }
       
       // Mettre à jour les types disponibles
       if (types_available && types_available.length > 0) {
@@ -220,13 +285,23 @@ function ProgramScreen({ navigation }) {
         };
       });
       
-      // Aplatir tous les programmes pour weekShows
-      const allShows = sections.flatMap(section => section.data);
-      setWeekShows(allShows);
-      setGroupedShows(sections);
+      // Filtrer pour ne garder que les jours à partir d'aujourd'hui
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Réinitialiser l'heure pour comparer uniquement les dates
       
-      if (sections.length > 0) {
-        setSelectedDay(sections[0].date);
+      const filteredSections = sections.filter(section => {
+        const sectionDate = new Date(section.date);
+        sectionDate.setHours(0, 0, 0, 0);
+        return sectionDate >= today; // Garder uniquement aujourd'hui et les jours futurs
+      });
+      
+      // Aplatir tous les programmes pour weekShows
+      const allShows = filteredSections.flatMap(section => section.data);
+      setWeekShows(allShows);
+      setGroupedShows(filteredSections);
+      
+      if (filteredSections.length > 0) {
+        setSelectedDay(filteredSections[0].date);
       }
       
       // Charger les rappels de l'utilisateur
@@ -263,36 +338,13 @@ function ProgramScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={'#DC143C'} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#000000', '#1a1a1a', '#000000']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <Logo size="small" showText={false} />
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Programme</Text>
-            <Text style={styles.headerSubtitle}>
-              {weekShows.length} émissions cette semaine
-            </Text>
-          </View>
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <TouchableOpacity onPress={() => setFilterModal(true)} style={styles.filterIconBtn}>
-              <Ionicons name="filter" size={26} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </LinearGradient>
-
       {/* Modal Filtres */}
       <Modal
         visible={filterModal}
@@ -306,7 +358,7 @@ function ProgramScreen({ navigation }) {
 
           {/* Bouton de réinitialisation */}
           <TouchableOpacity onPress={resetFilters} style={styles.resetBtn}>
-            <Ionicons name="refresh" size={16} color={colors.primary} />
+            <Ionicons name="refresh" size={16} color={'#DC143C'} />
             <Text style={styles.resetBtnText}>Réinitialiser</Text>
           </TouchableOpacity>
 
@@ -436,7 +488,7 @@ function ProgramScreen({ navigation }) {
             return (
               <View key={section.date} style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                  <Ionicons name="calendar-outline" size={20} color={'#DC143C'} />
                   <Text style={styles.sectionTitle}>
                     {section.dayName} {new Date(section.date).getDate()}/{new Date(section.date).getMonth() + 1}
                   </Text>
@@ -451,7 +503,11 @@ function ProgramScreen({ navigation }) {
                   >
                     <TouchableOpacity
                       style={styles.showCard}
-                      onPress={() => navigation.navigate('ShowDetail', { showId: show.id })}
+                      onPress={() => navigation.navigate('ShowDetail', { 
+                        showId: show.id, 
+                        isProgram: true,
+                        programData: show 
+                      })}
                       activeOpacity={0.8}
                     >
                       <Image
@@ -471,17 +527,27 @@ function ProgramScreen({ navigation }) {
                               </Text>
                             </View>
                             <View style={styles.showTime}>
-                              <Ionicons name="time-outline" size={14} color={colors.text} />
+                              <Ionicons name="time-outline" size={14} color={'#FFFFFF'} />
                               <Text style={styles.showTimeText}>
-                                {new Date(show.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                {(() => {
+                                  const date = new Date(show.startTime);
+                                  const hours = String(date.getHours()).padStart(2, '0');
+                                  const minutes = String(date.getMinutes()).padStart(2, '0');
+                                  return `${hours}:${minutes}`;
+                                })()}
                               </Text>
                             </View>
                           </View>
                           <Text style={styles.showTitle} numberOfLines={2}>{show.title}</Text>
-                          <Text style={styles.showDescription} numberOfLines={2}>{show.description}</Text>
+                          <ExpandableText
+                            text={show.description}
+                            numberOfLines={2}
+                            style={styles.showDescription}
+                            expandedStyle={styles.showDescription}
+                          />
                           <View style={styles.showFooter}>
                             <View style={styles.hostInfo}>
-                              <Ionicons name="person-circle-outline" size={16} color={colors.textSecondary} />
+                              <Ionicons name="person-circle-outline" size={16} color={'#B0B0B0'} />
                               <Text style={styles.hostName}>{show.host}</Text>
                             </View>
                             <TouchableOpacity 
@@ -491,7 +557,7 @@ function ProgramScreen({ navigation }) {
                               <Ionicons 
                                 name={hasReminder(show.id) ? "notifications" : "notifications-outline"} 
                                 size={18} 
-                                color={hasReminder(show.id) ? "#fff" : colors.primary} 
+                                color={hasReminder(show.id) ? "#fff" : '#DC143C'} 
                               />
                             </TouchableOpacity>
                           </View>
@@ -511,13 +577,13 @@ function ProgramScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   header: {
     paddingHorizontal: 20,
@@ -533,11 +599,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: colors.text,
+    color: '#FFFFFF',
     marginTop: 4,
     opacity: 0.9,
   },
@@ -556,7 +622,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -570,7 +636,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -582,14 +648,14 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   resetBtnText: {
-    color: colors.primary,
+    color: '#DC143C',
     fontSize: 14,
     marginLeft: 4,
     fontWeight: '500',
   },
   modalLabel: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginTop: 12,
     marginBottom: 8,
     fontWeight: '600',
@@ -605,18 +671,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginRight: 8,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: '#DC143C',
     backgroundColor: 'transparent',
   },
   modalCancelBtnText: {
-    color: colors.primary,
+    color: '#DC143C',
     fontWeight: 'bold',
     fontSize: 16,
     textAlign: 'center',
   },
   modalApplyBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     borderRadius: 16,
     paddingVertical: 12,
     marginLeft: 8,
@@ -636,7 +702,7 @@ const styles = StyleSheet.create({
   filterBtn: {
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: '#DC143C',
     paddingHorizontal: 16,
     paddingVertical: 8,
     marginRight: 8,
@@ -645,11 +711,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#DC143C',
+    borderColor: '#DC143C',
   },
   filterBtnText: {
-    color: colors.primary,
+    color: '#DC143C',
     fontWeight: '600',
     fontSize: 13,
   },
@@ -659,7 +725,7 @@ const styles = StyleSheet.create({
   daysContainer: {
     maxHeight: 140,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#330000',
   },
   daysContent: {
     paddingHorizontal: 16,
@@ -668,7 +734,7 @@ const styles = StyleSheet.create({
   dayCard: {
     width: 80,
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 12,
@@ -677,38 +743,38 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   dayCardActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#DC143C',
+    borderColor: '#DC143C',
   },
   dayName: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginBottom: 4,
   },
   dayNameActive: {
-    color: colors.text,
+    color: '#FFFFFF',
   },
   dayNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 2,
   },
   dayNumberActive: {
-    color: colors.text,
+    color: '#FFFFFF',
   },
   dayMonth: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginBottom: 8,
   },
   dayMonthActive: {
-    color: colors.text,
+    color: '#FFFFFF',
     opacity: 0.8,
   },
   todayIndicator: {
-    backgroundColor: colors.success,
+    backgroundColor: '#34C759',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
@@ -717,10 +783,10 @@ const styles = StyleSheet.create({
   todayText: {
     fontSize: 9,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   dayBadge: {
-    backgroundColor: colors.border,
+    backgroundColor: '#330000',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
@@ -731,10 +797,10 @@ const styles = StyleSheet.create({
   dayBadgeText: {
     fontSize: 11,
     fontWeight: 'bold',
-    color: colors.textSecondary,
+    color: '#B0B0B0',
   },
   dayBadgeTextActive: {
-    color: colors.text,
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -742,7 +808,7 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#330000',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -752,7 +818,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginLeft: 8,
   },
   showCard: {
@@ -760,7 +826,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
   },
   showImage: {
     width: '100%',
@@ -793,7 +859,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   liveBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
   },
   liveIndicator: {
     width: 8,
@@ -817,18 +883,18 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   showTimeText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
   },
   showTitle: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: 'bold',
     lineHeight: 24,
   },
   showDescription: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 13,
     lineHeight: 18,
   },
@@ -844,7 +910,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   hostName: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 12,
     fontWeight: '500',
   },

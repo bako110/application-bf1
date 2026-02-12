@@ -9,12 +9,15 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useTheme } from '../contexts/ThemeContext';
 import notificationService from '../services/notificationService';
 import authService from '../services/authService';
 
 // Badge de notification
-const NotificationBadge = ({ count }) => {
+const NotificationBadge = ({ count, colors }) => {
   if (count <= 0) return null;
+  
+  const styles = createStyles(colors);
   
   return (
     <View style={styles.badge}>
@@ -26,7 +29,9 @@ const NotificationBadge = ({ count }) => {
 };
 
 // Modal des notifications
-const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMarkAllAsRead, onMarkAsRead }) => {
+const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMarkAllAsRead, onMarkAsRead, colors }) => {
+  const styles = createStyles(colors);
+  
   return (
     <Modal
       visible={visible}
@@ -47,14 +52,14 @@ const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMa
               
               <ScrollView style={styles.notificationsList}>
                 {notifications.length > 0 ? (
-                  notifications.map((notification) => (
+                  notifications.map((notification, index) => (
                     <TouchableOpacity 
-                      key={notification.id} 
+                      key={notification.id || `notification-${index}`} 
                       style={[
                         styles.notificationItem,
                         !notification.is_read && styles.unreadNotification
                       ]}
-                      onPress={() => onMarkAsRead(notification.id, notification.is_read)}
+                      onPress={() => notification.id && onMarkAsRead(notification.id, notification.is_read)}
                     >
                       <View style={styles.notificationIcon}>
                         <Ionicons name="notifications" size={20} color="#DC143C" />
@@ -100,6 +105,8 @@ const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMa
 
 // Composant principal
 export default function NotificationHeader() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [modalVisible, setModalVisible] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -136,12 +143,45 @@ export default function NotificationHeader() {
   };
 
   const handleMarkAsRead = async (notificationId, isRead) => {
-    if (!isRead) {
-      try {
-        await notificationService.markAsRead(notificationId);
+    if (!notificationId) {
+      console.warn('⚠️ [NotificationHeader] ID de notification manquant, impossible de marquer comme lu');
+      return;
+    }
+    
+    if (isRead) {
+      console.log('📝 [NotificationHeader] Notification déjà lue');
+      return;
+    }
+    
+    try {
+      console.log('📝 [NotificationHeader] Tentative de marquer comme lu:', notificationId);
+      const result = await notificationService.markAsRead(notificationId);
+      console.log('✅ [NotificationHeader] Notification marquée comme lue:', result);
+      
+      // Si c'est une simulation (erreur 500), on met à jour localement
+      if (result && result.simulated) {
+        console.log('🔄 [NotificationHeader] Mise à jour locale (simulation)');
+        // Marquer la notification comme lue localement
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif.id === notificationId 
+              ? { ...notif, is_read: true, read_locally: true }
+              : notif
+          )
+        );
+        // Mettre à jour le compteur
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } else {
+        // Recharger les notifications depuis le serveur
         loadNotifications();
-      } catch (error) {
-        console.error('Erreur marquage notification:', error);
+      }
+    } catch (error) {
+      console.error('❌ [NotificationHeader] Erreur marquage notification:', error);
+      // Même en cas d'erreur, on essaie de recharger pour maintenir l'interface à jour
+      try {
+        loadNotifications();
+      } catch (loadError) {
+        console.error('❌ [NotificationHeader] Erreur rechargement notifications:', loadError);
       }
     }
   };
@@ -171,7 +211,7 @@ export default function NotificationHeader() {
           size={24} 
           color="#DC143C" 
         />
-        <NotificationBadge count={unreadCount} />
+        <NotificationBadge count={unreadCount} colors={colors} />
       </TouchableOpacity>
 
       <NotificationsModal
@@ -181,12 +221,13 @@ export default function NotificationHeader() {
         unreadCount={unreadCount}
         onMarkAllAsRead={handleMarkAllAsRead}
         onMarkAsRead={handleMarkAsRead}
+        colors={colors}
       />
     </>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   iconButton: {
     marginRight: 16,
     position: 'relative',
@@ -214,7 +255,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '80%',
@@ -226,12 +267,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.text,
   },
   closeButton: {
     padding: 4,
@@ -245,7 +286,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
+    borderBottomColor: colors.border,
   },
   unreadNotification: {
     backgroundColor: 'rgba(220, 20, 60, 0.1)',
@@ -264,18 +305,18 @@ const styles = StyleSheet.create({
   },
   notificationMessage: {
     fontSize: 14,
-    color: '#AAAAAA',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   notificationTime: {
     fontSize: 12,
-    color: '#666666',
+    color: colors.textSecondary,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#DC143C',
+    backgroundColor: colors.primary,
     marginLeft: 8,
   },
   emptyNotifications: {
@@ -285,20 +326,20 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666666',
+    color: colors.textSecondary,
     marginTop: 16,
     textAlign: 'center',
   },
   markAllReadButton: {
     margin: 20,
     padding: 16,
-    backgroundColor: '#DC143C',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     alignItems: 'center',
   },
   markAllReadText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
   },
 });

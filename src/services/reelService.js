@@ -5,10 +5,16 @@ class ReelService {
   async getAllReels(params = {}) {
     try {
       const response = await api.get('/reels', { params });
-      // Mapper _id vers id pour chaque reel
+      // Mapper les champs pour correspondre au frontend
       return response.data.map(reel => ({
         ...reel,
-        id: reel._id || reel.id
+        id: reel._id || reel.id,
+        videoUrl: reel.video_url || reel.videoUrl, // Mapper video_url vers videoUrl
+        title: reel.title || 'Titre du reel',
+        description: reel.description || 'Description du reel',
+        likes: reel.likes || 0,
+        comments: reel.comments || 0,
+        shares: reel.shares || 0
       }));
     } catch (error) {
       throw error.response?.data || error.message;
@@ -22,7 +28,13 @@ class ReelService {
       const reel = response.data;
       return {
         ...reel,
-        id: reel._id || reel.id
+        id: reel._id || reel.id,
+        videoUrl: reel.video_url || reel.videoUrl,
+        title: reel.title || 'Titre du reel',
+        description: reel.description || 'Description du reel',
+        likes: reel.likes || 0,
+        comments: reel.comments || 0,
+        shares: reel.shares || 0
       };
     } catch (error) {
       throw error.response?.data || error.message;
@@ -136,10 +148,26 @@ class ReelService {
       const response = await api.get('/likes/my-likes', { 
         params: { content_type: 'reel' } 
       });
-      return response.data.map(like => like.content_id);
+      return response.data;
     } catch (error) {
-      console.error('Error loading liked reels:', error);
       return [];
+    }
+  }
+
+  // Récupérer les statistiques d'un reel (likes, comments, shares)
+  async getReelStats(reelId) {
+    try {
+      const response = await api.get(`/reels/${reelId}/stats`);
+      return response.data;
+    } catch (error) {
+      console.error('Erreur récupération stats reel:', error);
+      // Retourner des valeurs par défaut si l'endpoint n'existe pas
+      return {
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        views: 0
+      };
     }
   }
 }

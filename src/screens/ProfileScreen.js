@@ -13,18 +13,30 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
 import favoriteService from '../services/favoriteService';
 import Logo from '../components/logo';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, refreshUser } = useAuth();
+  const { colors } = useTheme();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+
+  // Changer le titre du header selon l'état de connexion
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: user ? 'Profil' : '',
+      headerShown: user ? true : false,
+      headerStyle: { backgroundColor: colors.background },
+      headerTintColor: colors.text,
+      headerTitleStyle: { fontWeight: 'bold' },
+    });
+  }, [navigation, user, colors]);
 
   useEffect(() => {
     if (user) {
@@ -88,11 +100,13 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  const styles = createStyles(colors);
+
   if (!user) {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['#000000', '#1a1a1a', '#000000']}
+          colors={[colors.gradient.end, colors.surface, colors.gradient.end]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.loginPrompt}
@@ -124,7 +138,7 @@ export default function ProfileScreen({ navigation }) {
               onPress={() => navigation.navigate('Login')}
               activeOpacity={0.8}
             >
-              <Ionicons name="log-in-outline" size={20} color="#fff" />
+              <Ionicons name="log-in-outline" size={20} color="#FFFFFF" />
               <Text style={styles.loginButtonText}>Se connecter</Text>
             </TouchableOpacity>
 
@@ -153,7 +167,7 @@ export default function ProfileScreen({ navigation }) {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Profile Header */}
       <LinearGradient
-        colors={['#000000', '#1a1a1a', '#000000']}
+        colors={[colors.gradient.end, colors.surface, colors.gradient.end]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -163,6 +177,22 @@ export default function ProfileScreen({ navigation }) {
         </View>
         <Text style={styles.username}>{user.username}</Text>
         <Text style={styles.email}>{user.email}</Text>
+        
+        {/* Bouton pour rafraîchir le profil si les données sont incorrectes */}
+        <TouchableOpacity 
+          style={styles.refreshButton}
+          onPress={async () => {
+            try {
+              await refreshUser();
+              Alert.alert('Succès', 'Profil mis à jour avec succès');
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de rafraîchir le profil');
+            }
+          }}
+        >
+          <Ionicons name="refresh" size={16} color={colors.text} />
+          <Text style={styles.refreshButtonText}>Rafraîchir le profil</Text>
+        </TouchableOpacity>
         {user.is_premium && (
           <View style={styles.premiumBadge}>
             <Ionicons name="star" size={16} color="#FFD700" />
@@ -230,25 +260,37 @@ export default function ProfileScreen({ navigation }) {
 
       {/* Menu Options */}
       <View style={styles.section}>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity 
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('Notifications')}
+        >
           <Ionicons name="notifications-outline" size={24} color={colors.text} />
           <Text style={styles.menuText}>Notifications</Text>
           <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity 
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('Settings')}
+        >
           <Ionicons name="settings-outline" size={24} color={colors.text} />
           <Text style={styles.menuText}>Paramètres</Text>
           <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity 
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('Support')}
+        >
           <Ionicons name="help-circle-outline" size={24} color={colors.text} />
           <Text style={styles.menuText}>Aide & Support</Text>
           <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity 
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('About')}
+        >
           <Ionicons name="information-circle-outline" size={24} color={colors.text} />
           <Text style={styles.menuText}>À propos</Text>
           <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
@@ -278,7 +320,7 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -327,7 +369,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 40,
     paddingVertical: 16,
     borderRadius: 30,
@@ -411,7 +453,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   premiumText: {
-    color: '#FFD700',
+    color: colors.primary,
     fontSize: 12,
     fontWeight: 'bold',
     marginLeft: 6,
@@ -449,7 +491,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
   },
@@ -467,7 +509,7 @@ const styles = StyleSheet.create({
   },
   emptyFavoritesText: {
     fontSize: 15,
-    color: colors.text,
+    color: colors.textSecondary,
     marginTop: 12,
     fontWeight: '600',
   },
@@ -522,5 +564,21 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     marginTop: 4,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 12,
+    gap: 6,
+  },
+  refreshButtonText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

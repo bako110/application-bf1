@@ -11,12 +11,13 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
 import favoriteService from '../services/favoriteService';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function FavoritesScreen({ navigation }) {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, movie, show
@@ -87,6 +88,8 @@ export default function FavoritesScreen({ navigation }) {
     if (filter === 'all') return true;
     return fav.content_type === filter;
   });
+
+  const styles = createStyles(colors);
 
   if (!user) {
     return (
@@ -206,7 +209,7 @@ export default function FavoritesScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

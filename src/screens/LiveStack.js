@@ -8,7 +8,7 @@ const Stack = createStackNavigator();
 export default function LiveStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="LiveMain" component={LiveScreen} />
+      <Stack.Screen name="Live" component={LiveScreen} />
       <Stack.Screen name="LiveShowFullScreen" component={LiveShowFullScreen} />
     </Stack.Navigator>
   );

@@ -1,4 +1,5 @@
 import api from '../config/api';
+import notificationService from './notificationService';
 
 class NewsService {
   // Récupérer toutes les actualités
@@ -57,6 +58,26 @@ class NewsService {
         ...news,
         id: news._id || news.id
       }));
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  // Créer un flash info (breaking news) avec notification
+  async createFlashInfo(flashInfoData) {
+    try {
+      const response = await api.post('/news', flashInfoData);
+      const newFlashInfo = response.data;
+      
+      // Envoyer la notification push pour le flash info
+      try {
+        await notificationService.sendFlashInfoNotification(newFlashInfo);
+      } catch (notifError) {
+        console.error('❌ Erreur envoi notification flash info:', notifError);
+        // Ne pas bloquer la création si la notification échoue
+      }
+      
+      return newFlashInfo;
     } catch (error) {
       throw error.response?.data || error.message;
     }

@@ -18,6 +18,7 @@ import { colors } from '../contexts/ThemeContext';
 import newsService from '../services/newsService';
 import ContentActions from '../components/contentActions';
 import { formatLongDate, formatRelativeTime } from '../utils/dateUtils';
+import ExpandableText from '../components/ExpandableText';
 
 const { width } = Dimensions.get('window');
 
@@ -89,7 +90,7 @@ export default function NewsDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={'#DC143C'} />
       </View>
     );
   }
@@ -115,7 +116,7 @@ export default function NewsDetailScreen({ route, navigation }) {
             style={styles.coverImage}
           />
           <LinearGradient
-            colors={['transparent', colors.background]}
+            colors={['transparent', '#000000']}
             style={styles.gradient}
           />
           
@@ -151,7 +152,7 @@ export default function NewsDetailScreen({ route, navigation }) {
         {/* Auteur */}
         {news.author && (
           <View style={styles.authorRow}>
-            <Ionicons name="person-circle" size={20} color={colors.textSecondary} />
+            <Ionicons name="person-circle" size={20} color={'#B0B0B0'} />
             <Text style={styles.authorText}>Par {news.author}</Text>
           </View>
         )}
@@ -166,14 +167,19 @@ export default function NewsDetailScreen({ route, navigation }) {
         {/* Contenu de l'article */}
         {(news.content || news.description) && (
           <View style={styles.articleContent}>
-            <Text style={styles.contentText}>{news.content || news.description}</Text>
+            <ExpandableText
+              text={news.content || news.description}
+              numberOfLines={5}
+              style={styles.contentText}
+              expandedStyle={styles.contentText}
+            />
           </View>
         )}
 
         {/* Édition */}
         {news.edition && (
           <View style={styles.editionContainer}>
-            <Ionicons name="newspaper" size={18} color={colors.textSecondary} />
+            <Ionicons name="newspaper" size={18} color={'#B0B0B0'} />
             <Text style={styles.editionText}>Édition: {news.edition}</Text>
           </View>
         )}
@@ -195,7 +201,7 @@ export default function NewsDetailScreen({ route, navigation }) {
               <Text style={styles.shareButtonText}>WhatsApp</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.shareButton} onPress={shareNative}>
-              <Ionicons name="share-social" size={24} color={colors.primary} />
+              <Ionicons name="share-social" size={24} color={'#DC143C'} />
               <Text style={styles.shareButtonText}>Plus</Text>
             </TouchableOpacity>
           </View>
@@ -205,10 +211,10 @@ export default function NewsDetailScreen({ route, navigation }) {
         {relatedNews.length > 0 && (
           <View style={styles.relatedSection}>
             <View style={styles.relatedHeader}>
-              <Ionicons name="newspaper" size={20} color={colors.primary} />
+              <Ionicons name="newspaper" size={20} color={'#DC143C'} />
               <Text style={styles.relatedTitle}>Autres actualités</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.relatedGrid}>
               {relatedNews.map((item) => (
                 <TouchableOpacity
                   key={item.id || item._id}
@@ -229,7 +235,7 @@ export default function NewsDetailScreen({ route, navigation }) {
                   </View>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </View>
           </View>
         )}
       </View>
@@ -240,24 +246,24 @@ export default function NewsDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
     padding: 20,
   },
   errorText: {
     fontSize: 18,
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 20,
   },
   imageContainer: {
@@ -288,7 +294,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -308,7 +314,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   categoryBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -320,12 +326,12 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
   },
   title: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 16,
     lineHeight: 34,
   },
@@ -337,7 +343,7 @@ const styles = StyleSheet.create({
   },
   authorText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontStyle: 'italic',
   },
   articleContent: {
@@ -346,7 +352,7 @@ const styles = StyleSheet.create({
   },
   contentText: {
     fontSize: 16,
-    color: colors.text,
+    color: '#FFFFFF',
     lineHeight: 26,
   },
   editionContainer: {
@@ -355,24 +361,24 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     borderRadius: 8,
     marginBottom: 24,
   },
   editionText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
   },
   shareSection: {
     marginTop: 24,
     paddingTop: 24,
     borderTopWidth: 1,
-    borderTopColor: colors.surface,
+    borderTopColor: '#1A0000',
   },
   shareSectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 16,
   },
   shareButtons: {
@@ -388,12 +394,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     gap: 6,
   },
   shareButtonText: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontWeight: '600',
     marginTop: 4,
   },
@@ -401,7 +407,7 @@ const styles = StyleSheet.create({
     marginTop: 32,
     paddingTop: 24,
     borderTopWidth: 1,
-    borderTopColor: colors.surface,
+    borderTopColor: '#1A0000',
   },
   relatedHeader: {
     flexDirection: 'row',
@@ -412,30 +418,38 @@ const styles = StyleSheet.create({
   relatedTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
+  },
+  relatedGrid: {
+    flexDirection: 'column',
+    gap: 12,
   },
   relatedCard: {
-    width: 200,
-    marginRight: 16,
+    width: '100%',
+    marginBottom: 12,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
+    flexDirection: 'row',
+    height: 100,
   },
   relatedImage: {
-    width: '100%',
-    height: 120,
+    width: 120,
+    height: '100%',
   },
   relatedContent: {
+    flex: 1,
     padding: 12,
+    justifyContent: 'center',
   },
   relatedCardTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   relatedTime: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
   },
 });

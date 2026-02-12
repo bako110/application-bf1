@@ -12,43 +12,62 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
 import interviewService from '../services/interviewService';
 import { useFocusEffect } from '@react-navigation/native';
+import viewService from '../services/viewService';
+import useAutoRefresh from '../hooks/useAutoRefresh';
+import usePagination from '../hooks/usePagination';
+import LoadingFooter from '../components/LoadingFooter';
 
 export default function InterviewsScreen({ navigation }) {
-  const [interviews, setInterviews] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { colors } = useTheme();
   const [viewMode, setViewMode] = useState('list');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  useEffect(() => {
-    loadInterviews();
-  }, []);
+  // Pagination
+  const fetchInterviews = async (skip, limit) => {
+    return await interviewService.getAllInterviews({ skip, limit });
+  };
+
+  const {
+    data: interviews,
+    loading,
+    loadingMore,
+    refreshing,
+    hasMore,
+    error,
+    loadInitial,
+    refresh,
+    loadMore,
+    setData: setInterviews,
+  } = usePagination(fetchInterviews, 20);
 
   useFocusEffect(
     React.useCallback(() => {
-      loadInterviews();
+      if (interviews.length === 0) {
+        loadInitial();
+      }
     }, [])
   );
 
-  const loadInterviews = async () => {
+  // Rafraîchissement automatique en arrière-plan
+  const loadInterviewsSilently = async () => {
     try {
-      setLoading(true);
-      const data = await interviewService.getAllInterviews({ limit: 50 });
+      const data = await interviewService.getAllInterviews({ limit: interviews.length || 20 });
       setInterviews(data);
     } catch (error) {
-      console.error('Error loading interviews:', error);
-      setInterviews([]);
-    } finally {
-      setLoading(false);
+      console.error('Error loading interviews silently:', error);
     }
   };
+  
+  useAutoRefresh(loadInterviewsSilently, 10000, true);
+
+  const [hasAnimated, setHasAnimated] = useState(false);
 
   useEffect(() => {
-    if (interviews.length > 0) {
+    if (interviews.length > 0 && !hasAnimated) {
       fadeAnim.setValue(0);
       slideAnim.setValue(30);
       Animated.parallel([
@@ -63,40 +82,16 @@ export default function InterviewsScreen({ navigation }) {
           useNativeDriver: true,
         })
       ]).start();
+      setHasAnimated(true);
     }
-  }, [interviews, viewMode]);
+  }, [interviews.length > 0]);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadInterviews();
-    setRefreshing(false);
-  };
+
+  const styles = createStyles(colors);
 
   if (loading && interviews.length === 0) {
     return (
       <View style={styles.container}>
-        <LinearGradient
-          colors={['#000000', '#1a1a1a']}
-          style={styles.header}
-        >
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={28} color={colors.text} />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Ionicons name="mic" size={24} color={colors.primary} />
-            <Text style={styles.headerTitle}>Interviews</Text>
-          </View>
-          <TouchableOpacity 
-            onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-            style={styles.viewToggle}
-          >
-            <Ionicons 
-              name={viewMode === 'grid' ? 'list' : 'grid'} 
-              size={24} 
-              color={colors.text} 
-            />
-          </TouchableOpacity>
-        </LinearGradient>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Chargement des interviews...</Text>
@@ -107,26 +102,12 @@ export default function InterviewsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#000000', '#1a1a1a']}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Ionicons name="mic" size={24} color={colors.primary} />
-          <Text style={styles.headerTitle}>Interviews</Text>
-        </View>
-        <View style={styles.placeholder} />
-      </LinearGradient>
-
+      {/* Header personnalisé supprimé - utilisation du header natif */}
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
         }
       >
         {interviews.length === 0 ? (
@@ -134,7 +115,7 @@ export default function InterviewsScreen({ navigation }) {
             <Ionicons name="mic-outline" size={80} color={colors.textSecondary} />
             <Text style={styles.emptyTitle}>Aucune interview disponible</Text>
             <Text style={styles.emptySubtitle}>Les interviews apparaîtront ici</Text>
-            <TouchableOpacity style={styles.refreshButton} onPress={loadInterviews}>
+            <TouchableOpacity style={styles.refreshButton} onPress={refresh}>
               <Ionicons name="refresh" size={20} color="#fff" />
               <Text style={styles.refreshButtonText}>Actualiser</Text>
             </TouchableOpacity>
@@ -147,7 +128,14 @@ export default function InterviewsScreen({ navigation }) {
                   key={interview.id || index} 
                   style={viewMode === 'grid' ? styles.interviewCard : styles.interviewCardList}
                   activeOpacity={0.9}
-                  onPress={() => navigation.navigate('ShowDetail', { showId: interview.id, isInterview: true })}
+                  onPress={async () => {
+                    const interviewId = interview.id || interview._id;
+                    await viewService.incrementView(interviewId, 'interview');
+                    navigation.navigate('ShowDetail', {
+                      showId: interviewId,
+                      isInterview: true
+                    });
+                  }}
                 >
                   <Image 
                     source={{ uri: interview.image_url || interview.image || 'https://via.placeholder.com/400x250' }} 
@@ -176,6 +164,37 @@ export default function InterviewsScreen({ navigation }) {
               </TouchableOpacity>
               ))}
             </View>
+
+            {/* Section Archives */}
+            <View style={styles.archiveSection}>
+              <View style={styles.archiveHeader}>
+                <View style={styles.archiveTitleContainer}>
+                  <Ionicons name="archive" size={24} color={colors.primary} />
+                  <Text style={styles.archiveSectionTitle}>Archives</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.viewAllButton}
+                  onPress={() => navigation.navigate('Archive')}
+                >
+                  <Text style={styles.viewAllText}>Voir tout</Text>
+                  <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.premiumBadge}>
+                <Ionicons name="star" size={16} color="#FFD700" />
+                <Text style={styles.premiumBadgeText}>Contenu Premium</Text>
+              </View>
+              <Text style={styles.archiveDescription}>
+                Accédez à nos archives d'interviews exclusives avec un abonnement premium
+              </Text>
+              <TouchableOpacity 
+                style={styles.archiveButton}
+                onPress={() => navigation.navigate('Archive')}
+              >
+                <Ionicons name="archive-outline" size={20} color="#fff" />
+                <Text style={styles.archiveButtonText}>Découvrir les archives</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         )}
       </ScrollView>
@@ -183,7 +202,7 @@ export default function InterviewsScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -192,8 +211,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 40,
-    paddingBottom: 12,
+    paddingTop: 35,
+    paddingBottom: 10,
     paddingHorizontal: 16,
   },
   backButton: {
@@ -267,7 +286,7 @@ const styles = StyleSheet.create({
   interviewBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
@@ -328,7 +347,7 @@ const styles = StyleSheet.create({
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -349,5 +368,77 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 16,
     marginTop: 16,
+  },
+  archiveSection: {
+    marginTop: 32,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    padding: 20,
+    backgroundColor: 'rgba(255, 215, 0, 0.05)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.2)',
+  },
+  archiveHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  archiveTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  archiveSectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewAllText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 6,
+  },
+  premiumBadgeText: {
+    color: '#FFD700',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  archiveDescription: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  archiveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC143C',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 10,
+  },
+  archiveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

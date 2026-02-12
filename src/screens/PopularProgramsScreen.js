@@ -15,7 +15,9 @@ import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../contexts/ThemeContext';
+import ExpandableText from '../components/ExpandableText';
 import popularProgramService from '../services/popularProgramService';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 
 export default function PopularProgramsScreen({ navigation }) {
   const [programs, setPrograms] = useState([]);
@@ -35,6 +37,18 @@ export default function PopularProgramsScreen({ navigation }) {
       loadPrograms();
     }, [])
   );
+
+  // Rafraîchissement automatique en arrière-plan toutes les 10 secondes
+  const loadProgramsSilently = async () => {
+    try {
+      const data = await popularProgramService.getAllPrograms();
+      setPrograms(data);
+    } catch (error) {
+      console.error('Error loading programs silently:', error);
+    }
+  };
+  
+  useAutoRefresh(loadProgramsSilently, 10000, true);
 
   const loadPrograms = async () => {
     try {
@@ -79,18 +93,18 @@ export default function PopularProgramsScreen({ navigation }) {
   if (loading && programs.length === 0) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={['#000000', '#1a1a1a']} style={styles.header}>
+        {/* <LinearGradient colors={['#000000', '#1a1a1a']} style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={28} color={colors.text} />
+            <Ionicons name="arrow-back" size={28} color={'#FFFFFF'} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Ionicons name="star" size={24} color={colors.primary} />
+            <Ionicons name="star" size={24} color={'#DC143C'} />
             <Text style={styles.headerTitle}>Programmes Populaires</Text>
           </View>
           <View style={styles.placeholder} />
-        </LinearGradient>
+        </LinearGradient> */}
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={'#DC143C'} />
           <Text style={styles.loadingText}>Chargement des programmes...</Text>
         </View>
       </View>
@@ -100,18 +114,18 @@ export default function PopularProgramsScreen({ navigation }) {
   if (error && programs.length === 0) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={['#000000', '#1a1a1a']} style={styles.header}>
+        {/* <LinearGradient colors={['#000000', '#1a1a1a']} style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={28} color={colors.text} />
+            <Ionicons name="arrow-back" size={28} color={'#FFFFFF'} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Ionicons name="star" size={24} color={colors.primary} />
+            <Ionicons name="star" size={24} color={'#DC143C'} />
             <Text style={styles.headerTitle}>Programmes Populaires</Text>
           </View>
           <View style={styles.placeholder} />
-        </LinearGradient>
+        </LinearGradient> */}
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color={colors.primary} />
+          <Ionicons name="alert-circle" size={48} color={'#DC143C'} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadPrograms}>
             <Text style={styles.retryButtonText}>Réessayer</Text>
@@ -126,15 +140,15 @@ export default function PopularProgramsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <LinearGradient
+      {/* <LinearGradient
         colors={['#000000', '#1a1a1a']}
         style={styles.header}
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color={colors.text} />
+          <Ionicons name="arrow-back" size={28} color={'#FFFFFF'} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Ionicons name="star" size={24} color={colors.primary} />
+          <Ionicons name="star" size={24} color={'#DC143C'} />
           <Text style={styles.headerTitle}>Programmes Populaires</Text>
         </View>
         <TouchableOpacity 
@@ -144,21 +158,21 @@ export default function PopularProgramsScreen({ navigation }) {
           <Ionicons 
             name={viewMode === 'grid' ? 'list' : 'grid'} 
             size={24} 
-            color={colors.text} 
+            color={'#FFFFFF'} 
           />
         </TouchableOpacity>
-      </LinearGradient>
+      </LinearGradient> */}
 
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#DC143C'} />
         }
       >
         {displayPrograms.length === 0 ? (
           <Animated.View style={[styles.emptyContainer, { opacity: fadeAnim }]}>
-            <Ionicons name="star-outline" size={80} color={colors.textSecondary} />
+            <Ionicons name="star-outline" size={80} color={'#B0B0B0'} />
             <Text style={styles.emptyTitle}>Aucun programme populaire</Text>
             <Text style={styles.emptySubtitle}>Les programmes populaires apparaîtront ici</Text>
             <TouchableOpacity style={styles.refreshButton} onPress={loadPrograms}>
@@ -173,7 +187,11 @@ export default function PopularProgramsScreen({ navigation }) {
                 key={program.id || index} 
                 style={viewMode === 'grid' ? styles.programCard : styles.programCardList}
                 activeOpacity={0.9}
-                onPress={() => navigation.navigate('ShowDetail', { showId: program.id, isPopularProgram: true })}
+                onPress={() => navigation.navigate('ShowDetail', { 
+                  showId: program.id, 
+                  isPopularProgram: true,
+                  programData: program
+                })}
               >
                 <Image 
                   source={{ uri: program.image_url || program.image }} 
@@ -187,17 +205,20 @@ export default function PopularProgramsScreen({ navigation }) {
                     <Text style={styles.categoryText}>{program.category || 'Général'}</Text>
                   </View>
                   <Text style={styles.programTitle}>{program.title}</Text>
-                  <Text style={styles.programDescription} numberOfLines={2}>
-                    {program.description}
-                  </Text>
+                  <ExpandableText
+                    text={program.description}
+                    numberOfLines={2}
+                    style={styles.programDescription}
+                    expandedStyle={styles.programDescription}
+                  />
                   <View style={styles.programMeta}>
                     <View style={styles.scheduleContainer}>
-                      <Ionicons name="time" size={14} color={colors.primary} />
+                      <Ionicons name="time" size={14} color={'#DC143C'} />
                       <Text style={styles.scheduleText}>{program.schedule}</Text>
                     </View>
                     <View style={styles.statsContainer}>
                       <View style={styles.statItem}>
-                        <Ionicons name="list" size={14} color={colors.textSecondary} />
+                        <Ionicons name="list" size={14} color={'#B0B0B0'} />
                         <Text style={styles.statText}>{program.episodes} ép.</Text>
                       </View>
                       <View style={styles.statItem}>
@@ -220,13 +241,13 @@ export default function PopularProgramsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 40,
+    paddingTop: 35,
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
@@ -244,7 +265,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   placeholder: {
     width: 40,
@@ -271,7 +292,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
   },
   programCardList: {
     width: '100%',
@@ -279,7 +300,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     flexDirection: 'row',
   },
   programImage: {
@@ -298,7 +319,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   categoryBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
@@ -311,13 +332,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   programTitle: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   programDescription: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
@@ -333,7 +354,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   scheduleText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -347,7 +368,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 12,
   },
   bottomPadding: {
@@ -363,20 +384,20 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginTop: 20,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginTop: 8,
     textAlign: 'center',
   },
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
@@ -395,7 +416,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 14,
   },
   errorContainer: {
@@ -406,12 +427,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   errorText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 14,
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,

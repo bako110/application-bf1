@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '../contexts/ThemeContext';
+import api from '../config/api';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export default function RegisterScreen({ navigation }) {
   const { register, login } = useAuth();
@@ -10,6 +12,58 @@ export default function RegisterScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [suggestedUsername, setSuggestedUsername] = useState('');
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState(null);
+
+  // Suggérer un username quand l'email change
+  useEffect(() => {
+    const suggestUsername = async () => {
+      if (email && email.includes('@')) {
+        try {
+          const response = await api.post('/username/suggest', { email });
+          const suggested = response.data.username;
+          setSuggestedUsername(suggested);
+          
+          // Si l'utilisateur n'a pas encore saisi de username, utiliser la suggestion
+          if (!username) {
+            setUsername(suggested);
+            setUsernameAvailable(true);
+          }
+        } catch (error) {
+          console.error('Erreur suggestion username:', error);
+        }
+      }
+    };
+
+    // Délai pour éviter trop de requêtes
+    const timer = setTimeout(suggestUsername, 500);
+    return () => clearTimeout(timer);
+  }, [email]);
+
+  // Vérifier la disponibilité du username quand il change
+  useEffect(() => {
+    const checkUsername = async () => {
+      if (username && username.length >= 3) {
+        setCheckingUsername(true);
+        try {
+          const response = await api.get(`/username/check/${username}`);
+          setUsernameAvailable(response.data.is_available);
+        } catch (error) {
+          console.error('Erreur vérification username:', error);
+          setUsernameAvailable(null);
+        } finally {
+          setCheckingUsername(false);
+        }
+      } else {
+        setUsernameAvailable(null);
+      }
+    };
+
+    // Délai pour éviter trop de requêtes
+    const timer = setTimeout(checkUsername, 500);
+    return () => clearTimeout(timer);
+  }, [username]);
 
   const handleRegister = async () => {
     // Validation
@@ -62,14 +116,58 @@ export default function RegisterScreen({ navigation }) {
         onChangeText={setEmail}
         autoCapitalize="none"
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Nom d'utilisateur"
-        placeholderTextColor="#b0b0b0"
-        value={username}
-        onChangeText={setUsername}
-        autoCapitalize="none"
-      />
+      <View style={styles.usernameContainer}>
+        <TextInput
+          style={[
+            styles.input,
+            usernameAvailable === true && styles.inputAvailable,
+            usernameAvailable === false && styles.inputUnavailable
+          ]}
+          placeholder="Nom d'utilisateur"
+          placeholderTextColor="#b0b0b0"
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
+        />
+        {checkingUsername && (
+          <ActivityIndicator 
+            size="small" 
+            color="#DC143C" 
+            style={styles.usernameIndicator}
+          />
+        )}
+        {!checkingUsername && usernameAvailable === true && (
+          <Ionicons 
+            name="checkmark-circle" 
+            size={24} 
+            color="#00FF00" 
+            style={styles.usernameIndicator}
+          />
+        )}
+        {!checkingUsername && usernameAvailable === false && (
+          <Ionicons 
+            name="close-circle" 
+            size={24} 
+            color="#FF0000" 
+            style={styles.usernameIndicator}
+          />
+        )}
+      </View>
+      {suggestedUsername && username !== suggestedUsername && (
+        <TouchableOpacity 
+          style={styles.suggestionButton}
+          onPress={() => setUsername(suggestedUsername)}
+        >
+          <Text style={styles.suggestionText}>
+            💡 Suggestion: {suggestedUsername}
+          </Text>
+        </TouchableOpacity>
+      )}
+      {usernameAvailable === false && (
+        <Text style={styles.warningText}>
+          ⚠️ Ce nom d'utilisateur est déjà pris
+        </Text>
+      )}
       <TextInput
         style={styles.input}
         placeholder="Mot de passe"
@@ -94,28 +192,28 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
     padding: 24,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 24,
-    color: colors.text,
+    color: '#FFFFFF',
   },
   input: {
     width: '100%',
     padding: 12,
     borderWidth: 1,
-    borderColor: colors.surface,
+    borderColor: '#1A0000',
     borderRadius: 8,
     marginBottom: 16,
-    color: colors.text,
-    backgroundColor: colors.surface,
+    color: '#FFFFFF',
+    backgroundColor: '#1A0000',
   },
   button: {
     width: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -127,12 +225,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   link: {
-    color: colors.primary,
-    marginTop: 8,
+    color: '#DC143C',
+    marginTop: 16,
     fontSize: 15,
   },
   error: {
     color: 'red',
     marginBottom: 8,
+  },
+  usernameContainer: {
+    width: '100%',
+    position: 'relative',
+  },
+  usernameIndicator: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+  },
+  inputAvailable: {
+    borderColor: '#00FF00',
+    borderWidth: 1,
+  },
+  inputUnavailable: {
+    borderColor: '#FF0000',
+    borderWidth: 1,
+  },
+  suggestionButton: {
+    width: '100%',
+    backgroundColor: '#1A1A1A',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#DC143C',
+  },
+  suggestionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  warningText: {
+    color: '#FF0000',
+    fontSize: 12,
+    marginBottom: 12,
+    textAlign: 'center',
   },
 });

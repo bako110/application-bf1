@@ -29,7 +29,7 @@ export default function FilterBar({
               <Ionicons
                 name={filter.icon}
                 size={18}
-                color={isActive ? colors.text : colors.textSecondary}
+                color={isActive ? '#FFFFFF' : '#B0B0B0'}
                 style={styles.icon}
               />
             )}
@@ -64,28 +64,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     marginRight: 10,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   filterButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#DC143C',
+    borderColor: '#DC143C',
   },
   icon: {
     marginRight: 6,
   },
   filterText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 14,
     fontWeight: '600',
   },
   filterTextActive: {
-    color: colors.text,
+    color: '#FFFFFF',
   },
   countBadge: {
-    backgroundColor: colors.border,
+    backgroundColor: '#330000',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -95,11 +95,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   countText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 12,
     fontWeight: 'bold',
   },
   countTextActive: {
-    color: colors.text,
+    color: '#FFFFFF',
   },
 });

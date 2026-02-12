@@ -1,4 +1,5 @@
 import api from '../config/api';
+import notificationService from './notificationService';
 
 class PopularProgramService {
   // Récupérer tous les programmes populaires
@@ -95,6 +96,26 @@ class PopularProgramService {
         ...comment,
         id: comment._id || comment.id
       }));
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  // Créer un nouveau programme populaire (pour l'admin) avec notification
+  async createProgram(programData) {
+    try {
+      const response = await api.post('/popular-programs', programData);
+      const newProgram = response.data;
+      
+      // Envoyer la notification push pour le nouveau programme populaire
+      try {
+        await notificationService.sendPopularProgramNotification(newProgram);
+      } catch (notifError) {
+        console.error('❌ Erreur envoi notification programme populaire:', notifError);
+        // Ne pas bloquer la création si la notification échoue
+      }
+      
+      return newProgram;
     } catch (error) {
       throw error.response?.data || error.message;
     }

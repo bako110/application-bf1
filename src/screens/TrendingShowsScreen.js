@@ -15,12 +15,16 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
+import popularProgramService from '../services/popularProgramService';
+import ExpandableText from '../components/ExpandableText';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import trendingShowService from '../services/trendingShowService';
 
 const { width } = Dimensions.get('window');
 
 export default function TrendingShowsScreen({ navigation }) {
+  const { colors } = useTheme();
   const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,6 +43,20 @@ export default function TrendingShowsScreen({ navigation }) {
     }, [])
   );
 
+  // Rafraîchissement automatique en arrière-plan toutes les 10 secondes
+  const loadShowsSilently = async () => {
+    try {
+      const data = await trendingShowService.getTrendingShows();
+      setShows(data);
+    } catch (error) {
+      console.error('Error loading shows silently:', error);
+    }
+  };
+  
+  useAutoRefresh(loadShowsSilently, 10000, true);
+
+  const [hasAnimated, setHasAnimated] = useState(false);
+
   const loadShows = async () => {
     try {
       setLoading(true);
@@ -55,7 +73,7 @@ export default function TrendingShowsScreen({ navigation }) {
   };
 
   useEffect(() => {
-    if (shows.length > 0) {
+    if (shows.length > 0 && !hasAnimated) {
       fadeAnim.setValue(0);
       slideAnim.setValue(30);
       Animated.parallel([
@@ -70,8 +88,9 @@ export default function TrendingShowsScreen({ navigation }) {
           useNativeDriver: true,
         })
       ]).start();
+      setHasAnimated(true);
     }
-  }, [shows, viewMode]);
+  }, [shows.length > 0]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -79,21 +98,21 @@ export default function TrendingShowsScreen({ navigation }) {
     setRefreshing(false);
   };
 
+  // Exposer toggleViewMode et viewMode via les params de navigation
+  useEffect(() => {
+    navigation.setParams({
+      toggleViewMode: () => setViewMode(viewMode === 'grid' ? 'list' : 'grid'),
+      viewMode: viewMode
+    });
+  }, [navigation, viewMode]);
+
+  const styles = createStyles(colors);
+
   if (loading && shows.length === 0) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={['#000000', '#1a1a1a']} style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={28} color={colors.text} />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Ionicons name="trending-up" size={24} color={colors.primary} />
-            <Text style={styles.headerTitle}>Émissions Tendances</Text>
-          </View>
-          <View style={styles.placeholder} />
-        </LinearGradient>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={'#DC143C'} />
           <Text style={styles.loadingText}>Chargement des émissions tendance...</Text>
         </View>
       </View>
@@ -103,18 +122,8 @@ export default function TrendingShowsScreen({ navigation }) {
   if (error && shows.length === 0) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={['#000000', '#1a1a1a']} style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={28} color={colors.text} />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Ionicons name="trending-up" size={24} color={colors.primary} />
-            <Text style={styles.headerTitle}>Émissions Tendances</Text>
-          </View>
-          <View style={styles.placeholder} />
-        </LinearGradient>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color={colors.primary} />
+          <Ionicons name="alert-circle" size={48} color={'#DC143C'} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadShows}>
             <Text style={styles.retryButtonText}>Réessayer</Text>
@@ -128,40 +137,16 @@ export default function TrendingShowsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#000000', '#1a1a1a']}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Ionicons name="trending-up" size={24} color={colors.primary} />
-          <Text style={styles.headerTitle}>Émissions Tendances</Text>
-        </View>
-        <TouchableOpacity 
-          onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-          style={styles.viewToggle}
-        >
-          <Ionicons 
-            name={viewMode === 'grid' ? 'list' : 'grid'} 
-            size={24} 
-            color={colors.text} 
-          />
-        </TouchableOpacity>
-      </LinearGradient>
-
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#DC143C'} />
         }
       >
         {displayShows.length === 0 ? (
           <Animated.View style={[styles.emptyContainer, { opacity: fadeAnim }]}>
-            <Ionicons name="trending-up-outline" size={80} color={colors.textSecondary} />
+            <Ionicons name="trending-up-outline" size={80} color={'#B0B0B0'} />
             <Text style={styles.emptyTitle}>Aucune émission tendance</Text>
             <Text style={styles.emptySubtitle}>Les émissions populaires apparaîtront ici</Text>
             <TouchableOpacity style={styles.refreshButton} onPress={loadShows}>
@@ -191,12 +176,15 @@ export default function TrendingShowsScreen({ navigation }) {
                     <Text style={styles.categoryText}>{show.category || 'Général'}</Text>
                   </View>
                   <Text style={styles.showTitle} numberOfLines={1}>{show.title}</Text>
-                  <Text style={styles.showDescription} numberOfLines={2}>
-                    {show.description}
-                  </Text>
+                  <ExpandableText
+                    text={show.description}
+                    numberOfLines={2}
+                    style={styles.showDescription}
+                    expandedStyle={styles.showDescription}
+                  />
                   <View style={styles.showMeta}>
                     <View style={styles.metaItem}>
-                      <Ionicons name="eye" size={14} color={colors.primary} />
+                      <Ionicons name="eye" size={14} color={'#DC143C'} />
                       <Text style={styles.metaText}>{show.views}</Text>
                     </View>
                     <View style={styles.metaItem}>
@@ -204,12 +192,12 @@ export default function TrendingShowsScreen({ navigation }) {
                       <Text style={styles.metaText}>{show.rating}</Text>
                     </View>
                     <View style={styles.metaItem}>
-                      <Ionicons name="list" size={14} color={colors.textSecondary} />
+                      <Ionicons name="list" size={14} color={'#B0B0B0'} />
                       <Text style={styles.metaText}>{show.episodes}</Text>
                     </View>
                   </View>
                   <View style={styles.hostContainer}>
-                    <Ionicons name="person" size={12} color={colors.textSecondary} />
+                    <Ionicons name="person" size={12} color={'#B0B0B0'} />
                     <Text style={styles.hostText}>Animé par {show.host}</Text>
                   </View>
                 </LinearGradient>
@@ -224,7 +212,7 @@ export default function TrendingShowsScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -233,7 +221,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 40,
+    paddingTop: 35,
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
@@ -251,7 +239,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   placeholder: {
     width: 40,
@@ -281,7 +269,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
   },
   showCardList: {
     width: '100%',
@@ -289,7 +277,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     flexDirection: 'row',
   },
   showImage: {
@@ -308,7 +296,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   categoryBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -321,13 +309,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   showTitle: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 6,
   },
   showDescription: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 12,
     lineHeight: 16,
     marginBottom: 8,
@@ -343,7 +331,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -353,7 +341,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   hostText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 10,
   },
   bottomPadding: {
@@ -369,20 +357,20 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginTop: 20,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginTop: 8,
     textAlign: 'center',
   },
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
@@ -401,7 +389,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 14,
   },
   errorContainer: {
@@ -412,12 +400,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   errorText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 14,
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,

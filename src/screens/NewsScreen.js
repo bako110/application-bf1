@@ -62,7 +62,7 @@ export default function NewsScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={'#DC143C'} />
       </View>
     );
   }
@@ -103,14 +103,14 @@ export default function NewsScreen({ navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
+            tintColor={'#DC143C'}
           />
         }
       >
         {/* Live News */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="radio" size={20} color={colors.error} />
+            <Ionicons name="radio" size={20} color={'#FF0000'} />
             <Text style={styles.sectionTitle}>En Direct</Text>
           </View>
           {liveNews.length > 0 ? (
@@ -134,7 +134,7 @@ export default function NewsScreen({ navigation }) {
             ))
           ) : (
             <View style={styles.placeholderContainer}>
-              <Ionicons name="alert-circle-outline" size={40} color={colors.textSecondary} />
+              <Ionicons name="alert-circle-outline" size={40} color={'#B0B0B0'} />
               <Text style={styles.placeholderText}>Aucune actualité en direct pour le moment.</Text>
             </View>
           )}
@@ -176,7 +176,7 @@ export default function NewsScreen({ navigation }) {
             ))
           ) : (
             <View style={styles.placeholderContainer}>
-              <Ionicons name="newspaper-outline" size={40} color={colors.textSecondary} />
+              <Ionicons name="newspaper-outline" size={40} color={'#B0B0B0'} />
               <Text style={styles.placeholderText}>Aucune actualité disponible pour le moment.</Text>
             </View>
           )}
@@ -189,13 +189,13 @@ export default function NewsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#000000',
   },
   placeholderContainer: {
     flex: 1,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
   },
   placeholderText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 16,
     marginTop: 12,
     textAlign: 'center',
@@ -213,25 +213,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#330000',
   },
   editionButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     marginRight: 8,
   },
   editionButtonActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
   },
   editionText: {
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     fontSize: 14,
     fontWeight: '600',
   },
   editionTextActive: {
-    color: colors.text,
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginLeft: 8,
   },
   liveCard: {
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.error,
+    backgroundColor: '#FF0000',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -281,22 +281,22 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.text,
+    backgroundColor: '#FFFFFF',
     marginRight: 6,
   },
   liveText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
   },
   liveTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   newsCard: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: '#1A0000',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
@@ -314,12 +314,12 @@ const styles = StyleSheet.create({
   newsTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   newsExcerpt: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
     marginBottom: 8,
   },
   newsMeta: {
@@ -327,19 +327,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   editionTag: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#DC143C',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
     marginRight: 8,
   },
   editionTagText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: 'bold',
   },
   newsDate: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#B0B0B0',
   },
 });
