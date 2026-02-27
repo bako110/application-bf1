@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
@@ -12,6 +11,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../contexts/ThemeContext';
 import notificationService from '../services/notificationService';
 import { formatRelativeTime } from '../utils/dateUtils';
+import { createNotificationsStyles } from '../styles/notificationsStyles'; // Import des styles séparés
 
 export default function NotificationsScreen({ navigation }) {
   const { colors } = useTheme();
@@ -80,34 +80,38 @@ export default function NotificationsScreen({ navigation }) {
     }
   };
 
-  const renderNotification = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.notificationCard, !item.is_read && styles.unreadCard]}
-      onPress={() => handleNotificationPress(item)}
-    >
-      <View style={styles.notificationIcon}>
-        <Ionicons
-          name={getNotificationIcon(item.category)}
-          size={24}
-          color={item.is_read ? colors.textSecondary : colors.primary}
-        />
-      </View>
-      <View style={styles.notificationContent}>
-        <Text style={[styles.notificationTitle, !item.is_read && styles.unreadTitle]}>
-          {item.title}
-        </Text>
-        <Text style={styles.notificationMessage} numberOfLines={2}>
-          {item.message}
-        </Text>
-        <Text style={styles.notificationTime}>
-          {formatRelativeTime(item.created_at)}
-        </Text>
-      </View>
-      {!item.is_read && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
-  );
+  const renderNotification = ({ item }) => {
+    const styles = createNotificationsStyles(colors);
+    
+    return (
+      <TouchableOpacity
+        style={[styles.notificationCard, !item.is_read && styles.unreadCard]}
+        onPress={() => handleNotificationPress(item)}
+      >
+        <View style={styles.notificationIcon}>
+          <Ionicons
+            name={getNotificationIcon(item.category)}
+            size={24}
+            color={item.is_read ? colors.textSecondary : colors.primary}
+          />
+        </View>
+        <View style={styles.notificationContent}>
+          <Text style={[styles.notificationTitle, !item.is_read && styles.unreadTitle]}>
+            {item.title}
+          </Text>
+          <Text style={styles.notificationMessage} numberOfLines={2}>
+            {item.message}
+          </Text>
+          <Text style={styles.notificationTime}>
+            {formatRelativeTime(item.created_at)}
+          </Text>
+        </View>
+        {!item.is_read && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+    );
+  };
 
-  const styles = createStyles(colors);
+  const styles = createNotificationsStyles(colors);
 
   if (loading) {
     return (
@@ -140,6 +144,7 @@ export default function NotificationsScreen({ navigation }) {
             refreshing={refreshing}
             onRefresh={handleRefresh}
             tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
         ListEmptyComponent={
@@ -155,108 +160,3 @@ export default function NotificationsScreen({ navigation }) {
     </View>
   );
 }
-
-const createStyles = (colors) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.surface,
-  },
-  headerText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  markAllButton: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  listContent: {
-    paddingVertical: 8,
-  },
-  notificationCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 12,
-    alignItems: 'flex-start',
-  },
-  unreadCard: {
-    backgroundColor: colors.surface,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  notificationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  unreadTitle: {
-    fontWeight: 'bold',
-  },
-  notificationMessage: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  notificationTime: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    marginLeft: 8,
-    marginTop: 4,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 40,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});

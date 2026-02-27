@@ -27,7 +27,10 @@ const ContentActions = ({ contentId, contentType, navigation }) => {
   const handleLoginRedirect = () => {
     setShowLoginModal(false);
     if (navigation) {
-      navigation.navigate('Login');
+      // Naviguer vers le tab Profil puis vers l'écran Login
+      navigation.getParent()?.navigate('Profil', {
+        screen: 'Login'
+      });
     }
   };
 

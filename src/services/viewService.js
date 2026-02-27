@@ -31,14 +31,11 @@ class ViewService {
    */
   async getViews(contentId, contentType) {
     try {
-      const response = await api.post('/views/get', {
-        content_id: contentId,
-        content_type: contentType
-      });
-      return response.data.views;
+      const response = await api.get(`/views/${contentType}/${contentId}`);
+      return response.data;
     } catch (error) {
       console.error('❌ Erreur récupération vues:', error);
-      return 0;
+      return { views: 0 };
     }
   }
 }

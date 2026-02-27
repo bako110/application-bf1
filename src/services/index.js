@@ -13,12 +13,13 @@ export { default as showService } from './showService';
 export { default as movieService } from './movieService';
 export { default as newsService } from './newsService';
 export { default as reelService } from './reelService';
-export { default as replayService } from './replayService';
-export { default as interviewService } from './interviewService';
+export { default as reportageService } from './replayService';
+export { default as divertissementService } from './divertissementService';
 export { default as archiveService } from './archiveService';
+export { default as emissionsService } from './emissionsService';
 
 // Services de programmes
-export { default as trendingShowService } from './trendingShowService';
+export { default as jtandMagService } from './jtandMagService';
 export { default as popularProgramService } from './popularProgramService';
 
 // Services d'interaction

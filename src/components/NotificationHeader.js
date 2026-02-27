@@ -52,14 +52,16 @@ const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMa
               
               <ScrollView style={styles.notificationsList}>
                 {notifications.length > 0 ? (
-                  notifications.map((notification, index) => (
+                  notifications.map((notification, index) => {
+                    const notifId = notification.id || notification._id;
+                    return (
                     <TouchableOpacity 
-                      key={notification.id || `notification-${index}`} 
+                      key={notifId || `notification-${index}`} 
                       style={[
                         styles.notificationItem,
                         !notification.is_read && styles.unreadNotification
                       ]}
-                      onPress={() => notification.id && onMarkAsRead(notification.id, notification.is_read)}
+                      onPress={() => onMarkAsRead(notification)}
                     >
                       <View style={styles.notificationIcon}>
                         <Ionicons name="notifications" size={20} color="#DC143C" />
@@ -81,7 +83,8 @@ const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMa
                         <View style={styles.unreadDot} />
                       )}
                     </TouchableOpacity>
-                  ))
+                    );
+                  })
                 ) : (
                   <View style={styles.emptyNotifications}>
                     <Ionicons name="notifications-off-outline" size={60} color="#666" />
@@ -126,63 +129,41 @@ export default function NotificationHeader() {
 
   const loadNotifications = async () => {
     try {
-      const [notifs, count] = await Promise.all([
-        notificationService.fetchNotifications(),
-        notificationService.getUnreadCount()
-      ]);
-      setNotifications(notifs);
-      setUnreadCount(count);
+      const data = await notificationService.getMyNotifications();
+      setNotifications(data);
+      setUnreadCount(data.length);
     } catch (error) {
-      console.error('Erreur chargement notifications:', error);
+      console.error('Error loading notifications:', error);
     }
   };
 
   const handleNotificationPress = () => {
+    if (!isAuthenticated) {
+      // Si non connecté, ne rien faire ou afficher un message
+      console.log('📱 [NotificationHeader] Utilisateur non connecté');
+      return;
+    }
     setModalVisible(true);
-    loadNotifications();
+    // Les notifications sont déjà chargées au mount, pas besoin de recharger
   };
 
-  const handleMarkAsRead = async (notificationId, isRead) => {
-    if (!notificationId) {
-      console.warn('⚠️ [NotificationHeader] ID de notification manquant, impossible de marquer comme lu');
-      return;
-    }
-    
-    if (isRead) {
-      console.log('📝 [NotificationHeader] Notification déjà lue');
-      return;
-    }
-    
+  const handleMarkAsRead = async (notification) => {
     try {
-      console.log('📝 [NotificationHeader] Tentative de marquer comme lu:', notificationId);
-      const result = await notificationService.markAsRead(notificationId);
-      console.log('✅ [NotificationHeader] Notification marquée comme lue:', result);
+      console.log('🔔 [NotificationHeader] handleMarkAsRead - notification reçue:', notification);
+      console.log('🔔 [NotificationHeader] notification.id:', notification.id);
+      console.log('🔔 [NotificationHeader] notification._id:', notification._id);
+      console.log('🔔 [NotificationHeader] Clés disponibles:', Object.keys(notification));
       
-      // Si c'est une simulation (erreur 500), on met à jour localement
-      if (result && result.simulated) {
-        console.log('🔄 [NotificationHeader] Mise à jour locale (simulation)');
-        // Marquer la notification comme lue localement
-        setNotifications(prev => 
-          prev.map(notif => 
-            notif.id === notificationId 
-              ? { ...notif, is_read: true, read_locally: true }
-              : notif
-          )
-        );
-        // Mettre à jour le compteur
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      } else {
-        // Recharger les notifications depuis le serveur
-        loadNotifications();
+      if (!notification.is_read) {
+        const notifId = notification.id || notification._id;
+        console.log('🔔 [NotificationHeader] ID extrait:', notifId);
+        await notificationService.markAsRead(notifId);
+        setNotifications(notifications.map(n =>
+          (n.id || n._id) === notifId ? { ...n, is_read: true } : n
+        ));
       }
     } catch (error) {
-      console.error('❌ [NotificationHeader] Erreur marquage notification:', error);
-      // Même en cas d'erreur, on essaie de recharger pour maintenir l'interface à jour
-      try {
-        loadNotifications();
-      } catch (loadError) {
-        console.error('❌ [NotificationHeader] Erreur rechargement notifications:', loadError);
-      }
+      console.error('Error marking notification as read:', error);
     }
   };
 

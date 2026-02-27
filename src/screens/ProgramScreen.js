@@ -3,7 +3,6 @@ import { Modal, Pressable, Animated, Alert } from 'react-native';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -12,14 +11,16 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
 import showService from '../services/showService';
 import ShowCard from '../components/showCard';
 import Logo from '../components/logo';
 import reminderNotificationService from '../services/reminderNotificationService';
 import ExpandableText from '../components/ExpandableText';
+import { createProgramStyles } from '../styles/programStyles'; // Import des styles séparés
 
 function ProgramScreen({ navigation }) {
+  const { colors } = useTheme();
   const [weekShows, setWeekShows] = useState([]);
   const [groupedShows, setGroupedShows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -335,10 +336,12 @@ function ProgramScreen({ navigation }) {
     return shorts[dayName] || dayName;
   };
 
+  const styles = createProgramStyles(colors);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={'#DC143C'} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -358,7 +361,7 @@ function ProgramScreen({ navigation }) {
 
           {/* Bouton de réinitialisation */}
           <TouchableOpacity onPress={resetFilters} style={styles.resetBtn}>
-            <Ionicons name="refresh" size={16} color={'#DC143C'} />
+            <Ionicons name="refresh" size={16} color={colors.primary} />
             <Text style={styles.resetBtnText}>Réinitialiser</Text>
           </TouchableOpacity>
 
@@ -488,7 +491,7 @@ function ProgramScreen({ navigation }) {
             return (
               <View key={section.date} style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Ionicons name="calendar-outline" size={20} color={'#DC143C'} />
+                  <Ionicons name="calendar-outline" size={20} color={colors.primary} />
                   <Text style={styles.sectionTitle}>
                     {section.dayName} {new Date(section.date).getDate()}/{new Date(section.date).getMonth() + 1}
                   </Text>
@@ -547,7 +550,7 @@ function ProgramScreen({ navigation }) {
                           />
                           <View style={styles.showFooter}>
                             <View style={styles.hostInfo}>
-                              <Ionicons name="person-circle-outline" size={16} color={'#B0B0B0'} />
+                              <Ionicons name="person-circle-outline" size={16} color={colors.textSecondary} />
                               <Text style={styles.hostName}>{show.host}</Text>
                             </View>
                             <TouchableOpacity 
@@ -557,7 +560,7 @@ function ProgramScreen({ navigation }) {
                               <Ionicons 
                                 name={hasReminder(show.id) ? "notifications" : "notifications-outline"} 
                                 size={18} 
-                                color={hasReminder(show.id) ? "#fff" : '#DC143C'} 
+                                color={hasReminder(show.id) ? "#fff" : colors.primary} 
                               />
                             </TouchableOpacity>
                           </View>
@@ -573,352 +576,5 @@ function ProgramScreen({ navigation }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000000',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerText: {
-    marginLeft: 16,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    marginTop: 4,
-    opacity: 0.9,
-  },
-  filterIconBtn: {
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    borderRadius: 20,
-    padding: 6,
-    marginLeft: 12,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  modalContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#1A0000',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  resetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-    marginBottom: 16,
-    padding: 8,
-  },
-  resetBtnText: {
-    color: '#DC143C',
-    fontSize: 14,
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  modalLabel: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    marginTop: 12,
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    borderRadius: 16,
-    paddingVertical: 12,
-    marginRight: 8,
-    borderWidth: 1.5,
-    borderColor: '#DC143C',
-    backgroundColor: 'transparent',
-  },
-  modalCancelBtnText: {
-    color: '#DC143C',
-    fontWeight: 'bold',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  modalApplyBtn: {
-    flex: 1,
-    backgroundColor: '#DC143C',
-    borderRadius: 16,
-    paddingVertical: 12,
-    marginLeft: 8,
-  },
-  modalApplyBtnText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    marginBottom: 12,
-  },
-  filterBtn: {
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: '#DC143C',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    backgroundColor: 'transparent',
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  filterBtnActive: {
-    backgroundColor: '#DC143C',
-    borderColor: '#DC143C',
-  },
-  filterBtnText: {
-    color: '#DC143C',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  filterBtnTextActive: {
-    color: '#fff',
-  },
-  daysContainer: {
-    maxHeight: 140,
-    borderBottomWidth: 1,
-    borderBottomColor: '#330000',
-  },
-  daysContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  dayCard: {
-    width: 80,
-    alignItems: 'center',
-    backgroundColor: '#1A0000',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  dayCardActive: {
-    backgroundColor: '#DC143C',
-    borderColor: '#DC143C',
-  },
-  dayName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#B0B0B0',
-    marginBottom: 4,
-  },
-  dayNameActive: {
-    color: '#FFFFFF',
-  },
-  dayNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  dayNumberActive: {
-    color: '#FFFFFF',
-  },
-  dayMonth: {
-    fontSize: 11,
-    color: '#B0B0B0',
-    marginBottom: 8,
-  },
-  dayMonthActive: {
-    color: '#FFFFFF',
-    opacity: 0.8,
-  },
-  todayIndicator: {
-    backgroundColor: '#34C759',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  todayText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  dayBadge: {
-    backgroundColor: '#330000',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  dayBadgeActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  dayBadgeText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#B0B0B0',
-  },
-  dayBadgeTextActive: {
-    color: '#FFFFFF',
-  },
-  content: {
-    flex: 1,
-  },
-  section: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#330000',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginLeft: 8,
-  },
-  showCard: {
-    height: 200,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 16,
-    backgroundColor: '#1A0000',
-  },
-  showImage: {
-    width: '100%',
-    height: '100%',
-  },
-  showGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '70%',
-    justifyContent: 'flex-end',
-    padding: 16,
-  },
-  showContent: {
-    gap: 8,
-  },
-  showHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  showTypeBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  liveBadge: {
-    backgroundColor: '#DC143C',
-  },
-  liveIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fff',
-  },
-  showTypeText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  showTime: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  showTimeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  showTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    lineHeight: 24,
-  },
-  showDescription: {
-    color: '#B0B0B0',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  showFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  hostInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  hostName: {
-    color: '#B0B0B0',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  reminderButton: {
-    backgroundColor: 'rgba(220, 20, 60, 0.2)',
-    padding: 8,
-    borderRadius: 8,
-  },
-});
 
 export default ProgramScreen;

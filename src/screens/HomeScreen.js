@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Image,
   TouchableOpacity,
@@ -10,31 +9,104 @@ import {
   ActivityIndicator,
   Animated,
   Modal,
-  RefreshControl
+  RefreshControl,
+  SafeAreaView,
+  Platform,
 } from 'react-native';
-import { Video } from 'react-native-video';
+import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
+import { createHomeStyles } from '../styles/homeStyles';
+import NotificationHeader from '../components/NotificationHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import showService from '../services/showService';
 import movieService from '../services/movieService';
 import newsService from '../services/newsService';
-import trendingShowService from '../services/trendingShowService';
+import jtandMagService from '../services/jtandMagService';
 import popularProgramService from '../services/popularProgramService';
-import interviewService from '../services/interviewService';
+import divertissementService from '../services/divertissementService';
 import archiveService from '../services/archiveService';
 import api from '../config/api';
 import liveStreamService from '../services/liveStreamService';
 import { formatRelativeTime } from '../utils/dateUtils';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 
+// Optionnel: pour le retour haptique (installer: npm install react-native-haptic-feedback)
+// import Haptic from 'react-native-haptic-feedback';
+
+// Fonction pour formater la durée de manière professionnelle
+const formatDuration = (duration) => {
+  if (!duration) return 'N/A';
+  
+  const minutes = parseInt(duration);
+  if (minutes < 60) {
+    return `${minutes} min`;
+  } else if (minutes < 120) {
+    return '1h ' + (minutes - 60) + ' min';
+  } else {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes} min`;
+  }
+};
+
+// Fonction pour normaliser l'affichage des dates en français
+const formatDate = (dateString) => {
+  if (!dateString) return 'Récemment';
+  
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffTime = Math.abs(now - date);
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  // Aujourd'hui
+  if (diffDays === 0) {
+    return "Aujourd'hui";
+  }
+  
+  // Hier
+  if (diffDays === 1) {
+    return 'Hier';
+  }
+  
+  // Cette semaine
+  if (diffDays <= 7) {
+    const options = { weekday: 'long' };
+    return date.toLocaleDateString('fr-FR', options);
+  }
+  
+  // Cette année
+  if (date.getFullYear() === now.getFullYear()) {
+    const options = { day: 'numeric', month: 'short' };
+    return date.toLocaleDateString('fr-FR', options);
+  }
+  
+  // Années précédentes
+  const options = { day: 'numeric', month: 'short', year: 'numeric' };
+  return date.toLocaleDateString('fr-FR', options);
+};
+
+// Fonction pour formater le temps (HH:MM:SS)
+const formatTime = (seconds) => {
+  if (!seconds || isNaN(seconds)) return '00:00';
+  
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  
+  if (h > 0) {
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
+
 const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const [liveShows, setLiveShows] = useState([]);
   const [breakingNews, setBreakingNews] = useState([]);
   const [trendingShows, setTrendingShows] = useState([]);
@@ -58,38 +130,71 @@ export default function HomeScreen({ navigation }) {
     currentTime: 0,
   });
 
+  // État pour suivre la fin des sections horizontales et la redirection
+  const [horizontalScrollEnd, setHorizontalScrollEnd] = useState({
+    breakingNews: false,
+    trendingShows: false,
+    interviews: false,
+    recentVideos: false,
+    archives: false,
+  });
+
+  // État pour éviter les redirections multiples
+  const [redirectLock, setRedirectLock] = useState({
+    breakingNews: false,
+    trendingShows: false,
+    interviews: false,
+    recentVideos: false,
+    archives: false,
+  });
+
+  // ÉTATS POUR LES ANIMATIONS SÉQUENTIELLES
+  const sectionAnimations = useRef({
+    live: new Animated.Value(0),
+    breakingNews: new Animated.Value(0),
+    jtMag: new Animated.Value(0),
+    divertissement: new Animated.Value(0),
+    reportages: new Animated.Value(0),
+    archives: new Animated.Value(0),
+  }).current;
+
+  const [itemAnimations, setItemAnimations] = useState({});
+  const [contentReady, setContentReady] = useState(false);
+  
+  // Référence pour suivre les éléments animés
+  const animatedItemsRef = useRef(new Set());
+
   // Référence pour la vidéo
   const videoRef = useRef(null);
+
+  // Références pour les ScrollView horizontaux
+  const scrollViewRefs = {
+    breakingNews: useRef(null),
+    trendingShows: useRef(null),
+    interviews: useRef(null),
+    recentVideos: useRef(null),
+    archives: useRef(null),
+  };
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
-  const blinkAnim = useRef(new Animated.Value(1)).current;
 
-  // Animation de clignotement désactivée
-  // useEffect(() => {
-  //   const blink = () => {
-  //     Animated.sequence([
-  //       Animated.timing(blinkAnim, {
-  //         toValue: 0.3,
-  //         duration: 500,
-  //         useNativeDriver: true,
-  //       }),
-  //       Animated.timing(blinkAnim, {
-  //         toValue: 1,
-  //         duration: 500,
-  //         useNativeDriver: true,
-  //       }),
-  //     ]).start(() => blink());
-  //   };
-  //   blink();
-  // }, [blinkAnim]);
+  const styles = createHomeStyles(colors);
 
   // Rafraîchissement automatique en arrière-plan à l'arrivée sur l'écran
   useFocusEffect(
     useCallback(() => {
       loadContentSilently();
+      // Réinitialiser les locks quand l'écran est focus
+      setRedirectLock({
+        breakingNews: false,
+        trendingShows: false,
+        interviews: false,
+        recentVideos: false,
+        archives: false,
+      });
     }, [])
   );
 
@@ -98,8 +203,104 @@ export default function HomeScreen({ navigation }) {
     startAnimations();
   }, []);
 
-  // Rafraîchissement automatique en arrière-plan toutes les 10 secondes
-  useAutoRefresh(loadContentSilently, 10000, true);
+  // Animation séquentielle des sections
+  const startSequentialAnimation = useCallback(() => {
+    const sections = [
+      { key: 'live', delay: 0 },
+      { key: 'breakingNews', delay: 300 },
+      { key: 'jtMag', delay: 600 },
+      { key: 'divertissement', delay: 900 },
+      { key: 'reportages', delay: 1200 },
+      { key: 'archives', delay: 1500 },
+    ];
+
+    sections.forEach(section => {
+      Animated.spring(sectionAnimations[section.key], {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        delay: section.delay,
+        useNativeDriver: true,
+      }).start();
+    });
+
+    // Animation des items individuels après les sections
+    setTimeout(() => {
+      animateItemsSequentially();
+    }, 1800);
+  }, [animateItemsSequentially]);
+
+  // Animation séquentielle des items dans chaque section
+  const animateItemsSequentially = useCallback(() => {
+    const allItems = [];
+    
+    // Récupérer tous les items de chaque section
+    if (breakingNews.length > 0) {
+      breakingNews.slice(0, 10).forEach((item, index) => {
+        allItems.push({ section: 'breakingNews', item, index, id: item.id || item._id });
+      });
+    }
+    
+    if (trendingShows.length > 0) {
+      trendingShows.slice(0, 10).forEach((item, index) => {
+        allItems.push({ section: 'trendingShows', item, index, id: item.id || item._id });
+      });
+    }
+    
+    if (interviews.length > 0) {
+      interviews.slice(0, 10).forEach((item, index) => {
+        allItems.push({ section: 'interviews', item, index, id: item.id || item._id });
+      });
+    }
+    
+    if (recentVideos.length > 0) {
+      recentVideos.slice(0, 10).forEach((item, index) => {
+        allItems.push({ section: 'recentVideos', item, index, id: item.id || item._id });
+      });
+    }
+    
+    if (archives.length > 0) {
+      archives.slice(0, 10).forEach((item, index) => {
+        allItems.push({ section: 'archives', item, index, id: item.id || item._id });
+      });
+    }
+
+    // Créer les animations pour chaque item
+    const newAnimations = {};
+    allItems.forEach(({ section, item, index, id }) => {
+      const key = `${section}-${id || index}`;
+      if (!animatedItemsRef.current.has(key)) {
+        newAnimations[key] = new Animated.Value(0);
+        animatedItemsRef.current.add(key);
+      }
+    });
+
+    setItemAnimations(prev => ({ ...prev, ...newAnimations }));
+
+    // Animer chaque item avec un délai progressif
+    allItems.forEach(({ section, index, id }, itemIndex) => {
+      const key = `${section}-${id || index}`;
+      const animation = newAnimations[key] || itemAnimations[key];
+      
+      if (animation) {
+        setTimeout(() => {
+          Animated.spring(animation, {
+            toValue: 1,
+            tension: 40,
+            friction: 5,
+            useNativeDriver: true,
+          }).start();
+        }, 100 + (itemIndex * 50)); // Délai de 50ms entre chaque item
+      }
+    });
+  }, [breakingNews, trendingShows, interviews, recentVideos, archives, itemAnimations]);
+
+  // Déclencher les animations séquentielles après le chargement des données
+  useEffect(() => {
+    if (!loading && breakingNews.length > 0) {
+      startSequentialAnimation();
+    }
+  }, [loading, breakingNews, startSequentialAnimation]);
 
   const startAnimations = () => {
     Animated.parallel([
@@ -127,31 +328,41 @@ export default function HomeScreen({ navigation }) {
     try {
       console.log('📺 Chargement silencieux des données...');
 
-      const [news, trending, popular, replays, interviewsData, archivesData] = await Promise.all([
+      const [news, trending, popular, reportages, divertissements, archivesData] = await Promise.all([
         newsService.getAllNews({ limit: 10 }).catch(err => {
           console.error('Error loading news:', err);
           return [];
         }),
-        trendingShowService.getTrendingShows({ limit: 4 }).catch(err => {
-          console.error('Error loading trending shows:', err);
+        jtandMagService.getJTandMag({ limit: 4 }).then(data => {
+          return data.sort((a, b) => {
+            const dateA = new Date(a.created_at || a.published_at || 0);
+            const dateB = new Date(b.created_at || b.published_at || 0);
+            return dateB - dateA;
+          });
+        }).catch(err => {
+          console.error('Error loading JT et Mag:', err);
           return [];
         }),
         popularProgramService.getAllPrograms({ limit: 4 }).catch(err => {
           console.error('Error loading popular programs:', err);
           return [];
         }),
-        api.get('/replays', { params: { limit: 4 } }).then(response =>
-          response.data.map(replay => ({
-            ...replay,
-            id: replay._id || replay.id,
-            image_url: replay.thumbnail || replay.image_url,
-          }))
+        api.get('/reportage', { params: { limit: 4 } }).then(response =>
+          response.data.map(reportage => ({
+            ...reportage,
+            id: reportage._id || reportage.id,
+            image_url: reportage.thumbnail || reportage.image_url,
+          })).sort((a, b) => {
+            const dateA = new Date(a.created_at || a.aired_at || 0);
+            const dateB = new Date(b.created_at || b.aired_at || 0);
+            return dateB - dateA;
+          })
         ).catch(err => {
-          console.error('Error loading replays:', err);
+          console.error('Error loading reportages:', err);
           return [];
         }),
-        interviewService.getAllInterviews({ limit: 4 }).catch(err => {
-          console.error('Error loading interviews:', err);
+        divertissementService.getAllDivertissements({ limit: 4 }).catch(err => {
+          console.error('Error loading divertissements:', err);
           return [];
         }),
         archiveService.getAllArchives({ limit: 4 }).catch(err => {
@@ -168,15 +379,15 @@ export default function HomeScreen({ navigation }) {
       setBreakingNews(news);
       setTrendingShows(trending);
       setPopularPrograms(popular);
-      setRecentVideos(replays);
-      setInterviews(interviewsData);
+      setRecentVideos(reportages);
+      setInterviews(divertissements);
       setArchives(archivesData);
 
       setBf1Stream(stream);
       setBf1Program(program);
       setBf1Viewers(viewers);
 
-      console.log('✅ Données chargées - BF1 depuis service local');
+      console.log('✅ Données chargées');
     } catch (error) {
       console.error('Error loading content silently:', error);
     }
@@ -184,40 +395,70 @@ export default function HomeScreen({ navigation }) {
 
   // Fonction de rafraîchissement manuel (pull-to-refresh)
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadContentSilently();
-    setRefreshing(false);
-  }, []);
+    try {
+      setRefreshing(true);
+      
+      // Réinitialiser les animations AVANT de charger les nouvelles données
+      animatedItemsRef.current.clear();
+      setItemAnimations({});
+      Object.keys(sectionAnimations).forEach(key => {
+        sectionAnimations[key].setValue(0);
+      });
+      
+      // Charger les nouvelles données
+      await loadContentSilently();
+      
+      // Redémarrer les animations avec les nouvelles données
+      setTimeout(() => {
+        startSequentialAnimation();
+      }, 100);
+      
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [startSequentialAnimation]);
 
   const loadContent = async () => {
     try {
       setLoading(true);
 
-      const [news, trending, popular, replays, interviewsData, archivesData] = await Promise.all([
+      const [news, trending, popular, reportages, divertissements, archivesData] = await Promise.all([
         newsService.getAllNews({ limit: 10 }).catch(err => {
           console.error('Error loading news:', err);
           return [];
         }),
-        trendingShowService.getTrendingShows({ limit: 4 }).catch(err => {
-          console.error('Error loading trending shows:', err);
+        jtandMagService.getJTandMag({ limit: 4 }).then(data => {
+          return data.sort((a, b) => {
+            const dateA = new Date(a.created_at || a.published_at || 0);
+            const dateB = new Date(b.created_at || b.published_at || 0);
+            return dateB - dateA;
+          });
+        }).catch(err => {
+          console.error('Error loading JT et Mag:', err);
           return [];
         }),
         popularProgramService.getAllPrograms({ limit: 4 }).catch(err => {
           console.error('Error loading popular programs:', err);
           return [];
         }),
-        api.get('/replays', { params: { limit: 4 } }).then(response =>
-          response.data.map(replay => ({
-            ...replay,
-            id: replay._id || replay.id,
-            image_url: replay.thumbnail || replay.image_url,
-          }))
+        api.get('/reportage', { params: { limit: 4 } }).then(response =>
+          response.data.map(reportage => ({
+            ...reportage,
+            id: reportage._id || reportage.id,
+            image_url: reportage.thumbnail || reportage.image_url,
+          })).sort((a, b) => {
+            const dateA = new Date(a.created_at || a.aired_at || 0);
+            const dateB = new Date(b.created_at || b.aired_at || 0);
+            return dateB - dateA;
+          })
         ).catch(err => {
-          console.error('Error loading replays:', err);
+          console.error('Error loading reportages:', err);
           return [];
         }),
-        interviewService.getAllInterviews({ limit: 4 }).catch(err => {
-          console.error('Error loading interviews:', err);
+        divertissementService.getAllDivertissements({ limit: 4 }).catch(err => {
+          console.error('Error loading divertissements:', err);
           return [];
         }),
         archiveService.getAllArchives({ limit: 4 }).catch(err => {
@@ -234,8 +475,8 @@ export default function HomeScreen({ navigation }) {
       setBreakingNews(news);
       setTrendingShows(trending);
       setPopularPrograms(popular);
-      setRecentVideos(replays);
-      setInterviews(interviewsData);
+      setRecentVideos(reportages);
+      setInterviews(divertissements);
       setArchives(archivesData);
 
       setBf1Stream(stream);
@@ -248,9 +489,78 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  // MEILLEURE OPTION: Détection avec momentum et fin de défilement
+  const handleMomentumScrollEnd = (sectionName, navigationTarget, event) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 30;
+    
+    if (isAtEnd && !redirectLock[sectionName]) {
+      console.log(`👉 Fin du défilement - Redirection vers ${navigationTarget}`);
+      
+      // Verrouiller pour éviter les redirections multiples
+      setRedirectLock(prev => ({ ...prev, [sectionName]: true }));
+      
+      // Retour haptique (optionnel)
+      // if (Platform.OS === 'ios') {
+      //   Haptic.trigger('impactLight');
+      // }
+      
+      // Rediriger
+      navigation.navigate(navigationTarget);
+      
+      // Déverrouiller après 2 secondes
+      setTimeout(() => {
+        setRedirectLock(prev => ({ ...prev, [sectionName]: false }));
+      }, 2000);
+    }
+  };
+
+  // Option secondaire: Détection avec fin de glissement
+  const handleScrollEndDrag = (sectionName, navigationTarget, event) => {
+    const { contentOffset, layoutMeasurement, contentSize, velocity } = event.nativeEvent;
+    const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 30;
+    
+    // Si on est à la fin et qu'on a un mouvement significatif vers la gauche
+    if (isAtEnd && velocity && velocity.x < -0.3 && !redirectLock[sectionName]) {
+      console.log(`👉 Glissement terminé - Redirection vers ${navigationTarget}`);
+      
+      setRedirectLock(prev => ({ ...prev, [sectionName]: true }));
+      
+      // Retour haptique
+      // Haptic.trigger('impactLight');
+      
+      navigation.navigate(navigationTarget);
+      
+      setTimeout(() => {
+        setRedirectLock(prev => ({ ...prev, [sectionName]: false }));
+      }, 2000);
+    }
+  };
+
+  // Fonction pour gérer le défilement horizontal et détecter la fin
+  const handleHorizontalScroll = (sectionName, event) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 20;
+    
+    setHorizontalScrollEnd(prev => ({
+      ...prev,
+      [sectionName]: isAtEnd
+    }));
+  };
+
+  // Fonction pour réinitialiser le lock quand on quitte la fin
+  const handleScrollBeginDrag = (sectionName, event) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 30;
+    
+    if (!isAtEnd && redirectLock[sectionName]) {
+      setRedirectLock(prev => ({ ...prev, [sectionName]: false }));
+    }
+  };
+
   // Fonction pour gérer le clic sur la vidéo
   const handleVideoPress = () => {
-    setIsFullscreen(true);
+    navigation.navigate('Direct'); // Naviguer vers l'écran Live (Direct)
   };
 
   // Fonction pour quitter le plein écran
@@ -291,1013 +601,587 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const styles = createStyles(colors);
-
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
     );
   }
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingTop: 20 }}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          colors={[colors.primary]}
-          tintColor={colors.primary}
-          title="Rafraîchissement..."
-          titleColor={colors.textSecondary}
-        />
-      }
-    >
-      <View>
-        {/* Section BF1 */}
-        <View style={styles.liveSection}>
-          <View style={styles.liveSectionHeader}>
-            <View style={{ flex: 1 }} />
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Live')}
-              activeOpacity={0.7}
-            >
-              <View style={styles.programmedLiveContainer}>
-                <View style={styles.programmedLiveDot} />
-                <Text style={styles.programmedLiveText}>
-                  {bf1Stream?.is_live ? bf1Program.title : 'BF1 TV'}
-                </Text> 
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {bf1Stream ? (
-            <TouchableOpacity
-              style={styles.liveCardFull}
-              onPress={handleVideoPress}
-            >
-              <Video
-                source={{ uri: bf1Stream.url }}
-                style={styles.liveImageFull}
-                resizeMode="cover"
-                shouldPlay
-                isLooping
-                useNativeControls={false}
-                muted={true}
-                playInBackground={false}
-                playWhenInactive={false}
-              />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.9)']}
-                style={styles.liveOverlayFull}
-              >
-                <Text style={styles.liveTitleFull}>{bf1Stream.name}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.noLiveContainer}>
-              <Ionicons name="radio-outline" size={60} color={colors.textSecondary} />
-              <Text style={styles.noLiveText}>Chargement de BF1 TV...</Text>
-              <Text style={styles.noLiveSubtext}>Veuillez patienter</Text>
-            </View>
-          )}
+  // 🔥 Bouton moderne avec seulement une flèche
+  const ModernSeeMoreButton = ({ onPress }) => {
+    return (
+      <TouchableOpacity 
+        style={[styles.modernSeeMoreButton, { backgroundColor: `${colors.primary}10` }]}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.seeMoreContent}>
+          <Ionicons name="arrow-forward-circle" size={24} color={colors.primary} />
         </View>
+      </TouchableOpacity>
+    );
+  };
 
-        {/* Modal Plein Écran */}
-        <Modal
-          visible={isFullscreen}
-          animationType="fade"
-          onRequestClose={handleExitFullscreen}
-        >
-          <View style={styles.fullscreenContainer}>
-            <Video
-              ref={videoRef}
-              source={{ uri: bf1Stream?.url }}
-              style={styles.fullscreenVideo}
-              resizeMode="cover"
-              shouldPlay={videoStatus.isPlaying}
-              isLooping
-              useNativeControls={false}
-              muted={false}
-              playInBackground={false}
-              playWhenInactive={false}
-              onLoad={handleVideoLoad}
-              onProgress={handleVideoProgress}
-            />
-            
-            {/* Contrôles vidéo personnalisés */}
-            <View style={styles.videoControls}>
-              {/* Barre de progression */}
-              <View style={styles.progressContainer}>
-                <Text style={styles.timeText}>{formatTime(videoStatus.currentTime)}</Text>
-                <View style={styles.progressBar}>
-                  <View 
-                    style={[
-                      styles.progressFill, 
-                      { width: `${(videoStatus.currentTime / videoStatus.duration) * 100}%` }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.timeText}>{formatTime(videoStatus.duration)}</Text>
-              </View>
-              
-              {/* Boutons de contrôle */}
-              <View style={styles.controlButtons}>
-                <TouchableOpacity 
-                  style={styles.controlButton} 
-                  onPress={handlePlayPause}
-                >
-                  <Ionicons 
-                    name={videoStatus.isPlaying ? "pause" : "play"} 
-                    size={24} 
-                    color={colors.text} 
-                  />
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.controlButton, styles.stopButton]} 
-                  onPress={handleStop}
-                >
-                  <Ionicons name="stop" size={20} color="#fff" />
-                  <Text style={styles.stopButtonText}>Arrêter</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.controlButton} 
-                  onPress={handleExitFullscreen}
-                >
-                  <Ionicons name="contract" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
+  // Fonction pour obtenir l'animation d'un item
+  const getItemAnimation = (section, item, index) => {
+    const key = `${section}-${item.id || item._id || index}`;
+    return itemAnimations[key] || new Animated.Value(1);
+  };
 
-        {/* Flash Info */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderWithButton}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Flash Info</Text>
-            </View>
-            <TouchableOpacity style={styles.seeMoreButton} onPress={() => navigation.navigate('BreakingNews')}>
-              <Text style={styles.seeMoreText}>Voir plus</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+            title="Rafraîchissement..."
+            titleColor={colors.textSecondary}
+          />
+        }
+      >
+        <View style={styles.contentContainer}>
+          {/* En-tête avec notification seulement */}
+          <View style={styles.headerContainer}>
+            <NotificationHeader />
           </View>
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {breakingNews.length > 0 ? breakingNews.map((news) => (
+
+          {/* Section BF1 avec animation */}
+          <Animated.View style={{
+            opacity: sectionAnimations.live,
+            transform: [
+              { scale: sectionAnimations.live.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.8, 1]
+              })}
+            ]
+          }}>
+            <View style={styles.liveSection}>
+              {bf1Stream ? (
                 <TouchableOpacity
-                  key={news.id || news._id}
-                  style={styles.newsCard}
-                  onPress={() => navigation.navigate('NewsDetail', { newsId: news.id || news._id })}
+                  style={styles.liveCardFull}
+                  onPress={handleVideoPress}
                 >
-                  <Image source={{ uri: news.image_url || news.image || 'https://via.placeholder.com/400x250' }} style={styles.newsImage} />
+                  <Video
+                    source={{ uri: bf1Stream.url }}
+                    style={styles.liveImageFull}
+                    resizeMode="cover"
+                    paused={false}
+                    repeat={true}
+                    controls={false}
+                    muted={true}
+                    playInBackground={false}
+                    playWhenInactive={false}
+                  />
                   <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.9)']}
-                    style={styles.newsOverlay}
+                    style={styles.liveOverlayFull}
                   >
-                    <View style={styles.newsBadge}>
-                      <Ionicons name="flash" size={12} color={colors.text} />
-                      <Text style={styles.newsBadgeText}>{news.category || news.edition || 'Actualités'}</Text>
-                    </View>
-                    <Text style={styles.newsTitle} numberOfLines={2}>{news.title}</Text>
-                    <Text style={styles.newsTime}>{formatRelativeTime(news.created_at || news.published_at)}</Text>
+                    <Text style={styles.liveTitleFull}>{bf1Stream.name}</Text>
+                    {bf1Viewers > 0 && (
+                      <View style={styles.liveViewers}>
+                        <Ionicons name="eye" size={16} color="#fff" />
+                        <Text style={styles.liveViewersText}>{bf1Viewers} spectateurs</Text>
+                      </View>
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
-              )) : (
-                <View style={styles.emptyStateHorizontal}>
-                  <Ionicons name="newspaper-outline" size={48} color={colors.textSecondary} />
-                  <Text style={styles.emptyStateText}>Aucune actualité disponible</Text>
+              ) : (
+                <View style={[styles.noLiveContainer, { backgroundColor: colors.card }]}>
+                  <Ionicons name="radio-outline" size={60} color={colors.textSecondary} />
+                  <Text style={[styles.noLiveText, { color: colors.text }]}>Chargement de BF1 TV...</Text>
+                  <Text style={[styles.noLiveSubtext, { color: colors.textSecondary }]}>Veuillez patienter</Text>
                 </View>
               )}
-            </ScrollView>
-          </Animated.View>
-        </View>
-
-        {/* Émissions Tendances */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderWithButton}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Émissions Tendances</Text>
             </View>
-            <TouchableOpacity style={styles.seeMoreButton} onPress={() => navigation.navigate('TrendingShows')}>
-              <Text style={styles.seeMoreText}>Voir plus</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {trendingShows.length > 0 ? trendingShows.map((show) => (
-                <TouchableOpacity
-                  key={show.id || show._id}
-                  style={styles.trendingCard}
-                  onPress={() => navigation.navigate('ShowDetail', { showId: show.id || show._id, isTrending: true })}
-                >
-                  <Image source={{ uri: show.image_url || show.image || 'https://via.placeholder.com/300x200' }} style={styles.trendingImage} />
-                  <View style={styles.trendingInfo}>
-                    <Text style={styles.trendingTitle} numberOfLines={1}>{show.title}</Text>
-                    <View style={styles.trendingMeta}>
-                      <Ionicons name="eye" size={14} color={colors.textSecondary} />
-                      <Text style={styles.trendingViews}>{show.views_count || show.views || '0'} vues</Text>
-                    </View>
+          </Animated.View>
+
+          {/* Modal Plein Écran */}
+          <Modal
+            visible={isFullscreen}
+            animationType="fade"
+            onRequestClose={handleExitFullscreen}
+          >
+            <View style={styles.fullscreenContainer}>
+              <Video
+                ref={videoRef}
+                source={{ uri: bf1Stream?.url }}
+                style={styles.fullscreenVideo}
+                resizeMode="cover"
+                paused={!videoStatus.isPlaying}
+                repeat={true}
+                controls={false}
+                muted={false}
+                playInBackground={false}
+                playWhenInactive={false}
+                onLoad={handleVideoLoad}
+                onProgress={handleVideoProgress}
+              />
+              
+              {/* Contrôles vidéo */}
+              <View style={styles.videoControls}>
+                <View style={styles.progressContainer}>
+                  <Text style={styles.timeText}>{formatTime(videoStatus.currentTime)}</Text>
+                  <View style={styles.progressBar}>
+                    <View 
+                      style={[
+                        styles.progressFill, 
+                        { width: `${(videoStatus.currentTime / videoStatus.duration) * 100}%` }
+                      ]} 
+                    />
                   </View>
-                </TouchableOpacity>
-              )) : (
-                <View style={styles.emptyStateHorizontal}>
-                  <Ionicons name="trending-up-outline" size={48} color={colors.textSecondary} />
-                  <Text style={styles.emptyStateText}>Aucune émission tendance</Text>
+                  <Text style={styles.timeText}>{formatTime(videoStatus.duration)}</Text>
                 </View>
-              )}
-            </ScrollView>
-          </Animated.View>
-        </View>
-
-        {/* Vidéos Récentes */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderWithButton}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Vidéos Récentes</Text>
-            </View>
-            <TouchableOpacity style={styles.seeMoreButton} onPress={() => navigation.navigate('RecentVideos')}>
-              <Text style={styles.seeMoreText}>Voir plus</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {recentVideos.length > 0 ? recentVideos.map((video) => (
-                <TouchableOpacity
-                  key={video.id || video._id}
-                  style={styles.videoCard}
-                  onPress={() => navigation.navigate('ShowDetail', { showId: video.id || video._id, isReplay: true })}
-                >
-                  <Image source={{ uri: video.image_url || video.image || 'https://via.placeholder.com/300x200' }} style={styles.videoImage} />
-                  <View style={styles.videoDurationBadge}>
-                    <Text style={styles.videoDuration}>{video.duration || 'N/A'}</Text>
-                  </View>
-                  <View style={styles.videoInfo}>
-                    <Text style={styles.videoTitle} numberOfLines={2}>{video.title}</Text>
-                    <Text style={styles.videoDate}>{formatRelativeTime(video.created_at)}</Text>
-                  </View>
-                </TouchableOpacity>
-              )) : (
-                <View style={styles.emptyStateHorizontal}>
-                  <Ionicons name="videocam-outline" size={48} color={'#B0B0B0'} />
-                  <Text style={styles.emptyStateText}>Aucune vidéo récente</Text>
+                
+                <View style={styles.controlButtons}>
+                  <TouchableOpacity style={styles.controlButton} onPress={handlePlayPause}>
+                    <Ionicons name={videoStatus.isPlaying ? "pause" : "play"} size={24} color="#fff" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={[styles.controlButton, styles.stopButton]} onPress={handleStop}>
+                    <Ionicons name="stop" size={20} color="#fff" />
+                    <Text style={styles.stopButtonText}>Arrêter</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={styles.controlButton} onPress={handleExitFullscreen}>
+                    <Ionicons name="contract" size={24} color="#fff" />
+                  </TouchableOpacity>
                 </View>
-              )}
-            </ScrollView>
-          </Animated.View>
-        </View>
-
-        {/* Programmes Populaires */}
-        <View style={[styles.section, { marginBottom: 30 }]}>
-          <View style={styles.sectionHeaderWithButton}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Programmes Populaires</Text>
-            </View>
-            <TouchableOpacity style={styles.seeMoreButton} onPress={() => navigation.navigate('PopularPrograms')}>
-              <Text style={styles.seeMoreText}>Voir plus</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {popularPrograms.length > 0 ? popularPrograms.map((program) => (
-                <TouchableOpacity
-                  key={program.id || program._id}
-                  style={styles.programCard}
-                  onPress={() => navigation.navigate('ShowDetail', { showId: program.id || program._id, isPopularProgram: true })}
-                >
-                  <Image source={{ uri: program.image || program.image_url || 'https://via.placeholder.com/300x200' }} style={styles.programImage} />
-                  <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.85)']}
-                    style={styles.programOverlay}
-                  >
-                    <Text style={styles.programTitle} numberOfLines={1}>{program.title}</Text>
-                    <View style={styles.programSchedule}>
-                      <Ionicons name="time" size={14} color={colors.primary} />
-                      <Text style={styles.programScheduleText}>{program.schedule || `${program.episodes || 0} épisodes`}</Text>
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )) : (
-                <View style={styles.emptyStateHorizontal}>
-                  <Ionicons name="star-outline" size={48} color={colors.textSecondary} />
-                  <Text style={styles.emptyStateText}>Aucun programme populaire</Text>
-                </View>
-              )}
-            </ScrollView>
-          </Animated.View>
-        </View>
-
-        {/* Interviews */}
-        <View style={[styles.section, { marginBottom: 30 }]}>
-          <View style={styles.sectionHeaderWithButton}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Interviews</Text>
-            </View>
-            <TouchableOpacity style={styles.seeMoreButton} onPress={() => navigation.navigate('Interviews')}>
-              <Text style={styles.seeMoreText}>Voir plus</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {interviews.length > 0 ? interviews.map((interview) => (
-                <TouchableOpacity
-                  key={interview.id || interview._id}
-                  style={styles.interviewCard}
-                  onPress={() => navigation.navigate('ShowDetail', { showId: interview.id || interview._id, isInterview: true })}
-                >
-                  <Image source={{ uri: interview.image_url || interview.image || 'https://via.placeholder.com/300x200' }} style={styles.interviewImage} />
-                  <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.85)']}
-                    style={styles.interviewOverlay}
-                  >
-                    <View style={styles.interviewBadge}>
-                      <Ionicons name="mic" size={12} color={colors.text} />
-                      <Text style={styles.interviewBadgeText}>Interview</Text>
-                    </View>
-                    <Text style={styles.interviewTitle} numberOfLines={2}>{interview.title}</Text>
-                    <Text style={styles.interviewGuest} numberOfLines={1}>{interview.guest || 'Invité'}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )) : (
-                <View style={styles.emptyStateHorizontal}>
-                  <Ionicons name="mic-outline" size={48} color={colors.textSecondary} />
-                  <Text style={styles.emptyStateText}>Aucune interview disponible</Text>
-                </View>
-              )}
-            </ScrollView>
-          </Animated.View>
-        </View>
-
-        {/* Section Archives Vidéo Premium */}
-        <View style={[styles.section, { marginBottom: 30 }]}>
-          <View style={styles.sectionHeaderWithButton}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Archives Vidéo</Text>
-              <View style={styles.premiumBadgeSmall}>
-                <Ionicons name="star" size={12} color={colors.primary} />
-                <Text style={styles.premiumBadgeTextSmall}>Premium</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.seeMoreButton} onPress={() => navigation.navigate('Archive')}>
-              <Text style={styles.seeMoreText}>Voir plus</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {archives.length > 0 ? archives.map((archive) => (
-                <TouchableOpacity
-                  key={archive.id || archive._id}
-                  style={styles.archiveCard}
-                  onPress={() => navigation.navigate('Archive')}
-                >
-                  <Image
-                    source={{ uri: archive.image || archive.thumbnail || 'https://via.placeholder.com/300x200' }}
-                    style={styles.archiveImage}
-                  />
-                  <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.95)']}
-                    style={styles.archiveOverlay}
-                  >
-                    <View style={styles.archivePremiumBadge}>
-                      <Ionicons name="lock-closed" size={12} color={colors.primary} />
-                      <Text style={styles.archivePremiumText}>Premium</Text>
-                      {archive.price > 0 && (
-                        <Text style={styles.archivePriceText}> • {Math.round(archive.price)} XOF</Text>
-                      )}
-                    </View>
-                    <Text style={styles.archiveTitle} numberOfLines={2}>{archive.title}</Text>
-                    <View style={styles.archiveMeta}>
-                      <Ionicons name="videocam" size={12} color={colors.primary} />
-                      <Text style={styles.archiveMetaText}>Vidéo</Text>
-                      {archive.duration_minutes && (
-                        <>
-                          <Text style={styles.archiveMetaSeparator}>•</Text>
-                          <Ionicons name="time" size={12} color={colors.textSecondary} />
-                          <Text style={styles.archiveMetaText}>{archive.duration_minutes} min</Text>
-                        </>
-                      )}
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )) : (
-                <View style={styles.emptyStateHorizontal}>
-                  <Ionicons name="videocam-outline" size={48} color={'#B0B0B0'} />
-                  <Text style={styles.emptyStateText}>Aucune archive disponible</Text>
+          </Modal>
+
+          {/* Flash Info avec animation */}
+          <Animated.View style={{
+            opacity: sectionAnimations.breakingNews,
+            transform: [
+              { translateX: sectionAnimations.breakingNews.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 0]
+              })}
+            ]
+          }}>
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderWithButton}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Flash Info</Text>
                 </View>
-              )}
-            </ScrollView>
+                <ModernSeeMoreButton onPress={() => navigation.navigate('BreakingNews')} />
+              </View>
+              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+                <ScrollView 
+                  ref={scrollViewRefs.breakingNews}
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={(event) => handleHorizontalScroll('breakingNews', event)}
+                  onScrollBeginDrag={(event) => handleScrollBeginDrag('breakingNews', event)}
+                  onScrollEndDrag={(event) => handleScrollEndDrag('breakingNews', 'BreakingNews', event)}
+                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('breakingNews', 'BreakingNews', event)}
+                  scrollEventThrottle={16}
+                  decelerationRate="normal"
+                >
+                  {breakingNews.length > 0 ? breakingNews.slice(0, 10).map((news, index) => {
+                    const itemAnim = getItemAnimation('breakingNews', news, index);
+                    return (
+                      <Animated.View
+                        key={news.id || news._id}
+                        style={{
+                          opacity: itemAnim,
+                          transform: [
+                            { scale: itemAnim },
+                            { translateY: itemAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [20, 0]
+                            })}
+                          ]
+                        }}
+                      >
+                        <TouchableOpacity
+                          style={[styles.newsCard, { backgroundColor: colors.card }]}
+                          onPress={() => navigation.navigate('NewsDetail', { newsId: news.id || news._id })}
+                        >
+                          <Image source={{ uri: news.image_url || news.image || 'https://via.placeholder.com/400x250' }} style={styles.newsImage} />
+                          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.newsOverlay}>
+                            <View style={styles.newsBadge}>
+                              <Ionicons name="flash" size={12} color="#fff" />
+                              <Text style={styles.newsBadgeText}>{news.category || news.edition || 'Actualités'}</Text>
+                            </View>
+                            <Text style={styles.newsTitle} numberOfLines={2}>{news.title}</Text>
+                            <Text style={styles.newsTime}>{formatRelativeTime(news.created_at || news.published_at)}</Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  }) : (
+                    <View style={styles.emptyStateHorizontal}>
+                      <Ionicons name="newspaper-outline" size={48} color={colors.textSecondary} />
+                      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>Aucune actualité disponible</Text>
+                    </View>
+                  )}
+                  <View style={{ width: 40 }} />
+                </ScrollView>
+                {horizontalScrollEnd.breakingNews && !redirectLock.breakingNews && (
+                  <TouchableOpacity 
+                    style={styles.endOfSectionIndicator}
+                    onPress={() => navigation.navigate('BreakingNews')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
+                  </TouchableOpacity>
+                )}
+              </Animated.View>
+            </View>
+          </Animated.View>
+
+          {/* JT et Mag avec animation */}
+          <Animated.View style={{
+            opacity: sectionAnimations.jtMag,
+            transform: [
+              { translateX: sectionAnimations.jtMag.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 0]
+              })}
+            ]
+          }}>
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderWithButton}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>JT et Mag</Text>
+                </View>
+                <ModernSeeMoreButton onPress={() => navigation.navigate('JTandMag')} />
+              </View>
+              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+                <ScrollView 
+                  ref={scrollViewRefs.trendingShows}
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={(event) => handleHorizontalScroll('trendingShows', event)}
+                  onScrollBeginDrag={(event) => handleScrollBeginDrag('trendingShows', event)}
+                  onScrollEndDrag={(event) => handleScrollEndDrag('trendingShows', 'JTandMag', event)}
+                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('trendingShows', 'JTandMag', event)}
+                  scrollEventThrottle={16}
+                  decelerationRate="normal"
+                >
+                  {trendingShows.length > 0 ? trendingShows.slice(0, 10).map((show, index) => {
+                    const itemAnim = getItemAnimation('trendingShows', show, index);
+                    return (
+                      <Animated.View
+                        key={show.id || show._id}
+                        style={{
+                          opacity: itemAnim,
+                          transform: [
+                            { scale: itemAnim },
+                            { translateY: itemAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [20, 0]
+                            })}
+                          ]
+                        }}
+                      >
+                        <TouchableOpacity
+                          style={[styles.trendingCard, { backgroundColor: colors.card }]}
+                          onPress={() => navigation.navigate('ShowDetail', { showId: show.id || show._id, isJTandMag: true })}
+                        >
+                          <Image source={{ uri: show.image_url || show.image || 'https://via.placeholder.com/300x200' }} style={styles.trendingImage} />
+                          <View style={styles.trendingInfo}>
+                            <Text style={[styles.trendingTitle, { color: colors.text }]} numberOfLines={1}>{show.title}</Text>
+                            <View style={styles.trendingMeta}>
+                              <Ionicons name="eye" size={14} color={colors.textSecondary} />
+                              <Text style={[styles.trendingViews, { color: colors.textSecondary }]}>{show.views_count || show.views || '0'} vues</Text>
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  }) : (
+                    <View style={styles.emptyStateHorizontal}>
+                      <Ionicons name="trending-up-outline" size={48} color={colors.textSecondary} />
+                      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>Aucune émission tendance</Text>
+                    </View>
+                  )}
+                  <View style={{ width: 40 }} />
+                </ScrollView>
+                {horizontalScrollEnd.trendingShows && !redirectLock.trendingShows && (
+                  <TouchableOpacity 
+                    style={styles.endOfSectionIndicator}
+                    onPress={() => navigation.navigate('JTandMag')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
+                  </TouchableOpacity>
+                )}
+              </Animated.View>
+            </View>
+          </Animated.View>
+
+          {/* Divertissement avec animation */}
+          <Animated.View style={{
+            opacity: sectionAnimations.divertissement,
+            transform: [
+              { translateX: sectionAnimations.divertissement.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 0]
+              })}
+            ]
+          }}>
+            <View style={[styles.section, { marginBottom: 30 }]}>
+              <View style={styles.sectionHeaderWithButton}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Divertissement</Text>
+                </View>
+                <ModernSeeMoreButton onPress={() => navigation.navigate('Divertissement')} />
+              </View>
+              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+                <ScrollView 
+                  ref={scrollViewRefs.interviews}
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={(event) => handleHorizontalScroll('interviews', event)}
+                  onScrollBeginDrag={(event) => handleScrollBeginDrag('interviews', event)}
+                  onScrollEndDrag={(event) => handleScrollEndDrag('interviews', 'Divertissement', event)}
+                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('interviews', 'Divertissement', event)}
+                  scrollEventThrottle={16}
+                  decelerationRate="normal"
+                >
+                  {interviews.length > 0 ? interviews.slice(0, 10).map((interview, index) => {
+                    const itemAnim = getItemAnimation('interviews', interview, index);
+                    return (
+                      <Animated.View
+                        key={interview.id || interview._id}
+                        style={{
+                          opacity: itemAnim,
+                          transform: [
+                            { scale: itemAnim },
+                            { translateY: itemAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [20, 0]
+                            })}
+                          ]
+                        }}
+                      >
+                        <TouchableOpacity
+                          style={[styles.interviewCard, { backgroundColor: colors.card }]}
+                          onPress={() => navigation.navigate('ShowDetail', { showId: interview.id || interview._id, isDivertissement: true })}
+                        >
+                          <Image source={{ uri: interview.image_url || interview.image || 'https://via.placeholder.com/300x200' }} style={styles.interviewImage} />
+                          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.interviewOverlay}>
+                            <View style={styles.interviewBadge}>
+                              <Ionicons name="mic" size={12} color="#fff" />
+                              <Text style={styles.interviewBadgeText}>Divertissement</Text>
+                            </View>
+                            <Text style={styles.interviewTitle} numberOfLines={2}>{interview.title}</Text>
+                            <Text style={styles.interviewGuest} numberOfLines={1}>{interview.guest || 'Artiste'}</Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  }) : (
+                    <View style={styles.emptyStateHorizontal}>
+                      <Ionicons name="mic-outline" size={48} color={colors.textSecondary} />
+                      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>Aucun divertissement disponible</Text>
+                    </View>
+                  )}
+                  <View style={{ width: 40 }} />
+                </ScrollView>
+                {horizontalScrollEnd.interviews && !redirectLock.interviews && (
+                  <TouchableOpacity 
+                    style={styles.endOfSectionIndicator}
+                    onPress={() => navigation.navigate('Divertissement')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
+                  </TouchableOpacity>
+                )}
+              </Animated.View>
+            </View>
+          </Animated.View>
+
+          {/* Reportages avec animation */}
+          <Animated.View style={{
+            opacity: sectionAnimations.reportages,
+            transform: [
+              { translateX: sectionAnimations.reportages.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 0]
+              })}
+            ]
+          }}>
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderWithButton}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Reportages</Text>
+                </View>
+                <ModernSeeMoreButton onPress={() => navigation.navigate('Reportages')} />
+              </View>
+              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+                <ScrollView 
+                  ref={scrollViewRefs.recentVideos}
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={(event) => handleHorizontalScroll('recentVideos', event)}
+                  onScrollBeginDrag={(event) => handleScrollBeginDrag('recentVideos', event)}
+                  onScrollEndDrag={(event) => handleScrollEndDrag('recentVideos', 'Reportages', event)}
+                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('recentVideos', 'Reportages', event)}
+                  scrollEventThrottle={16}
+                  decelerationRate="normal"
+                >
+                  {recentVideos.length > 0 ? recentVideos.slice(0, 10).map((video, index) => {
+                    const itemAnim = getItemAnimation('recentVideos', video, index);
+                    return (
+                      <Animated.View
+                        key={video.id || video._id}
+                        style={{
+                          opacity: itemAnim,
+                          transform: [
+                            { scale: itemAnim },
+                            { translateY: itemAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [20, 0]
+                            })}
+                          ]
+                        }}
+                      >
+                        <TouchableOpacity
+                          style={[styles.videoCard, { backgroundColor: colors.card }]}
+                          onPress={() => navigation.navigate('ShowDetail', { showId: video.id || video._id, isReportage: true })}
+                        >
+                          <Image source={{ uri: video.image_url || video.image || 'https://via.placeholder.com/300x200' }} style={styles.videoImage} />
+                          <View style={styles.videoDuration}>
+                            <Text style={styles.videoDurationText}>{formatDuration(video.duration || video.duration_minutes)}</Text>
+                          </View>
+                          <View style={styles.videoInfo}>
+                            <Text style={[styles.videoTitle, { color: colors.text }]} numberOfLines={2}>{video.title}</Text>
+                            <Text style={[styles.videoDate, { color: colors.textSecondary }]}>{formatDate(video.aired_at || video.created_at)}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  }) : (
+                    <View style={styles.emptyStateHorizontal}>
+                      <Ionicons name="videocam-outline" size={48} color={colors.textSecondary} />
+                      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>Aucun reportage disponible</Text>
+                    </View>
+                  )}
+                  <View style={{ width: 40 }} />
+                </ScrollView>
+                {horizontalScrollEnd.recentVideos && !redirectLock.recentVideos && (
+                  <TouchableOpacity 
+                    style={styles.endOfSectionIndicator}
+                    onPress={() => navigation.navigate('Reportages')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
+                  </TouchableOpacity>
+                )}
+              </Animated.View>
+            </View>
+          </Animated.View>
+
+          {/* Archives Vidéo Premium avec animation */}
+          <Animated.View style={{
+            opacity: sectionAnimations.archives,
+            transform: [
+              { translateX: sectionAnimations.archives.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 0]
+              })}
+            ]
+          }}>
+            <View style={[styles.section, { marginBottom: 30 }]}>
+              <View style={styles.sectionHeaderWithButton}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Archives Vidéo</Text>
+                  <View style={styles.premiumBadgeSmall}>
+                    <Ionicons name="star" size={12} color={colors.primary} />
+                    <Text style={styles.premiumBadgeTextSmall}>Premium</Text>
+                  </View>
+                </View>
+                <ModernSeeMoreButton onPress={() => navigation.navigate('Archive')} />
+              </View>
+              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+                <ScrollView 
+                  ref={scrollViewRefs.archives}
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={(event) => handleHorizontalScroll('archives', event)}
+                  onScrollBeginDrag={(event) => handleScrollBeginDrag('archives', event)}
+                  onScrollEndDrag={(event) => handleScrollEndDrag('archives', 'Archive', event)}
+                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('archives', 'Archive', event)}
+                  scrollEventThrottle={16}
+                  decelerationRate="normal"
+                >
+                  {archives.length > 0 ? archives.slice(0, 10).map((archive, index) => {
+                    const itemAnim = getItemAnimation('archives', archive, index);
+                    return (
+                      <Animated.View
+                        key={archive.id || archive._id}
+                        style={{
+                          opacity: itemAnim,
+                          transform: [
+                            { scale: itemAnim },
+                            { translateY: itemAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [20, 0]
+                            })}
+                          ]
+                        }}
+                      >
+                        <TouchableOpacity
+                          style={[styles.archiveCard, { backgroundColor: colors.card }]}
+                          onPress={() => navigation.navigate('ArchiveDetail', { archiveId: archive.id || archive._id })}
+                        >
+                          <Image source={{ uri: archive.image || archive.thumbnail || 'https://via.placeholder.com/300x200' }} style={styles.archiveImage} />
+                          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.95)']} style={styles.archiveOverlay}>
+                            <View style={styles.archivePremiumBadge}>
+                              <Ionicons name="lock-closed" size={12} color={colors.primary} />
+                              <Text style={styles.archivePremiumText}>Premium</Text>
+                              {archive.price > 0 && <Text style={styles.archivePriceText}> • {Math.round(archive.price)} XOF</Text>}
+                            </View>
+                            <Text style={styles.archiveTitle} numberOfLines={2}>{archive.title}</Text>
+                            <View style={styles.archiveMeta}>
+                              <Ionicons name="videocam" size={12} color={colors.primary} />
+                              <Text style={styles.archiveMetaText}>Vidéo</Text>
+                              {archive.duration_minutes && (
+                                <>
+                                  <Text style={styles.archiveMetaSeparator}>•</Text>
+                                  <Ionicons name="time" size={12} color={colors.textSecondary} />
+                                  <Text style={styles.archiveMetaText}>{archive.duration_minutes} min</Text>
+                                </>
+                              )}
+                            </View>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  }) : (
+                    <View style={styles.emptyStateHorizontal}>
+                      <Ionicons name="videocam-outline" size={48} color={colors.textSecondary} />
+                      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>Aucune archive disponible</Text>
+                    </View>
+                  )}
+                  <View style={{ width: 40 }} />
+                </ScrollView>
+                {horizontalScrollEnd.archives && !redirectLock.archives && (
+                  <TouchableOpacity 
+                    style={styles.endOfSectionIndicator}
+                    onPress={() => navigation.navigate('Archive')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
+                  </TouchableOpacity>
+                )}
+              </Animated.View>
+            </View>
           </Animated.View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
-const createStyles = (colors) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    backgroundColor: '#000000',
-  },
-  fullscreenContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullscreenVideo: {
-    width: width,
-    height: height,
-  },
-  fullscreenCloseButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 25,
-    padding: 10,
-    zIndex: 1,
-  },
-  videoControls: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    padding: 20,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  timeText: {
-    color: '#fff',
-    fontSize: 12,
-    minWidth: 40,
-  },
-  progressBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 2,
-    marginHorizontal: 10,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#DC143C',
-    borderRadius: 2,
-  },
-  controlButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  controlButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 25,
-    padding: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stopButton: {
-    backgroundColor: 'rgba(220, 20, 60, 0.8)',
-    flexDirection: 'row',
-    paddingHorizontal: 15,
-    gap: 5,
-  },
-  stopButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  liveSection: {
-    marginTop: 0,
-    paddingTop: 20,
-    paddingBottom: 20,
-    backgroundColor: '#000000',
-  },
-  liveSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  liveTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  liveSectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginLeft: 12,
-  },
-  programmedLiveContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(220, 20, 60, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#DC143C',
-  },
-  programmedLiveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#DC143C',
-    marginRight: 8,
-  },
-  programmedLiveText: {
-    color: '#DC143C',
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  liveCardFull: {
-    width: width - 32,
-    height: height * 0.45,
-    marginHorizontal: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-  },
-  liveImageFull: {
-    width: '100%',
-    height: '100%',
-  },
-  liveOverlayFull: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-  },
-  liveBadgeFull: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DC143C',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-  },
-  liveIndicatorFull: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FFFFFF',
-    marginRight: 8,
-  },
-  liveTextFull: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  liveTitleFull: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  liveDescriptionFull: {
-    color: '#B0B0B0',
-    fontSize: 12,
-    lineHeight: 20,
-  },
-  scheduledTimeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    backgroundColor: 'rgba(220, 20, 60, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  scheduledTimeText: {
-    color: '#DC143C',
-    fontSize: 13,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  liveObjectiveContainer: {
-    marginTop: 8,
-  },
-  liveObjectiveLabel: {
-    color: '#DC143C',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  section: {
-    marginTop: 28,
-    paddingBottom: 8,
-  },
-  sectionHeaderWithButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 16,
-  },
-  seeMoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  seeMoreText: {
-    color: '#DC143C',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  newsCard: {
-    width: width * 0.75,
-    height: 180,
-    marginLeft: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-  },
-  newsImage: {
-    width: '100%',
-    height: '100%',
-  },
-  newsOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 12,
-  },
-  newsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DC143C',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-    gap: 4,
-  },
-  newsBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  newsTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  newsTime: {
-    color: '#B0B0B0',
-    fontSize: 11,
-  },
-  trendingCard: {
-    width: 160,
-    marginLeft: 16,
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-  },
-  trendingImage: {
-    width: '100%',
-    height: 120,
-  },
-  trendingInfo: {
-    padding: 10,
-  },
-  trendingTitle: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  trendingMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  trendingViews: {
-    color: '#B0B0B0',
-    fontSize: 11,
-  },
-  videoCard: {
-    width: 200,
-    marginLeft: 16,
-    borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-  },
-  videoImage: {
-    width: '100%',
-    height: 120,
-  },
-  videoDurationBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  videoDuration: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  videoInfo: {
-    padding: 10,
-  },
-  videoTitle: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  videoDate: {
-    color: '#B0B0B0',
-    fontSize: 11,
-  },
-  programCard: {
-    width: 180,
-    height: 140,
-    marginLeft: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-  },
-  programImage: {
-    width: '100%',
-    height: '100%',
-  },
-  programOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 12,
-  },
-  programTitle: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  programSchedule: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  programScheduleText: {
-    color: '#B0B0B0',
-    fontSize: 11,
-    marginLeft: 4,
-  },
-  interviewCard: {
-    width: 200,
-    height: 160,
-    marginLeft: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-  },
-  interviewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  interviewOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 12,
-  },
-  interviewBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DC143C',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-    gap: 4,
-  },
-  interviewBadgeText: {
-    color: '#fff',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  interviewTitle: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  interviewGuest: {
-    color: '#B0B0B0',
-    fontSize: 11,
-  },
-  noLiveContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-    marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 16,
-    backgroundColor: '#1A0000',
-  },
-  noLiveText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  noLiveSubtext: {
-    fontSize: 12,
-    color: '#B0B0B0',
-    textAlign: 'center',
-  },
-  emptyStateHorizontal: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    marginLeft: 16,
-  },
-  emptyStateText: {
-    color: '#B0B0B0',
-    fontSize: 12,
-    marginTop: 12,
-  },
-  archiveBanner: {
-    marginHorizontal: 16,
-    padding: 20,
-    backgroundColor: 'rgba(255, 215, 0, 0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.2)',
-  },
-  archiveBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  archiveIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  archiveTextContainer: {
-    flex: 1,
-  },
-  premiumBadgeSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginBottom: 8,
-    gap: 4,
-  },
-  premiumBadgeTextSmall: {
-    color: '#FFD700',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  // Styles pour la section Archives
-  archiveCard: {
-    width: width * 0.7,
-    height: 200,
-    marginLeft: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-  },
-  archiveImage: {
-    width: '100%',
-    height: '100%',
-  },
-  archiveOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 12,
-  },
-  archivePremiumBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 8,
-    gap: 4,
-  },
-  archivePremiumText: {
-    color: '#FFD700',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  archivePriceText: {
-    color: '#FFD700',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  archiveTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  archiveMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  archiveMetaText: {
-    color: '#B0B0B0',
-    fontSize: 11,
-  },
-  archiveMetaSeparator: {
-    color: '#B0B0B0',
-    fontSize: 11,
-    marginHorizontal: 4,
-  },
-  archiveBannerTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  archiveBannerDescription: {
-    fontSize: 13,
-    color: '#B0B0B0',
-    lineHeight: 18,
-  },
-  archiveBannerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#DC143C',
-    paddingVertical: 12,
-    borderRadius: 10,
-    gap: 8,
-  },
-  archiveBannerButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-});

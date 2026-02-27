@@ -12,7 +12,7 @@ const IS_PRODUCTION = false; // true = production, false = local
 const PRODUCTION_API_URL = 'https://backend-bf1.onrender.com';
 
 // Option 2: Local (votre PC sur le réseau local)
-const LOCAL_API_URL = 'http://10.10.0.8:8000'; // Changez l'IP selon votre réseau
+const LOCAL_API_URL = 'http://192.168.137.1:8000'; // Changez l'IP selon votre réseau
 
 // Configuration automatique
 const API_ROOT_URL = IS_PRODUCTION ? PRODUCTION_API_URL : LOCAL_API_URL;

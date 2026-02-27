@@ -21,9 +21,10 @@ export default function DrawerMenu({ visible, onClose }) {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const styles = createStyles(colors);
-  const slideAnim = React.useRef(new Animated.Value(-300)).current;
+  const slideAnim = React.useRef(new Animated.Value(-250)).current;
 
   React.useEffect(() => {
+    console.log('🔥 DrawerMenu visible:', visible);
     if (visible) {
       Animated.spring(slideAnim, {
         toValue: 0,
@@ -33,7 +34,7 @@ export default function DrawerMenu({ visible, onClose }) {
       }).start();
     } else {
       Animated.timing(slideAnim, {
-        toValue: -300,
+        toValue: -250,
         duration: 250,
         useNativeDriver: true,
       }).start();
@@ -43,85 +44,86 @@ export default function DrawerMenu({ visible, onClose }) {
   const menuItems = [
     {
       title: 'Flash Info',
-      icon: 'flash',
       screen: 'BreakingNews',
       description: 'Actualités en direct',
     },
     {
-      title: 'Émissions Tendances',
-      icon: 'trending-up',
-      screen: 'TrendingShows',
-      description: 'Les plus populaires',
+      title: 'JT et Mag',
+      screen: 'JTandMag',
+      description: 'Journaux TV et Magazines',
     },
     {
-      title: 'Vidéos Récentes',
-      icon: 'play-circle',
-      screen: 'RecentVideos',
-      description: 'Derniers replays',
+      title: 'Reportages',
+      screen: 'Reportages',
+      description: 'Reportages et enquêtes',
     },
-    // {
-    //   title: 'Programmes Populaires',
-    //   icon: 'star',
-    //   screen: 'PopularPrograms',
-    //   description: 'Les favoris du public',
-    // },
     {
-      title: 'Interviews',
-      icon: 'mic',
-      screen: 'Interviews',
-      description: 'Entretiens exclusifs',
+      title: 'Divertissement',
+      screen: 'Divertissement',
+      description: 'Contenus divertissants',
     },
     {
       title: 'Archives',
-      icon: 'videocam',
       screen: 'Archive',
       description: 'Contenu premium',
     },
     {
       title: 'Films',
-      icon: 'film',
-      screen: 'Movies',
+      screen: 'MoviesList',
       description: 'Catalogue de films',
     },
-    // {
-    //   title: 'Replay',
-    //   icon: 'play-back',
-    //   screen: 'Replay',
-    //   description: 'Vidéos en replay',
-    // },
     {
-      title: 'Programme EPG',
-      icon: 'calendar',
-      screen: 'ProgramList',
-      description: 'Guide des programmes',
+      title: 'Calendrier',
+      screen: 'Program',
+      description: 'Programmes TV et horaires',
+    },
+    {
+      title: 'À propos',
+      screen: 'About',
+      description: 'Informations sur BF1',
+    },
+    {
+      title: 'Conditions d\'Utilisation',
+      screen: 'UGC',
+      description: 'Mentions légales et politiques',
     },
   ];
 
   const handleNavigate = (screen) => {
     onClose();
     setTimeout(() => {
-      // Navigation vers les différents stacks et écrans
+      console.log('🔥 Navigation vers:', screen);
+      // Navigation correcte vers les stacks et écrans
       switch (screen) {
         case 'BreakingNews':
-        case 'TrendingShows':
-        case 'RecentVideos':
-        case 'PopularPrograms':
-        case 'Interviews':
+          // Flash Info - Dans HomeStack
+          navigation.navigate('Accueil', { screen: 'BreakingNews' });
+          break;
+        case 'MoviesList':
+          // Films - Naviguer vers MoviesStack
+          navigation.navigate('Films', { screen: 'MoviesList' });
+          break;
         case 'Archive':
-          // Ces écrans sont dans le HomeStack
+          // Archive - Dans HomeStack
+          navigation.navigate('Accueil', { screen: 'Archive' });
+          break;
+        case 'JTandMag':
+        case 'Reportages':
+        case 'Divertissement':
+          // Autres écrans dans HomeStack
           navigation.navigate('Accueil', { screen: screen });
           break;
-        case 'Replay':
-          // Replay est un onglet dans la tab bar
-          navigation.navigate('Replay');
+        case 'Program':
+          // Programme EPG - Dans HomeStack
+          navigation.navigate('Accueil', { screen: 'Program' });
           break;
-        case 'Movies':
-          // Films - Naviguer vers MoviesStack dans HomeStack
-          navigation.navigate('Accueil', { screen: 'Movies' });
+        case 'About':
+          // À propos - Navigation directe
+          navigation.navigate('About');
           break;
-        case 'ProgramList':
-          // Programme EPG - Naviguer vers l'écran de grille des programmes
-          navigation.navigate('Accueil', { screen: 'ProgramScreen' });
+        case 'UGC':
+          // UGC - Navigation directe
+          navigation.navigate('UGC');
           break;
         default:
           navigation.navigate(screen);
@@ -168,13 +170,6 @@ export default function DrawerMenu({ visible, onClose }) {
                     onPress={() => handleNavigate(item.screen)}
                     activeOpacity={0.7}
                   >
-                    <View style={styles.menuItemIcon}>
-                      <Ionicons
-                        name={item.icon}
-                        size={24}
-                        color={colors.primary}
-                      />
-                    </View>
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemTitle}>{item.title}</Text>
                       <Text style={styles.menuItemDescription}>
@@ -206,14 +201,14 @@ const createStyles = (colors) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
     },
     drawerContainer: {
       position: 'absolute',
       left: 0,
       top: 0,
       bottom: 0,
-      width: 300,
+      width: 250,
       backgroundColor: colors.surface,
       shadowColor: '#000',
       shadowOffset: { width: 2, height: 0 },

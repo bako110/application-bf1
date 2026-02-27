@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   TextInput,
@@ -10,10 +9,12 @@ import {
   Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
 import supportService from '../services/supportService';
+import { createSupportStyles } from '../styles/supportStyles'; // Import des styles séparés
 
 export default function SupportScreen({ navigation }) {
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState('faqs'); // 'faqs' or 'tickets'
   const [loading, setLoading] = useState(true);
   const [faqs, setFaqs] = useState([]);
@@ -86,11 +87,11 @@ export default function SupportScreen({ navigation }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'open': return '#DC143C';
+      case 'open': return colors.primary;
       case 'in_progress': return '#FFA500';
       case 'resolved': return '#4CAF50';
-      case 'closed': return '#B0B0B0';
-      default: return '#FFFFFF';
+      case 'closed': return colors.textSecondary;
+      default: return colors.text;
     }
   };
 
@@ -104,6 +105,8 @@ export default function SupportScreen({ navigation }) {
     }
   };
 
+  const styles = createSupportStyles(colors);
+
   return (
     <View style={styles.container}>
       {/* Tabs */}
@@ -115,7 +118,7 @@ export default function SupportScreen({ navigation }) {
           <Ionicons 
             name="help-circle" 
             size={20} 
-            color={activeTab === 'faqs' ? '#DC143C' : '#B0B0B0'} 
+            color={activeTab === 'faqs' ? colors.primary : colors.textSecondary} 
           />
           <Text style={[styles.tabText, activeTab === 'faqs' && styles.activeTabText]}>
             FAQs
@@ -129,7 +132,7 @@ export default function SupportScreen({ navigation }) {
           <Ionicons 
             name="chatbubbles" 
             size={20} 
-            color={activeTab === 'tickets' ? '#DC143C' : '#B0B0B0'} 
+            color={activeTab === 'tickets' ? colors.primary : colors.textSecondary} 
           />
           <Text style={[styles.tabText, activeTab === 'tickets' && styles.activeTabText]}>
             Mes Tickets
@@ -140,17 +143,17 @@ export default function SupportScreen({ navigation }) {
       {/* Search Bar (FAQs only) */}
       {activeTab === 'faqs' && (
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={'#B0B0B0'} />
+          <Ionicons name="search" size={20} color={colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Rechercher dans les FAQs..."
-            placeholderTextColor={'#B0B0B0'}
+            placeholderTextColor={colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color={'#B0B0B0'} />
+              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -159,7 +162,7 @@ export default function SupportScreen({ navigation }) {
       {/* Content */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={'#DC143C'} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -174,13 +177,13 @@ export default function SupportScreen({ navigation }) {
                 >
                   <View style={styles.faqHeader}>
                     <View style={styles.faqTitleContainer}>
-                      <Ionicons name="help-circle-outline" size={20} color={'#DC143C'} />
+                      <Ionicons name="help-circle-outline" size={20} color={colors.primary} />
                       <Text style={styles.faqQuestion}>{faq.question}</Text>
                     </View>
                     <Ionicons
                       name={expandedFaq === faq.id ? 'chevron-up' : 'chevron-down'}
                       size={20}
-                      color={'#B0B0B0'}
+                      color={colors.textSecondary}
                     />
                   </View>
                   {expandedFaq === faq.id && (
@@ -188,11 +191,11 @@ export default function SupportScreen({ navigation }) {
                       <Text style={styles.faqAnswerText}>{faq.answer}</Text>
                       <View style={styles.faqMeta}>
                         <View style={styles.faqMetaItem}>
-                          <Ionicons name="eye" size={14} color={'#B0B0B0'} />
+                          <Ionicons name="eye" size={14} color={colors.textSecondary} />
                           <Text style={styles.faqMetaText}>{faq.views} vues</Text>
                         </View>
                         <View style={styles.faqMetaItem}>
-                          <Ionicons name="thumbs-up" size={14} color={'#B0B0B0'} />
+                          <Ionicons name="thumbs-up" size={14} color={colors.textSecondary} />
                           <Text style={styles.faqMetaText}>{faq.helpful_count} utile</Text>
                         </View>
                       </View>
@@ -202,7 +205,7 @@ export default function SupportScreen({ navigation }) {
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={60} color={'#B0B0B0'} />
+                <Ionicons name="search-outline" size={60} color={colors.textSecondary} />
                 <Text style={styles.emptyStateText}>Aucune FAQ trouvée</Text>
               </View>
             )
@@ -226,7 +229,7 @@ export default function SupportScreen({ navigation }) {
                   <Text style={styles.ticketMessage} numberOfLines={2}>{ticket.message}</Text>
                   <View style={styles.ticketFooter}>
                     <View style={styles.ticketMeta}>
-                      <Ionicons name="pricetag" size={14} color={'#B0B0B0'} />
+                      <Ionicons name="pricetag" size={14} color={colors.textSecondary} />
                       <Text style={styles.ticketMetaText}>{ticket.category}</Text>
                     </View>
                     <Text style={styles.ticketDate}>
@@ -237,7 +240,7 @@ export default function SupportScreen({ navigation }) {
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Ionicons name="chatbubbles-outline" size={60} color={'#B0B0B0'} />
+                <Ionicons name="chatbubbles-outline" size={60} color={colors.textSecondary} />
                 <Text style={styles.emptyStateText}>Aucun ticket</Text>
                 <Text style={styles.emptyStateSubtext}>
                   Créez un ticket pour obtenir de l'aide
@@ -257,191 +260,3 @@ export default function SupportScreen({ navigation }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#1A0000',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 8,
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#DC143C',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#B0B0B0',
-  },
-  activeTabText: {
-    color: '#DC143C',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A0000',
-    margin: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  faqCard: {
-    backgroundColor: '#1A0000',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  faqHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  faqTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  faqQuestion: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    flex: 1,
-  },
-  faqAnswer: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#000000',
-  },
-  faqAnswerText: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    lineHeight: 22,
-  },
-  faqMeta: {
-    flexDirection: 'row',
-    marginTop: 12,
-    gap: 16,
-  },
-  faqMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  faqMetaText: {
-    fontSize: 12,
-    color: '#B0B0B0',
-  },
-  ticketCard: {
-    backgroundColor: '#1A0000',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  ticketSubject: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    flex: 1,
-    marginRight: 12,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  ticketMessage: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    marginBottom: 12,
-  },
-  ticketFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ticketMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ticketMetaText: {
-    fontSize: 12,
-    color: '#B0B0B0',
-  },
-  ticketDate: {
-    fontSize: 12,
-    color: '#B0B0B0',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginTop: 16,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#B0B0B0',
-    marginTop: 8,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#DC143C',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-});

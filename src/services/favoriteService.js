@@ -22,7 +22,7 @@ class FavoriteService {
   }
 
   // Récupérer mes favoris
-  async getMyFavorites() {
+  async getMyFavorites(contentType = null) {
     // Vérifier l'authentification
     const isAuth = await authService.isAuthenticated();
     if (!isAuth) {
@@ -30,7 +30,8 @@ class FavoriteService {
     }
 
     try {
-      const response = await api.get('/favorites/me');
+      const params = contentType ? { content_type: contentType } : {};
+      const response = await api.get('/favorites/me', { params });
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

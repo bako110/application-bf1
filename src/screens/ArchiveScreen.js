@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -21,6 +20,7 @@ import useAutoRefresh from '../hooks/useAutoRefresh';
 import usePagination from '../hooks/usePagination';
 import LoadingFooter from '../components/LoadingFooter';
 import { useFocusEffect } from '@react-navigation/native';
+import { createArchiveStyles } from '../styles/archiveStyles'; // Import des styles séparés
 
 export default function ArchiveScreen({ navigation }) {
   const { colors } = useTheme();
@@ -55,18 +55,6 @@ export default function ArchiveScreen({ navigation }) {
     }, [])
   );
 
-  // Rafraîchissement automatique en arrière-plan toutes les 10 secondes
-  const loadArchivesSilently = async () => {
-    try {
-      const data = await archiveService.getAllArchives({ limit: archives.length || 20 });
-      setArchives(data);
-    } catch (error) {
-      console.error('Error loading archives silently:', error);
-    }
-  };
-  
-  useAutoRefresh(loadArchivesSilently, 10000, true);
-
   useEffect(() => {
     if (archives.length > 0) {
       fadeAnim.setValue(0);
@@ -86,11 +74,8 @@ export default function ArchiveScreen({ navigation }) {
     }
   }, [archives, viewMode]);
 
-
   const handleArchivePress = async (archive) => {
-    // Incrémenter les vues
     const archiveId = archive.id || archive._id;
-    await viewService.incrementView(archiveId, 'archive');
     
     // Vérifier si c'est une vidéo premium
     if (archive.is_premium && !isPremium) {
@@ -146,6 +131,8 @@ export default function ArchiveScreen({ navigation }) {
   };
 
   const renderArchive = (item, index) => {
+    const styles = createArchiveStyles(colors);
+    
     if (viewMode === 'grid') {
       // Mode Grille - Carte verticale
       return (
@@ -177,30 +164,7 @@ export default function ArchiveScreen({ navigation }) {
             <Text style={styles.archiveTitle} numberOfLines={2}>
               {item.title}
             </Text>
-            <View style={styles.archiveMeta}>
-              <Ionicons name="person" size={12} color={'#DC143C'} />
-              <Text style={styles.metaText} numberOfLines={1}>{item.guest_name}</Text>
-              {item.duration_minutes && (
-                <>
-                  <Text style={styles.metaSeparator}>•</Text>
-                  <Ionicons name="time" size={12} color={'#B0B0B0'} />
-                  <Text style={styles.metaText}>{item.duration_minutes} min</Text>
-                </>
-              )}
-              {item.views !== undefined && (
-                <>
-                  <Text style={styles.metaSeparator}>•</Text>
-                  <Ionicons name="eye" size={12} color={'#B0B0B0'} />
-                  <Text style={styles.metaText}>{item.views}</Text>
-                </>
-              )}
-            </View>
           </LinearGradient>
-          {item.is_premium && !isPremium && (
-            <View style={styles.lockOverlay}>
-              <Ionicons name="lock-closed" size={40} color="#FFD700" />
-            </View>
-          )}
         </TouchableOpacity>
       );
     } else {
@@ -219,50 +183,27 @@ export default function ArchiveScreen({ navigation }) {
           <View style={styles.archiveContentList}>
             <View style={styles.archiveBadgesRow}>
               {item.is_premium && (
-                <View style={styles.archivePremiumBadge}>
-                  <Ionicons name="lock-closed" size={32} color="#FFD700" />
-                  <Text style={styles.archivePremiumText}>Premium</Text>
+                <View style={styles.archivePremiumBadgeList}>
+                  <Ionicons name="lock-closed" size={12} color="#FFD700" />
+                  <Text style={styles.archivePremiumTextList}>Premium</Text>
                 </View>
               )}
               {item.is_premium && item.price > 0 && (
-                <View style={styles.archivePriceBadge}>
-                  <Text style={styles.archivePriceText}>{Math.round(item.price)} XOF</Text>
+                <View style={styles.archivePriceBadgeList}>
+                  <Text style={styles.archivePriceTextList}>{Math.round(item.price)} XOF</Text>
                 </View>
               )}
             </View>
             <Text style={styles.archiveTitleList} numberOfLines={2}>
               {item.title}
             </Text>
-            <View style={styles.archiveMetaList}>
-              <Ionicons name="person" size={12} color={'#DC143C'} />
-              <Text style={styles.metaTextList} numberOfLines={1}>{item.guest_name}</Text>
-            </View>
-            <View style={styles.archiveStatsRow}>
-              {item.duration_minutes && (
-                <View style={styles.archiveStat}>
-                  <Ionicons name="time" size={12} color={'#B0B0B0'} />
-                  <Text style={styles.metaTextList}>{item.duration_minutes} min</Text>
-                </View>
-              )}
-              {item.views !== undefined && (
-                <View style={styles.archiveStat}>
-                  <Ionicons name="eye" size={12} color={'#B0B0B0'} />
-                  <Text style={styles.metaTextList}>{item.views} vues</Text>
-                </View>
-              )}
-            </View>
           </View>
-          {item.is_premium && !isPremium && (
-            <View style={styles.lockOverlay}>
-              <Ionicons name="lock-closed" size={32} color="#FFD700" />
-            </View>
-          )}
         </TouchableOpacity>
       );
     }
   };
 
-  const styles = createStyles(colors);
+  const styles = createArchiveStyles(colors);
 
   if (loading && archives.length === 0) {
     return (
@@ -277,6 +218,25 @@ export default function ArchiveScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {/* En-tête avec titre et bouton de changement de vue */}
+      <View style={styles.header}>
+        <View style={styles.headerTitleContainer}>
+          <Ionicons name="archive-outline" size={24} color={colors.primary} />
+          <Text style={styles.headerTitle}>Archives Vidéo</Text>
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.viewToggle} 
+          onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+        >
+          <Ionicons 
+            name={viewMode === 'grid' ? 'list' : 'grid'} 
+            size={22} 
+            color={colors.primary} 
+          />
+        </TouchableOpacity>
+      </View>
+
       {!isPremium && (
         <View style={styles.premiumBanner}>
           <Ionicons name="videocam" size={20} color="#FFD700" />
@@ -287,7 +247,7 @@ export default function ArchiveScreen({ navigation }) {
             style={styles.subscribeButton} 
             onPress={() => navigation.navigate('Profile')}
           >
-            <Text style={styles.subscribeButtonText}>S'abonner Premium</Text>
+            <Text style={styles.subscribeButtonText}>S'abonner</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -333,244 +293,3 @@ export default function ArchiveScreen({ navigation }) {
     </View>
   );
 }
-
-const createStyles = (colors) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 35,
-    paddingBottom: 10,
-    paddingHorizontal: 16,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  placeholder: {
-    width: 40,
-  },
-  viewToggle: {
-    padding: 8,
-  },
-  content: {
-    flex: 1,
-  },
-  gridContainer: {
-    paddingHorizontal: 8,
-    paddingVertical: 16,
-  },
-  listContainer: {
-    paddingVertical: 16,
-  },
-  premiumBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    gap: 12,
-  },
-  premiumBannerText: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  subscribeButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  subscribeButtonText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: colors.textSecondary,
-    marginTop: 16,
-    fontSize: 16,
-  },
-  archiveCard: {
-    marginHorizontal: 8,
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  archiveCardList: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    flexDirection: 'row',
-    height: 140,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  archiveImage: {
-    width: '100%',
-    height: 200,
-  },
-  archiveImageList: {
-    width: 120,
-    height: '100%',
-  },
-  archiveContentList: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'space-between',
-  },
-  archiveBadgesRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 6,
-  },
-  archiveOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-  },
-  archivePremiumBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 8,
-    gap: 4,
-  },
-  archivePremiumText: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  archivePriceBadge: {
-    backgroundColor: 'rgba(220, 20, 60, 0.9)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  archivePriceText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  archiveTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  archiveTitleList: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  archiveMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  archiveMetaList: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
-  archiveDuration: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  archiveStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  archiveStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    flex: 1,
-  },
-  metaTextList: {
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
-  metaSeparator: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginHorizontal: 4,
-  },
-  lockOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginTop: 16,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 8,
-  },
-});

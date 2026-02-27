@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
 import api from '../config/api';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { createRegisterStyles } from '../styles/registerStyles'; // Import des styles séparés
 
 export default function RegisterScreen({ navigation }) {
+  const { colors } = useTheme();
   const { register, login } = useAuth();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -105,17 +107,22 @@ export default function RegisterScreen({ navigation }) {
     }
   };
 
+  const styles = createRegisterStyles(colors);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Inscription</Text>
+      
       <TextInput
         style={styles.input}
         placeholder="Email"
-        placeholderTextColor="#b0b0b0"
+        placeholderTextColor={colors.textSecondary}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        keyboardType="email-address"
       />
+      
       <View style={styles.usernameContainer}>
         <TextInput
           style={[
@@ -124,7 +131,7 @@ export default function RegisterScreen({ navigation }) {
             usernameAvailable === false && styles.inputUnavailable
           ]}
           placeholder="Nom d'utilisateur"
-          placeholderTextColor="#b0b0b0"
+          placeholderTextColor={colors.textSecondary}
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
@@ -132,7 +139,7 @@ export default function RegisterScreen({ navigation }) {
         {checkingUsername && (
           <ActivityIndicator 
             size="small" 
-            color="#DC143C" 
+            color={colors.primary} 
             style={styles.usernameIndicator}
           />
         )}
@@ -153,6 +160,7 @@ export default function RegisterScreen({ navigation }) {
           />
         )}
       </View>
+      
       {suggestedUsername && username !== suggestedUsername && (
         <TouchableOpacity 
           style={styles.suggestionButton}
@@ -163,111 +171,39 @@ export default function RegisterScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
       )}
+      
       {usernameAvailable === false && (
         <Text style={styles.warningText}>
           ⚠️ Ce nom d'utilisateur est déjà pris
         </Text>
       )}
+      
       <TextInput
         style={styles.input}
         placeholder="Mot de passe"
-        placeholderTextColor="#b0b0b0"
+        placeholderTextColor={colors.textSecondary}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
+      
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>S'inscrire</Text>}
+      
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={handleRegister} 
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>S'inscrire</Text>
+        )}
       </TouchableOpacity>
+      
       <TouchableOpacity onPress={() => navigation.navigate('Login')}>
         <Text style={styles.link}>Déjà un compte ? Se connecter</Text>
       </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000000',
-    padding: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    color: '#FFFFFF',
-  },
-  input: {
-    width: '100%',
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#1A0000',
-    borderRadius: 8,
-    marginBottom: 16,
-    color: '#FFFFFF',
-    backgroundColor: '#1A0000',
-  },
-  button: {
-    width: '100%',
-    backgroundColor: '#DC143C',
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  link: {
-    color: '#DC143C',
-    marginTop: 16,
-    fontSize: 15,
-  },
-  error: {
-    color: 'red',
-    marginBottom: 8,
-  },
-  usernameContainer: {
-    width: '100%',
-    position: 'relative',
-  },
-  usernameIndicator: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
-  },
-  inputAvailable: {
-    borderColor: '#00FF00',
-    borderWidth: 1,
-  },
-  inputUnavailable: {
-    borderColor: '#FF0000',
-    borderWidth: 1,
-  },
-  suggestionButton: {
-    width: '100%',
-    backgroundColor: '#1A1A1A',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#DC143C',
-  },
-  suggestionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  warningText: {
-    color: '#FF0000',
-    fontSize: 12,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-});

@@ -92,16 +92,23 @@ class NotificationService {
 
   // Compter les notifications non lues
   async getUnreadCount() {
+    console.log('🔔 [NotificationService] getUnreadCount appelé');
     const isAuth = await authService.isAuthenticated();
     if (!isAuth) {
+      console.log('🔔 [NotificationService] Non authentifié, retour 0');
       return 0;
     }
 
     try {
+      console.log('🔔 [NotificationService] Appel GET /notifications/unread/count');
       const response = await api.get('/notifications/unread/count');
-      return response.data.count || 0;
+      console.log('🔔 [NotificationService] Réponse unread count:', response.data);
+      const count = response.data.count || 0;
+      console.log('🔔 [NotificationService] Count final:', count);
+      return count;
     } catch (error) {
-      console.error('Erreur comptage notifications:', error);
+      console.error('❌ [NotificationService] Erreur comptage notifications:', error);
+      console.error('❌ [NotificationService] Status:', error.response?.status);
       return 0;
     }
   }

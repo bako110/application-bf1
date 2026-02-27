@@ -4,9 +4,8 @@ class LiveStreamService {
   constructor() {
     this.bf1Stream = {
       id: 'bf1',
-      name: 'BF1 TV - Chaîne Officielle',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', // Remplacer par votre flux réel
-      // thumbnail: 'https://picsum.photos/seed/bf1tv/400/225.jpg',
+      name: 'En direct',
+      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', 
       isLive: true,
       viewers: 0,
       description: 'Chaîne de télévision BF1 en direct',

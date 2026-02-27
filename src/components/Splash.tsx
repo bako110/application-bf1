@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 180,
     height: 180,
-    borderRadius: 90,
+    borderRadius: 20,
   },
   taglineContainer: {
     flexDirection: 'row',

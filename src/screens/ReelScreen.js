@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Dimensions,
   FlatList,
   TouchableOpacity,
@@ -16,11 +15,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../contexts/ThemeContext';
-import ExpandableText from '../components/ExpandableText';
+import { createReelStyles } from '../styles/reelStyles';
 import ReelVideoPlayer from '../components/ReelVideoPlayer';
 import reelService from '../services/reelService';
 import commentService from '../services/commentService';
@@ -34,10 +32,12 @@ const { width, height } = Dimensions.get('window');
 
 function ReelScreen({ navigation }) {
   const { colors } = useTheme();
+  const styles = createReelStyles(colors);
+  
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [paused, setPaused] = useState(false); // false = lecture automatique
+  const [paused, setPaused] = useState(false);
   const [likedReels, setLikedReels] = useState(new Set());
-  const [reelStats, setReelStats] = useState({}); // {reelId: {likes, comments, shares}}
+  const [reelStats, setReelStats] = useState({});
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedReelId, setSelectedReelId] = useState(null);
   const [comments, setComments] = useState([]);
@@ -69,14 +69,13 @@ function ReelScreen({ navigation }) {
   } = usePagination(fetchReels, 10);
   
   const flatListRef = useRef(null);
-  const viewedReelsRef = useRef(new Set()); // Track viewed reels
+  const viewedReelsRef = useRef(new Set());
   
   const onViewableItemsChangedRef = useRef(({ viewableItems }) => {
     if (viewableItems.length > 0) {
       const currentReel = viewableItems[0];
       setCurrentIndex(currentReel.index);
       
-      // Incrémenter les vues pour le reel visible
       const reelId = currentReel.item?.id || currentReel.item?._id;
       if (reelId && !viewedReelsRef.current.has(reelId)) {
         viewedReelsRef.current.add(reelId);
@@ -84,27 +83,21 @@ function ReelScreen({ navigation }) {
       }
     }
   }).current;
+  
   const viewabilityConfigRef = useRef({
     itemVisiblePercentThreshold: 50,
   }).current;
 
-  // Load current user on component mount
   useEffect(() => {
     loadCurrentUser();
   }, []);
 
-  // Pause video when leaving the screen
   useFocusEffect(
     React.useCallback(() => {
-      // Reprendre la lecture quand l'écran est actif
       setPaused(false);
-      
-      // Charger uniquement si vide
       if (reels.length === 0) {
         loadInitial();
       }
-      
-      // Mettre en pause quand l'écran n'est plus actif
       return () => {
         setPaused(true);
       };
@@ -129,7 +122,6 @@ function ReelScreen({ navigation }) {
     try {
       const isLiked = likedReels.has(reelId);
       
-      // Mise à jour optimiste de l'UI
       if (isLiked) {
         setLikedReels(prev => {
           const newSet = new Set(prev);
@@ -157,31 +149,6 @@ function ReelScreen({ navigation }) {
       }
     } catch (err) {
       console.error('Error liking reel:', err);
-      // Rollback en cas d'erreur
-      if (likedReels.has(reelId)) {
-        setLikedReels(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(reelId);
-          return newSet;
-        });
-        setReelStats(prev => ({
-          ...prev,
-          [reelId]: {
-            ...prev[reelId],
-            likes: Math.max(0, (prev[reelId]?.likes || 0) - 1)
-          }
-        }));
-      } else {
-        setLikedReels(prev => new Set([...prev, reelId]));
-        setReelStats(prev => ({
-          ...prev,
-          [reelId]: {
-            ...prev[reelId],
-            likes: (prev[reelId]?.likes || 0) + 1
-          }
-        }));
-      }
-      
       if (err.message?.includes('auth') || err.requiresAuth) {
         Alert.alert('Connexion requise', 'Vous devez être connecté pour liker un reel');
       } else {
@@ -216,7 +183,6 @@ function ReelScreen({ navigation }) {
       setSubmittingComment(true);
       await reelService.createComment(selectedReelId, commentText.trim());
       
-      // Mettre à jour le compteur
       setReelStats(prev => ({
         ...prev,
         [selectedReelId]: {
@@ -225,7 +191,6 @@ function ReelScreen({ navigation }) {
         }
       }));
       
-      // Recharger les commentaires
       await loadComments(selectedReelId);
       setCommentText('');
     } catch (err) {
@@ -289,7 +254,6 @@ function ReelScreen({ navigation }) {
             try {
               await commentService.deleteComment(commentId);
               await loadComments(selectedReelId);
-              // Mettre à jour le compteur
               setReelStats(prev => ({
                 ...prev,
                 [selectedReelId]: {
@@ -311,7 +275,6 @@ function ReelScreen({ navigation }) {
     try {
       await reelService.shareReel(reelId);
       
-      // Mettre à jour le compteur de partages
       setReelStats(prev => ({
         ...prev,
         [reelId]: {
@@ -345,13 +308,23 @@ function ReelScreen({ navigation }) {
           videoUrl={item.videoUrl || item.video_url}
           isActive={isActive}
           paused={paused}
-          onError={(error) => console.error('Reel video error:', error)}
-          onBuffer={({ isBuffering }) => {
-            if (isBuffering) {
-              console.log('Reel buffering...');
-            }
-          }}
+          onError={(error) => {}}
+          onBuffer={({ isBuffering }) => {}}
         />
+
+        <LinearGradient
+          colors={['rgba(0,0,0,0.8)', 'transparent']}
+          style={styles.topGradient}
+        >
+          <View style={styles.topContentContainer}>
+            <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
+              {item.title || 'Titre du reel'}
+            </Text>
+            <Text style={styles.description} numberOfLines={2} ellipsizeMode="tail">
+              {item.description || 'Description du reel'}
+            </Text>
+          </View>
+        </LinearGradient>
 
         <TouchableOpacity
           style={styles.videoTouchable}
@@ -364,23 +337,6 @@ function ReelScreen({ navigation }) {
             </View>
           )}
         </TouchableOpacity>
-
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.7)']}
-          style={styles.bottomGradient}
-        >
-          <View style={styles.infoContainer}>
-            <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
-              {item.title || 'Titre du reel'}
-            </Text>
-            <ExpandableText
-              text={item.description || 'Description du reel'}
-              numberOfLines={3}
-              style={styles.description}
-              expandedStyle={styles.description}
-            />
-          </View>
-        </LinearGradient>
 
         <View style={styles.actionsContainer}>
           <TouchableOpacity
@@ -399,7 +355,7 @@ function ReelScreen({ navigation }) {
             style={styles.actionButton}
             onPress={() => handleComment(item.id)}
           >
-            <Ionicons name="chatbubble" size={30} color="#fff" />
+            <Ionicons name="chatbubble-outline" size={30} color="#fff" />
             <Text style={styles.actionText}>{reelStats[item.id]?.comments || 0}</Text>
           </TouchableOpacity>
 
@@ -407,7 +363,7 @@ function ReelScreen({ navigation }) {
             style={styles.actionButton}
             onPress={() => handleShare(item.id)}
           >
-            <Ionicons name="arrow-redo" size={30} color="#fff" />
+            <Ionicons name="arrow-redo-outline" size={30} color="#fff" />
             <Text style={styles.actionText}>{reelStats[item.id]?.shares || 0}</Text>
           </TouchableOpacity>
 
@@ -425,9 +381,6 @@ function ReelScreen({ navigation }) {
     );
   };
 
-  const styles = createStyles(colors);
-
-  // Masquer le header - doit être avant tout return conditionnel
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
@@ -463,9 +416,6 @@ function ReelScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       
-      {/* Spacer pour compenser l'espace du header */}
-      <View style={{ height: 20 }} />
-
       <FlatList
         ref={flatListRef}
         data={reels}
@@ -500,7 +450,6 @@ function ReelScreen({ navigation }) {
           style={styles.modalContainer}
         >
           <View style={styles.modalContent}>
-            {/* Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Commentaires</Text>
               <TouchableOpacity onPress={closeCommentModal}>
@@ -508,7 +457,6 @@ function ReelScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* Liste des commentaires */}
             <ScrollView style={styles.commentsList}>
               {loadingComments ? (
                 <ActivityIndicator size="large" color={'#DC143C'} style={{ marginTop: 20 }} />
@@ -561,13 +509,13 @@ function ReelScreen({ navigation }) {
                         <View style={styles.commentActions}>
                           <TouchableOpacity
                             onPress={() => handleEditComment(comment)}
-                            style={styles.actionButton}
+                            style={styles.commentActionButton}
                           >
                             <Ionicons name="create-outline" size={18} color={'#DC143C'} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => handleDeleteComment(comment.id)}
-                            style={styles.actionButton}
+                            style={styles.commentActionButton}
                           >
                             <Ionicons name="trash-outline" size={18} color={'#FF0000'} />
                           </TouchableOpacity>
@@ -585,7 +533,6 @@ function ReelScreen({ navigation }) {
               )}
             </ScrollView>
 
-            {/* Input commentaire */}
             <View style={styles.commentInputContainer}>
               <TextInput
                 style={styles.commentInput}
@@ -693,385 +640,5 @@ function ReelScreen({ navigation }) {
     </View>
   );
 }
-
-const createStyles = (colors) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  cameraButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reelContainer: {
-    width,
-    height,
-    backgroundColor: '#000',
-  },
-  video: {
-    width: '100%',
-    height: '100%',
-  },
-  videoTouchable: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pausedOverlay: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bottomGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 250,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    justifyContent: 'flex-end',
-  },
-  infoContainer: {
-    marginBottom: 20,
-    maxWidth: '80%',
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  avatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#DC143C',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  username: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 'bold',
-    flex: 1,
-  },
-  followButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  followText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  title: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  description: {
-    color: '#fff',
-    fontSize: 14,
-    lineHeight: 18,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  actionsContainer: {
-    position: 'absolute',
-    right: 12,
-    bottom: 100,
-    alignItems: 'center',
-  },
-  actionButton: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  actionText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-  },
-  loadingText: {
-    color: '#fff',
-    marginTop: 10,
-    fontSize: 14,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-    paddingHorizontal: 20,
-  },
-  errorText: {
-    color: '#fff',
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#DC143C',
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  // Styles Modal Commentaires
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#000000',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: '80%',
-    paddingTop: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#330000',
-  },
-  modalTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  commentsList: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  commentItem: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#330000',
-  },
-  commentAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#DC143C',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  commentContent: {
-    flex: 1,
-  },
-  commentUsername: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  commentText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  commentTime: {
-    color: '#B0B0B0' || '#999',
-    fontSize: 12,
-  },
-  emptyComments: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  emptyCommentsText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 12,
-  },
-  emptyCommentsSubtext: {
-    color: '#B0B0B0' || '#999',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  commentInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#330000',
-    backgroundColor: '#000000',
-  },
-  commentInput: {
-    flex: 1,
-    backgroundColor: '#1A0000',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    color: '#FFFFFF',
-    maxHeight: 100,
-    marginRight: 12,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1A0000',
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  commentActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  editContainer: {
-    marginTop: 8,
-  },
-  editInput: {
-    backgroundColor: '#000000',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    color: '#FFFFFF',
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#DC143C',
-    marginBottom: 8,
-    minHeight: 60,
-  },
-  editActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  cancelButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#330000',
-  },
-  cancelButtonText: {
-    color: '#B0B0B0' || '#999',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  saveButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#DC143C',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  optionsOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-end',
-  },
-  optionsContainer: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 30,
-  },
-  optionsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  optionsTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  optionText: {
-    color: '#fff',
-    fontSize: 16,
-    marginLeft: 16,
-  },
-  cancelOption: {
-    borderBottomWidth: 0,
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  cancelText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-});
 
 export default ReelScreen;

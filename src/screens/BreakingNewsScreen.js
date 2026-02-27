@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Image,
   TouchableOpacity,
@@ -12,35 +11,54 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { colors } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { createBreakingNewsStyles } from '../styles/breakingNewsStyles';
 import newsService from '../services/newsService';
+import categoryService from '../services/categoryService';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatRelativeTime } from '../utils/dateUtils';
 import useAutoRefresh from '../hooks/useAutoRefresh';
+import NotificationHeader from '../components/NotificationHeader';
 
 const { width } = Dimensions.get('window');
 
 export default function BreakingNewsScreen({ navigation }) {
+  const { colors } = useTheme();
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Tous');
-  const [viewMode, setViewMode] = useState('list'); // 'grid' ou 'list'
-  const fadeAnim = new Animated.Value(1); // Initialisé à 1 pour être visible immédiatement
+  const [viewMode, setViewMode] = useState('list');
+  const [categories, setCategories] = useState(['Tous']);
 
-  const categories = ['Tous', 'Politique', 'Économie', 'Sport', 'Culture', 'Tech'];
+  const styles = createBreakingNewsStyles(colors);
+  const fadeAnim = new Animated.Value(1);
 
   useEffect(() => {
     loadNews();
+    loadCategories();
   }, []);
 
   useFocusEffect(
     React.useCallback(() => {
       loadNews();
+      loadCategories();
     }, [])
   );
 
-  // Rafraîchissement automatique en arrière-plan toutes les 10 secondes
+  const loadCategories = async () => {
+    try {
+      const data = await categoryService.getAllCategories();
+      if (data && data.length > 0) {
+        const categoryNames = data.map(cat => cat.name);
+        setCategories(['Tous', ...categoryNames]);
+      }
+    } catch (error) {
+      console.error('❌ Error loading categories:', error);
+      setCategories(['Tous', 'Politique', 'Économie', 'Sport', 'Culture', 'Tech']);
+    }
+  };
+
   const loadNewsSilently = async () => {
     try {
       const data = await newsService.getAllNews({ limit: 100 });
@@ -56,10 +74,6 @@ export default function BreakingNewsScreen({ navigation }) {
     try {
       setLoading(true);
       const data = await newsService.getAllNews({ limit: 100 });
-      console.log('📰 Flash Info - Données reçues:', data?.length || 0, 'actualités');
-      if (data && data.length > 0) {
-        console.log('📰 Première actualité:', data[0]);
-      }
       setNews(data || []);
     } catch (error) {
       console.error('❌ Error loading news:', error);
@@ -73,19 +87,29 @@ export default function BreakingNewsScreen({ navigation }) {
     ? news
     : news.filter(item => (item.category || item.edition) === selectedCategory);
 
-  console.log('📰 News totales:', news.length, '| Filtrées:', filteredNews.length, '| Catégorie:', selectedCategory);
-
   const onRefresh = async () => {
     setRefreshing(true);
     await loadNews();
     setRefreshing(false);
   };
 
-  // Exposer toggleViewMode et viewMode via les params de navigation
   useEffect(() => {
-    navigation.setParams({
-      toggleViewMode: () => setViewMode(viewMode === 'grid' ? 'list' : 'grid'),
-      viewMode: viewMode
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+          <TouchableOpacity 
+            onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+            style={{ marginRight: 16, padding: 8 }}
+          >
+            <Ionicons 
+              name={viewMode === 'grid' ? 'list' : 'grid'} 
+              size={24} 
+              color="#FFFFFF" 
+            />
+          </TouchableOpacity>
+          <NotificationHeader />
+        </View>
+      ),
     });
   }, [navigation, viewMode]);
 
@@ -201,221 +225,3 @@ export default function BreakingNewsScreen({ navigation }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 35,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  viewToggle: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  listContainer: {
-    flexDirection: 'column',
-  },
-  categoriesContainer: {
-    maxHeight: 60,
-    backgroundColor: '#000000',
-  },
-  categoriesContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
-  },
-  categoryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#1A0000',
-    borderWidth: 1,
-    borderColor: '#330000',
-  },
-  categoryButtonActive: {
-    backgroundColor: '#DC143C',
-    borderColor: '#DC143C',
-  },
-  categoryText: {
-    color: '#B0B0B0',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  categoryTextActive: {
-    color: '#fff',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  newsCardGrid: {
-    width: '48%',
-    height: 220,
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-  },
-  newsCardList: {
-    width: '100%',
-    height: 120,
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-    flexDirection: 'row',
-  },
-  newsImageGrid: {
-    width: '100%',
-    height: '100%',
-  },
-  newsImageList: {
-    width: 120,
-    height: '100%',
-  },
-  newsContentList: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'space-between',
-  },
-  newsTitleList: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  newsDescriptionList: {
-    color: '#B0B0B0',
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 8,
-  },
-  newsMetaList: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  newsTimeList: {
-    color: '#B0B0B0',
-    fontSize: 11,
-  },
-  newsOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-  },
-  newsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DC143C',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 10,
-    gap: 6,
-  },
-  newsBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  newsTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    lineHeight: 26,
-  },
-  newsDescription: {
-    color: '#B0B0B0',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  newsMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  authorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  authorText: {
-    color: '#B0B0B0',
-    fontSize: 13,
-  },
-  newsTime: {
-    color: '#DC143C',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  bottomPadding: {
-    height: 100,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  loadingText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    marginTop: 16,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  emptyText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 20,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    color: '#B0B0B0',
-    fontSize: 14,
-    marginTop: 12,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});

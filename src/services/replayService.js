@@ -1,23 +1,23 @@
 import api from '../config/api';
 
 class ReplayService {
-  // Récupérer tous les replays
-  async getAllReplays(params = {}) {
+  // Récupérer tous les reportages
+  async getAllReportages(params = {}) {
     try {
-      const response = await api.get('/replays', { params });
-      return response.data.map(replay => ({
-        ...replay,
-        id: replay._id || replay.id
+      const response = await api.get('/reportage', { params });
+      return response.data.map(reportage => ({
+        ...reportage,
+        id: reportage._id || reportage.id
       }));
     } catch (error) {
       throw error.response?.data || error.message;
     }
   }
 
-  // Récupérer un replay par ID
-  async getReplayById(id) {
+  // Récupérer un reportage par ID
+  async getReportageById(id) {
     try {
-      const response = await api.get(`/replays/${id}`);
+      const response = await api.get(`/reportage/${id}`);
       const replay = response.data;
       return {
         ...replay,
@@ -28,45 +28,45 @@ class ReplayService {
     }
   }
 
-  // Récupérer les replays par émission
-  async getReplaysByShow(showId, params = {}) {
+  // Récupérer les reportages par émission
+  async getReportagesByShow(showId, params = {}) {
     try {
-      const response = await api.get(`/shows/${showId}/replays`, { params });
-      return response.data.map(replay => ({
-        ...replay,
-        id: replay._id || replay.id
+      const response = await api.get(`/shows/${showId}/reportage`, { params });
+      return response.data.map(reportage => ({
+        ...reportage,
+        id: reportage._id || reportage.id
       }));
     } catch (error) {
       throw error.response?.data || error.message;
     }
   }
 
-  // Liker un replay
-  async likeReplay(replayId) {
+  // Liker un reportage
+  async likeReportage(reportageId) {
     try {
-      const response = await api.post(`/replays/${replayId}/like`);
+      const response = await api.post(`/reportage/${reportageId}/like`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   }
 
-  // Retirer un like d'un replay
-  async unlikeReplay(replayId) {
+  // Retirer un like d'un reportage
+  async unlikeReportage(reportageId) {
     try {
-      const response = await api.delete(`/replays/${replayId}/like`);
+      const response = await api.delete(`/reportage/${reportageId}/like`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   }
 
-  // Ajouter un replay aux favoris
-  async addReplayToFavorites(replayId) {
+  // Ajouter un reportage aux favoris
+  async addReportageToFavorites(reportageId) {
     try {
       const response = await api.post(`/favorites`, {
-        content_id: replayId,
-        content_type: 'replay'
+        content_id: reportageId,
+        content_type: 'reportage'
       });
       return response.data;
     } catch (error) {
@@ -74,20 +74,20 @@ class ReplayService {
     }
   }
 
-  // Retirer un replay des favoris
-  async removeReplayFromFavorites(replayId) {
+  // Retirer un reportage des favoris
+  async removeReportageFromFavorites(reportageId) {
     try {
-      const response = await api.delete(`/favorites/${replayId}`);
+      const response = await api.delete(`/favorites/${reportageId}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   }
 
-  // Marquer un replay comme regardé
-  async markAsWatched(replayId) {
+  // Marquer un reportage comme regardé
+  async markAsWatched(reportageId) {
     try {
-      const response = await api.post(`/replays/${replayId}/watched`);
+      const response = await api.post(`/reportage/${reportageId}/watched`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

@@ -93,6 +93,33 @@ const supportService = {
     }
   },
 
+  /**
+   * Ajouter un message à un ticket (alias de addTicketResponse)
+   * @param {string} ticketId - ID du ticket
+   * @param {string} message - Message à ajouter
+   */
+  addTicketMessage: async (ticketId, message) => {
+    return await supportService.addTicketResponse(ticketId, message);
+  },
+
+  /**
+   * Mettre à jour le statut d'un ticket
+   * @param {string} ticketId - ID du ticket
+   * @param {string} status - Nouveau statut
+   */
+  updateTicketStatus: async (ticketId, status) => {
+    try {
+      const response = await api.put(`/support/tickets/${ticketId}`, {
+        status: status,
+        updated_at: new Date().toISOString(),
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating ticket status:', error);
+      throw error;
+    }
+  },
+
   // ==================== FAQs ====================
 
   /**
