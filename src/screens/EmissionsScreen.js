@@ -7,21 +7,23 @@ import {
   Image,
   RefreshControl,
   ActivityIndicator,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import emissionsService from '../services/emissionsService';
-import { createEmissionsStyles } from '../styles/emissionsStyles'; // Import des styles séparés
-
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 48) / 2; // 16 padding + 16 padding + 16 space between
+import { createEmissionsStyles } from '../styles/emissionsStyles';
 
 export default function EmissionsScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
+  const styles = createEmissionsStyles(colors);
+
+  const numColumns = width > 900 ? 4 : width > 600 ? 3 : 2;
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [emissions, setEmissions] = useState([]);
@@ -32,29 +34,9 @@ export default function EmissionsScreen() {
 
   const loadEmissions = async () => {
     try {
-      setLoading(true);
-      
-      // Charger toutes les émissions en parallèle depuis l'API
-      const emissionsData = await emissionsService.getAllEmissions();
-      
-      // Transformer les données pour correspondre au format attendu
-      const formattedEmissions = emissionsData.map(emission => ({
-        id: emission._id || emission.id,
-        title: emission.title,
-        image: emission.image || emission.thumbnail || 'https://via.placeholder.com/300x200',
-        description: emission.description,
-        duration: emission.duration,
-        views: emission.views || 0,
-        likes: emission.likes || 0,
-        presenter: emission.presenter,
-        date: emission.date,
-        isNew: emission.is_new || false,
-        featured: emission.featured || false,
-      }));
-      
-      setEmissions(formattedEmissions);
+      const data = await emissionsService.getAllEmissions();
+      setEmissions(data || []);
     } catch (error) {
-      console.error('Erreur lors du chargement des émissions:', error);
       setEmissions([]);
     } finally {
       setLoading(false);
@@ -67,81 +49,76 @@ export default function EmissionsScreen() {
     setRefreshing(false);
   };
 
-  
-  const renderEmission = ({ item, index }) => {
-    const styles = createEmissionsStyles(colors);
-    
-    return (
-      <TouchableOpacity
-        style={[
-          styles.card,
-          index % 2 === 0 ? styles.cardLeft : styles.cardRight,
-        ]}
-        activeOpacity={0.85}
-        onPress={async () => {
-          // Incrémenter les vues
-          await emissionsService.incrementViews(item.id);
-          navigation.navigate('EmissionDetail', { emissionId: item.id });
-        }}
-      >
-        <Image source={{ uri: item.image }} style={styles.cardImage} />
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      style={[styles.card, { width: `${100 / numColumns - 3}%` }]}
+      onPress={() =>
+        navigation.navigate('ShowDetail', { 
+          showId: item.id,
+          isEmission: true
+        })
+      }
+    >
+      <Image source={{ uri: item.image }} style={styles.image} />
 
-        {/* Gradient overlay pour meilleure lisibilité */}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
-          style={styles.gradient}
-        />
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.85)']}
+        style={styles.gradient}
+      />
 
-        {/* Badge NEW */}
-        {item.isNew && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Nouveau</Text>
+      {item.isNew && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>NOUVEAU</Text>
+        </View>
+      )}
+
+      <View style={styles.footer}>
+        <Text style={styles.title} numberOfLines={2}>
+          {item.title}
+        </Text>
+        {item.views !== undefined && item.views !== null && (
+          <View style={styles.viewsContainer}>
+            <Ionicons name="eye-outline" size={14} color="#fff" />
+            <Text style={styles.viewsText}>
+              {item.views > 1000 ? `${(item.views / 1000).toFixed(1)}k` : item.views.toString()} vues
+            </Text>
           </View>
         )}
+      </View>
+    </TouchableOpacity>
+  );
 
-        {/* Titre */}
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const styles = createEmissionsStyles(colors);
-
-  if (loading && !refreshing) {
+  if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Chargement des émissions...</Text>
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#888" />
+        <Text style={styles.loading}>Chargement...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Émissions */}
       <FlatList
         data={emissions}
-        renderItem={renderEmission}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id?.toString()}
+        numColumns={numColumns}
+        key={numColumns}
+        contentContainerStyle={styles.listContainer}
         columnWrapperStyle={{ justifyContent: 'space-between' }}
-        contentContainerStyle={styles.emissionsContainer}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={colors.primary}
-            colors={[colors.primary]}
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="tv-outline" size={64} color="#666" />
-            <Text style={styles.emptyText}>Aucune émission trouvée</Text>
+          <View style={styles.centered}>
+            <Ionicons name="tv-outline" size={60} color="#888" />
+            <Text style={styles.empty}>Aucune émission disponible</Text>
           </View>
         }
       />

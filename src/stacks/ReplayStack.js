@@ -21,11 +21,12 @@ export default function EmissionsStack() {
         headerShown: true,
         headerStyle: {
           backgroundColor: '#000000',
-          borderBottomWidth: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: '#E23E3E',
           elevation: 0,
           shadowOpacity: 0,
         },
-        headerTintColor: '#FFFFFF',
+        headerTintColor: '#E23E3E',
         headerTitleStyle: {
           fontWeight: 'bold',
           fontSize: 18,

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -15,8 +15,7 @@ export default function YouTubePlayer({
   const [internalPlaying, setInternalPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  
-  // Utiliser la prop externe si fournie, sinon l'état interne
+
   const playing = externalPlaying !== undefined ? externalPlaying : internalPlaying;
 
   const onStateChange = useCallback((state) => {
@@ -37,26 +36,22 @@ export default function YouTubePlayer({
 
   const handleReady = useCallback(() => {
     setLoading(false);
-    if (onReady) {
-      onReady();
-    }
+    if (onReady) onReady();
   }, [onReady]);
 
   const handleError = useCallback((error) => {
     console.error('YouTube Player Error:', error);
     setError(true);
     setLoading(false);
-    if (onError) {
-      onError(error);
-    }
+    if (onError) onError(error);
   }, [onError]);
 
   if (error) {
     return (
       <View style={[styles.container, { height }]}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color="#DC143C" />
-          <Text style={styles.errorText}>Impossible de charger la vidéo YouTube</Text>
+          <Ionicons name="alert-circle" size={48} color="#E23E3E" />
+          <Text style={styles.errorText}>Impossible de charger la vidéo</Text>
         </View>
       </View>
     );
@@ -82,11 +77,16 @@ export default function YouTubePlayer({
           scrollEnabled: false,
         }}
         initialPlayerParams={{
-          controls: true,
-          modestbranding: true,
-          rel: false,
-          showinfo: false,
-          playsinline: 1,
+          controls: 0,          // masque tout contrôle
+          modestbranding: true, // masque logo YouTube
+          rel: 0,               // pas de suggestions
+          showinfo: 0,          // masque titre
+          playsinline: 1,       
+          iv_load_policy: 3,    // masque annotations
+          fs: 0,                // masque bouton plein écran intégré
+          cc_load_policy: 0,    // désactive sous-titres
+          disablekb: 1,         // désactive clavier
+          origin: '',           // réduit la trace
         }}
       />
     </View>

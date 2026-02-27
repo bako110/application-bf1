@@ -1,44 +1,45 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BF1_RED, BF1_RED_DARK, BF1_BLACK, BF1_WHITE, BF1_GRAY_LIGHT, SUCCESS, ERROR } from '../constants/colors';
 
 const ThemeContext = createContext({});
 
 // Thème sombre (par défaut)
 const darkColors = {
-  primary: '#DC143C',
-  secondary: '#8B0000',
-  background: '#000000',
+  primary: BF1_RED,
+  secondary: BF1_RED_DARK,
+  background: BF1_BLACK,
   surface: '#1A0000',
-  text: '#FFFFFF',
-  textSecondary: '#B0B0B0',
-  error: '#FF0000',
-  success: '#34C759',
+  text: BF1_WHITE,
+  textSecondary: BF1_GRAY_LIGHT,
+  error: ERROR,
+  success: SUCCESS,
   border: '#330000',
   accent: '#FF4444',
   gradient: {
-    start: '#DC143C',
-    middle: '#8B0000',
-    end: '#000000',
+    start: BF1_RED,
+    middle: BF1_RED_DARK,
+    end: BF1_BLACK,
   },
 };
 
 // Thème clair
 const lightColors = {
-  primary: '#DC143C',
-  secondary: '#8B0000',
-  background: '#FFFFFF',
+  primary: BF1_RED,
+  secondary: BF1_RED_DARK,
+  background: BF1_WHITE,
   surface: '#F5F5F5',
-  text: '#000000',
+  text: BF1_BLACK,
   textSecondary: '#666666',
-  error: '#FF0000',
-  success: '#34C759',
+  error: ERROR,
+  success: SUCCESS,
   border: '#E0E0E0',
   accent: '#FF4444',
   gradient: {
-    start: '#DC143C',
+    start: BF1_RED,
     middle: '#FF6B6B',
-    end: '#FFFFFF',
+    end: BF1_WHITE,
   },
 };
 

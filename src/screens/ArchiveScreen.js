@@ -55,6 +55,14 @@ export default function ArchiveScreen({ navigation }) {
     }, [])
   );
 
+  // Exposer la fonction de changement de mode via les params de navigation
+  useEffect(() => {
+    navigation.setParams({
+      toggleViewMode: () => setViewMode(prev => prev === 'grid' ? 'list' : 'grid'),
+      viewMode: viewMode
+    });
+  }, [navigation, viewMode]);
+
   useEffect(() => {
     if (archives.length > 0) {
       fadeAnim.setValue(0);
@@ -218,25 +226,6 @@ export default function ArchiveScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* En-tête avec titre et bouton de changement de vue */}
-      <View style={styles.header}>
-        <View style={styles.headerTitleContainer}>
-          <Ionicons name="archive-outline" size={24} color={colors.primary} />
-          <Text style={styles.headerTitle}>Archives Vidéo</Text>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.viewToggle} 
-          onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-        >
-          <Ionicons 
-            name={viewMode === 'grid' ? 'list' : 'grid'} 
-            size={22} 
-            color={colors.primary} 
-          />
-        </TouchableOpacity>
-      </View>
-
       {!isPremium && (
         <View style={styles.premiumBanner}>
           <Ionicons name="videocam" size={20} color="#FFD700" />

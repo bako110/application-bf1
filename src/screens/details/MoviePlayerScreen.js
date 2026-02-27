@@ -114,7 +114,7 @@ export default function MoviePlayerScreen({ route, navigation }) {
 
       {(isLoading || isBuffering) && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={'#DC143C'} />
+          <ActivityIndicator size="large" color={'#E23E3E'} />
           <Text style={styles.loadingText}>{isBuffering ? 'Mise en mémoire tampon…' : 'Chargement…'}</Text>
         </View>
       )}
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 10,

@@ -22,7 +22,7 @@ export const createArchiveStyles = (colors) => StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: colors.text,
   },
   viewToggle: {
@@ -58,7 +58,7 @@ export const createArchiveStyles = (colors) => StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   subscribeButton: {
     backgroundColor: colors.primary,
@@ -69,7 +69,7 @@ export const createArchiveStyles = (colors) => StyleSheet.create({
   subscribeButtonText: {
     color: '#fff',
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
@@ -121,7 +121,7 @@ export const createArchiveStyles = (colors) => StyleSheet.create({
   archivePremiumText: {
     color: '#FFD700',
     fontSize: 9,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   archivePriceBadge: {
     backgroundColor: 'rgba(220, 20, 60, 0.9)',
@@ -134,11 +134,11 @@ export const createArchiveStyles = (colors) => StyleSheet.create({
   archivePriceText: {
     color: '#fff',
     fontSize: 9,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   archiveTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#fff',
     marginBottom: 4,
     textShadowColor: 'rgba(0,0,0,0.5)',
@@ -186,7 +186,7 @@ export const createArchiveStyles = (colors) => StyleSheet.create({
   archivePremiumTextList: {
     color: '#FFD700',
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   archivePriceBadgeList: {
     backgroundColor: colors.primary,
@@ -197,11 +197,11 @@ export const createArchiveStyles = (colors) => StyleSheet.create({
   archivePriceTextList: {
     color: '#fff',
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   archiveTitleList: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: colors.text,
   },
   emptyContainer: {
@@ -212,7 +212,7 @@ export const createArchiveStyles = (colors) => StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: colors.text,
     marginTop: 16,
   },

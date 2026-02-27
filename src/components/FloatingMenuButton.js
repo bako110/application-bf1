@@ -92,7 +92,7 @@ const createStyles = (colors, insets) =>
       borderRadius: 19,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: colors.primary || '#DC143C',
+      backgroundColor: colors.primary || '#E23E3E',
       zIndex: 10000,
       
       // Ombre iOS améliorée

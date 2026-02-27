@@ -146,7 +146,7 @@ export default function BreakingNewsScreen({ navigation }) {
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#DC143C'} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#E23E3E'} />
         }
       >
         {loading && news.length === 0 ? (

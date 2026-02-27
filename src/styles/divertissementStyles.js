@@ -26,7 +26,6 @@ export const createDivertissementStyles = (colors, viewMode) => StyleSheet.creat
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
-    // En mode liste, on veut une carte horizontale
     flexDirection: viewMode === 'grid' ? 'column' : 'row',
     height: viewMode === 'grid' ? 200 : 120,
   },
@@ -34,7 +33,6 @@ export const createDivertissementStyles = (colors, viewMode) => StyleSheet.creat
     flexDirection: 'row',
     height: 120,
     marginBottom: 12,
-    // Gardé pour compatibilité
   },
   interviewImage: {
     width: viewMode === 'grid' ? '100%' : 120,
@@ -43,24 +41,23 @@ export const createDivertissementStyles = (colors, viewMode) => StyleSheet.creat
   interviewImageList: {
     width: 120,
     height: '100%',
-    // Gardé pour compatibilité
   },
   interviewOverlay: {
-    // En mode grid, overlay en bas de l'image
-    // En mode liste, overlay sur la partie droite de la carte
-    ...(viewMode === 'grid' ? {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: 16,
-      justifyContent: 'flex-end',
-    } : {
-      flex: 1, // Prend tout l'espace restant
-      padding: 16,
-      justifyContent: 'center', // Centrer verticalement le contenu
-      backgroundColor: 'rgba(0,0,0,0.7)',
-    }),
+    ...(viewMode === 'grid'
+      ? {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: 16,
+          justifyContent: 'flex-end',
+        }
+      : {
+          flex: 1,
+          padding: 16,
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+        }),
   },
   interviewBadge: {
     flexDirection: 'row',
@@ -75,34 +72,32 @@ export const createDivertissementStyles = (colors, viewMode) => StyleSheet.creat
   },
   interviewBadgeText: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 7, // Réduction supplémentaire: 9->7
     fontWeight: 'bold',
   },
   interviewTitle: {
     color: '#FFFFFF',
-    fontSize: viewMode === 'grid' ? 16 : 18,
+    fontSize: viewMode === 'grid' ? 10 : 12, // Réduction supplémentaire: 13->10, 14->12
     fontWeight: 'bold',
     textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
-    // En mode liste, on peut ajuster
     ...(viewMode === 'list' && {
       marginBottom: 0,
       paddingRight: 16,
     }),
     ...(viewMode === 'grid' && {
-      marginBottom: 8,
+      marginBottom: 6, // Réduction de marginBottom: 8->6
     }),
   },
   interviewTitleList: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 11, // Réduction supplémentaire: 14->11
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 4, // Réduction de marginBottom: 6->4
     textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
-    // Gardé pour compatibilité
   },
   emptyContainer: {
     flex: 1,
@@ -111,29 +106,29 @@ export const createDivertissementStyles = (colors, viewMode) => StyleSheet.creat
     paddingVertical: 100,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 12, // Réduction supplémentaire: 16->12
     fontWeight: 'bold',
     color: colors.text,
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: 12, // Réduction: 16->12
+    marginBottom: 4, // Réduction: 6->4
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 9, // Réduction supplémentaire: 11->9
     color: colors.textSecondary,
     textAlign: 'center',
   },
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC143C',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
+    backgroundColor: '#E23E3E',
+    paddingHorizontal: 20, // Réduction: 24->20
+    paddingVertical: 10, // Réduction: 12->10
+    borderRadius: 6, // Réduction: 8->6
+    marginTop: 20, // Réduction: 24->20
   },
   refreshButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 11, // Réduction supplémentaire: 13->11
     fontWeight: '600',
   },
   loadingContainer: {
@@ -144,7 +139,7 @@ export const createDivertissementStyles = (colors, viewMode) => StyleSheet.creat
   },
   loadingText: {
     color: colors.textSecondary,
-    fontSize: 16,
-    marginTop: 16,
+    fontSize: 13, // 16*0.8
+    marginTop: 13, // 16*0.8
   },
 });

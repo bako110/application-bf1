@@ -70,6 +70,7 @@ function ProgramScreen({ navigation }) {
     'Demain',
     'Cette semaine',
     'Week-end',
+    'Passés',
   ];
 
   // Vérifier si un programme a un rappel
@@ -134,7 +135,8 @@ function ProgramScreen({ navigation }) {
       }
 
       // Pour la journée en cours, masquer les programmes dont l'heure est passée
-      if (sectionDateObj.toDateString() === now.toDateString()) {
+      // SAUF si le filtre "Passés" est actif
+      if (sectionDateObj.toDateString() === now.toDateString() && selectedDateFilter !== 'Passés') {
         if (showDate < now && !show.isLive) {
           return false; // Programme passé (sauf s'il est en direct)
         }
@@ -174,6 +176,10 @@ function ProgramScreen({ navigation }) {
             const dayOfWeek = showDate.getDay();
             dateOk = dayOfWeek === 6 || dayOfWeek === 0; // Samedi ou Dimanche
             break;
+          case 'Passés':
+            // Afficher tous les programmes antérieurs à aujourd'hui
+            dateOk = showDate < today;
+            break;
           default:
             dateOk = true;
         }
@@ -212,13 +218,17 @@ function ProgramScreen({ navigation }) {
 
   // Exposer la fonction setFilterModal via les params de navigation
   useEffect(() => {
+    const hasActiveFilters = selectedType !== 'Tous' || selectedStatus !== 'Tous' || selectedDateFilter !== 'Tous';
     navigation.setParams({
-      openFilterModal: () => setFilterModal(true)
+      openFilterModal: () => setFilterModal(true),
+      hasActiveFilters: hasActiveFilters
     });
-  }, [navigation]);
+  }, [navigation, selectedType, selectedStatus, selectedDateFilter]);
 
-  // Ne pas recharger automatiquement quand le filtre change
-  // Les filtres sont appliqués côté client sur les données déjà chargées
+  // Recharger les programmes quand le filtre de date change (notamment pour "Passés")
+  useEffect(() => {
+    loadProgram();
+  }, [selectedDateFilter]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -246,8 +256,29 @@ function ProgramScreen({ navigation }) {
     try {
       setLoading(true);
       
-      // Récupérer la grille des programmes de la semaine depuis le backend
-      const response = await showService.getProgramWeek(0, selectedType !== 'Tous' ? selectedType : null);
+      let response;
+      
+      // Si le filtre "Passés" est sélectionné, charger les programmes passés
+      if (selectedDateFilter === 'Passés') {
+        // Charger les programmes des 7 derniers jours
+        const endDate = new Date();
+        endDate.setHours(23, 59, 59, 999); // Fin de la journée actuelle
+        
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7); // 7 jours en arrière
+        startDate.setHours(0, 0, 0, 0); // Début de la journée
+        
+        console.log('📅 [DEBUG FRONTEND] Chargement des programmes passés du', startDate.toISOString(), 'au', endDate.toISOString());
+        
+        response = await showService.getProgramGrid(
+          startDate.toISOString().split('T')[0], // Format YYYY-MM-DD
+          endDate.toISOString().split('T')[0],
+          selectedType !== 'Tous' ? selectedType : null
+        );
+      } else {
+        // Charger la grille des programmes de la semaine depuis le backend
+        response = await showService.getProgramWeek(0, selectedType !== 'Tous' ? selectedType : null);
+      }
       
       console.log('📦 [DEBUG FRONTEND] Réponse brute du backend:', response);
       

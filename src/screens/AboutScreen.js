@@ -48,7 +48,7 @@ export default function AboutScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={'#DC143C'} />
+        <ActivityIndicator size="large" color={'#E23E3E'} />
       </View>
     );
   }
@@ -60,7 +60,7 @@ export default function AboutScreen({ navigation }) {
         <>
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <Ionicons name="tv" size={60} color={'#DC143C'} />
+              <Ionicons name="tv" size={60} color={'#E23E3E'} />
             </View>
             <Text style={styles.appName}>{appInfo.app_name}</Text>
             <Text style={styles.version}>Version {appInfo.version}</Text>
@@ -144,7 +144,7 @@ export default function AboutScreen({ navigation }) {
               <Text style={styles.sectionTitle}>Fonctionnalités</Text>
               {appInfo.features.map((feature, index) => (
                 <View key={index} style={styles.featureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color={'#DC143C'} />
+                  <Ionicons name="checkmark-circle" size={20} color={'#E23E3E'} />
                   <Text style={styles.featureText}>{feature}</Text>
                 </View>
               ))}
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   },
   teamMemberRole: {
     fontSize: 14,
-    color: '#DC143C',
+    color: '#E23E3E',
     marginBottom: 8,
   },
   teamMemberBio: {

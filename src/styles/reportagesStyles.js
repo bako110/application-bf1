@@ -164,7 +164,7 @@ export const createReportagesStyles = (viewMode) => StyleSheet.create({
     marginHorizontal: 6,
   },
   dateText: {
-    color: '#DC143C',
+    color: '#E23E3E',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -211,7 +211,7 @@ export const createReportagesStyles = (viewMode) => StyleSheet.create({
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,

@@ -371,7 +371,7 @@ export default function ProfileScreen({ navigation }) {
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>BF1 TV © 2024</Text>
+        <Text style={styles.footerText}>BF1 TV © 2026</Text>
         <Text style={styles.footerText}>Version 1.0.0</Text>
       </View>
     </ScrollView>

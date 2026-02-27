@@ -1,6 +1,7 @@
 import api from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import notificationService from './notificationService';
+// Import dynamique pour éviter le cycle
+const getNotificationService = () => require('./notificationService').default;
 
 // Importer la fonction pour invalider le cache
 let clearTokenCache = null;
@@ -35,6 +36,7 @@ class AuthService {
       if (user) {
         try {
           console.log('📱 Envoi notification bienvenue pour:', user.username || user.email);
+          const notificationService = getNotificationService();
           await notificationService.sendWelcomeNotification(user);
         } catch (notifError) {
           console.error('❌ Erreur envoi notification bienvenue:', notifError);

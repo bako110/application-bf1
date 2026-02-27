@@ -80,7 +80,7 @@ export default function MovieDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={'#DC143C'} />
+        <ActivityIndicator size="large" color={'#E23E3E'} />
       </View>
     );
   }
@@ -206,7 +206,7 @@ export default function MovieDetailScreen({ route, navigation }) {
         {relatedMovies.length > 0 && (
           <View style={styles.relatedSection}>
             <View style={styles.relatedHeader}>
-              <Ionicons name="film" size={20} color={'#DC143C'} />
+              <Ionicons name="film" size={20} color={'#E23E3E'} />
               <Text style={styles.relatedTitle}>Films similaires</Text>
             </View>
             <View style={styles.relatedGrid}>
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingVertical: 16,
     borderRadius: 12,
     marginBottom: 20,

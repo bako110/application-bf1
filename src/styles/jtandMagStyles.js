@@ -80,14 +80,17 @@ export const createJTandMagStyles = (colors) => {
     },
     showMeta: {
       flexDirection: 'row',
-      gap: 12,
+      alignItems: 'center',
+      gap: 1, // Gap minimal pour maximiser l'espace
       marginBottom: 6,
-      flexWrap: 'wrap',
+      flexWrap: 'nowrap',
     },
     metaItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: 1, // Gap minimal pour maximiser l'espace
+      flexShrink: 0,
+      minWidth: 50,
     },
     metaText: {
       color: '#B0B0B0',
@@ -103,6 +106,19 @@ export const createJTandMagStyles = (colors) => {
     hostText: {
       color: '#B0B0B0',
       fontSize: 10,
+      flex: 1,
+    },
+    hostItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flex: 1,
+      minWidth: 0, // Permet au texte de rétrécir
+    },
+    hostTextInline: {
+      color: '#B0B0B0',
+      fontSize: 11,
+      fontWeight: '600',
       flex: 1,
     },
     bottomPadding: {
@@ -131,7 +147,7 @@ export const createJTandMagStyles = (colors) => {
     refreshButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#DC143C',
+      backgroundColor: '#E23E3E',
       paddingHorizontal: 24,
       paddingVertical: 12,
       borderRadius: 25,
@@ -166,7 +182,7 @@ export const createJTandMagStyles = (colors) => {
       textAlign: 'center',
     },
     retryButton: {
-      backgroundColor: '#DC143C',
+      backgroundColor: '#E23E3E',
       paddingHorizontal: 24,
       paddingVertical: 12,
       borderRadius: 8,

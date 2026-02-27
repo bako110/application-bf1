@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   categoryTag: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   categoryBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,

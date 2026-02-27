@@ -6,7 +6,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 // Stacks
 import { HomeStack, ProgramStack, EmissionsStack, ProfileStack } from '../../stacks';
-import LiveScreen from '../../screens/LiveScreen';
+import LiveStack from '../../stacks/LiveStack';
 import ReelScreen from '../../screens/ReelScreen';
 
 const Tab = createBottomTabNavigator();
@@ -87,10 +87,10 @@ export const LiveTabButton = ({ focused, onPress }) => {
         width: 55,
         height: 55,
         borderRadius: 27.5,
-        backgroundColor: '#DC143C',
+        backgroundColor: '#E23E3E',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#DC143C',
+        shadowColor: '#E23E3E',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: focused ? 0.4 : 0.2,
         shadowRadius: 5,
@@ -101,8 +101,8 @@ export const LiveTabButton = ({ focused, onPress }) => {
         opacity: opacityAnim,
       }}>
         <Ionicons 
-          name="radio"
-          size={28}
+          name="radio-outline"
+          size={30}
           color="#FFFFFF"
         />
       </Animated.View>
@@ -135,12 +135,11 @@ export function TabNavigator({ onTabChange }) {
           let iconName = 'home';
           let iconSize = 22;
           
-          // Ne pas définir d'icône pour l'onglet Direct car il utilise LiveTabButton
-          if (route.name === 'Direct') {
-            return null;
-          }
-          
           switch (route.name) {
+            case 'Direct': 
+              iconName = focused ? 'radio-outline' : 'radio-outline';
+              iconSize = 24;
+              break;
             case 'Accueil': 
               iconName = focused ? 'home' : 'home-outline'; 
               break;
@@ -156,8 +155,8 @@ export function TabNavigator({ onTabChange }) {
           }
           return <Ionicons name={iconName} size={iconSize} color={color} />;
         },
-        tabBarActiveTintColor: '#DC143C',
-        tabBarInactiveTintColor: '#888888',
+        tabBarActiveTintColor: '#E23E3E',
+        tabBarInactiveTintColor: '#A0A0A0',
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '500',
@@ -165,14 +164,15 @@ export function TabNavigator({ onTabChange }) {
         },
         tabBarStyle: {
           backgroundColor: '#000000',
-          borderTopWidth: 0,
+          borderTopWidth: 1.5,
+          borderTopColor: '#E23E3E',
           height: tabBarHeight,
           paddingBottom: tabBarPaddingBottom,
           paddingTop: 6,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          elevation: 8,
+          shadowColor: '#E23E3E',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.2,
+          elevation: 10,
           position: 'absolute',
           bottom: 0,
           left: 0,
@@ -199,11 +199,10 @@ export function TabNavigator({ onTabChange }) {
       
       <Tab.Screen 
         name="Direct" 
-        component={LiveScreen} 
+        component={LiveStack} 
         options={{ 
           headerShown: false,
-          tabBarButton: (props) => <LiveTabButton {...props} />,
-          tabBarLabel: () => null,
+          tabBarLabel: 'Live',
         }} 
       />
       

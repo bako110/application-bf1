@@ -17,7 +17,7 @@ export const createAuthStyles = (colors) => StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary || '#DC143C',
+    backgroundColor: colors.primary || '#E23E3E',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -53,7 +53,7 @@ export const createAuthStyles = (colors) => StyleSheet.create({
     borderColor: colors.border || '#3C3C3E',
   },
   inputFocused: {
-    borderColor: colors.primary || '#DC143C',
+    borderColor: colors.primary || '#E23E3E',
   },
   inputError: {
     borderColor: '#FF0000',
@@ -64,7 +64,7 @@ export const createAuthStyles = (colors) => StyleSheet.create({
     marginTop: 4,
   },
   button: {
-    backgroundColor: colors.primary || '#DC143C',
+    backgroundColor: colors.primary || '#E23E3E',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
@@ -83,7 +83,7 @@ export const createAuthStyles = (colors) => StyleSheet.create({
     marginBottom: 24,
   },
   forgotPasswordText: {
-    color: colors.primary || '#DC143C',
+    color: colors.primary || '#E23E3E',
     fontSize: 14,
   },
   switchMode: {
@@ -96,7 +96,7 @@ export const createAuthStyles = (colors) => StyleSheet.create({
     fontSize: 14,
   },
   switchModeLink: {
-    color: colors.primary || '#DC143C',
+    color: colors.primary || '#E23E3E',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 4,

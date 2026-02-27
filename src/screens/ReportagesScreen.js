@@ -226,7 +226,7 @@ function ReportagesScreen({ navigation }) {
         contentContainerStyle={{ paddingTop: 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#DC143C'} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#E23E3E'} />
         }
       >
         {filteredVideos.length === 0 ? (
@@ -287,7 +287,7 @@ function ReportagesScreen({ navigation }) {
                 )}
                 
                 <View style={styles.playButton}>
-                  <Ionicons name="play" size={30} color={'#DC143C'} />
+                  <Ionicons name="play" size={30} color={'#E23E3E'} />
                 </View>
                 
                 {/* Like button en mode liste (ancienne position) */}

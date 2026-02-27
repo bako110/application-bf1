@@ -211,9 +211,9 @@ export default function FullscreenVideoPlayer({
                   value={currentTime}
                   minimumValue={0}
                   maximumValue={duration || 1}
-                  minimumTrackTintColor="#DC143C"
+                  minimumTrackTintColor="#E23E3E"
                   maximumTrackTintColor="rgba(255,255,255,0.3)"
-                  thumbTintColor="#DC143C"
+                  thumbTintColor="#E23E3E"
                   onValueChange={handleSeek}
                   onSlidingComplete={handleSlidingComplete}
                 />

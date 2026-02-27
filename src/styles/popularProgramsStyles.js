@@ -78,7 +78,7 @@ export const createPopularProgramsStyles = (colors) => StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: colors.primary || '#DC143C',
+    backgroundColor: colors.primary || '#E23E3E',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,

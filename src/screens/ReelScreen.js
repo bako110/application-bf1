@@ -391,7 +391,7 @@ function ReelScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={'#DC143C'} />
+          <ActivityIndicator size="large" color={'#E23E3E'} />
           <Text style={styles.loadingText}>Chargement des reels...</Text>
         </View>
       </View>
@@ -402,7 +402,7 @@ function ReelScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color={'#DC143C'} />
+          <Ionicons name="alert-circle" size={48} color={'#E23E3E'} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadReelsSilently}>
             <Text style={styles.retryButtonText}>Réessayer</Text>
@@ -459,7 +459,7 @@ function ReelScreen({ navigation }) {
 
             <ScrollView style={styles.commentsList}>
               {loadingComments ? (
-                <ActivityIndicator size="large" color={'#DC143C'} style={{ marginTop: 20 }} />
+                <ActivityIndicator size="large" color={'#E23E3E'} style={{ marginTop: 20 }} />
               ) : comments.length > 0 ? (
                 comments.map((comment) => {
                   const isOwner = currentUser && comment.user_id === currentUser.id;
@@ -511,7 +511,7 @@ function ReelScreen({ navigation }) {
                             onPress={() => handleEditComment(comment)}
                             style={styles.commentActionButton}
                           >
-                            <Ionicons name="create-outline" size={18} color={'#DC143C'} />
+                            <Ionicons name="create-outline" size={18} color={'#E23E3E'} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => handleDeleteComment(comment.id)}
@@ -548,12 +548,12 @@ function ReelScreen({ navigation }) {
                 disabled={!commentText.trim() || submittingComment}
               >
                 {submittingComment ? (
-                  <ActivityIndicator size="small" color={'#DC143C'} />
+                  <ActivityIndicator size="small" color={'#E23E3E'} />
                 ) : (
                   <Ionicons
                     name="send"
                     size={20}
-                    color={commentText.trim() ? '#DC143C' : '#B0B0B0'}
+                    color={commentText.trim() ? '#E23E3E' : '#B0B0B0'}
                   />
                 )}
               </TouchableOpacity>
@@ -624,8 +624,8 @@ function ReelScreen({ navigation }) {
                 setShowOptionsModal(false);
               }}
             >
-              <Ionicons name="flag" size={24} color="#DC143C" />
-              <Text style={[styles.optionText, { color: '#DC143C' }]}>Signaler</Text>
+              <Ionicons name="flag" size={24} color="#E23E3E" />
+              <Text style={[styles.optionText, { color: '#E23E3E' }]}>Signaler</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

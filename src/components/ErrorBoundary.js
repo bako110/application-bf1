@@ -52,7 +52,7 @@ class ErrorBoundary extends React.Component {
       return (
         <View style={styles.container}>
           <View style={styles.content}>
-            <Ionicons name="warning" size={60} color="#DC143C" />
+            <Ionicons name="warning" size={60} color="#E23E3E" />
             <Text style={styles.title}>Oups !</Text>
             <Text style={styles.message}>
               {this.props.fallbackMessage || 
@@ -127,13 +127,13 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: '#DC143C',
+    color: '#E23E3E',
     fontFamily: 'monospace',
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

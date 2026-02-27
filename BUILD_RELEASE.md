@@ -1,5 +1,9 @@
 # Guide de Build Release APK - BF1 App
+<!-- cle 
 
+AIzaSyDBLlh-5lFnK8YJv8ZrUA3u9B3natu994E   
+
+-->
 ## 📋 Prérequis
 
 1. **Keystore configuré** dans `android/gradle.properties`

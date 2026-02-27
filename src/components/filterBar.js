@@ -70,8 +70,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   filterButtonActive: {
-    backgroundColor: '#DC143C',
-    borderColor: '#DC143C',
+    backgroundColor: '#E23E3E',
+    borderColor: '#E23E3E',
   },
   icon: {
     marginRight: 6,

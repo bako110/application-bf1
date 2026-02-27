@@ -39,7 +39,7 @@ export const createLiveStyles = (colors) => StyleSheet.create({
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary || '#DC143C',
+    backgroundColor: colors.primary || '#E23E3E',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -86,7 +86,7 @@ export const createLiveStyles = (colors) => StyleSheet.create({
     marginTop: 20,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: colors.primary || '#DC143C',
+    backgroundColor: colors.primary || '#E23E3E',
     borderRadius: 8,
   },
   retryButtonText: {

@@ -1,17 +1,30 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 
 const Logo = ({ size = 'medium', showText = true }) => {
-  const fontSize = size === 'small' ? 28 : size === 'large' ? 56 : 42;
+  // Définir les tailles en fonction du prop size
+  const getImageSize = () => {
+    switch(size) {
+      case 'small':
+        return { width: 80, height: 80 };
+      case 'large':
+        return { width: 180, height: 180 };
+      case 'medium':
+      default:
+        return { width: 120, height: 120 };
+    }
+  };
+
+  const imageSize = getImageSize();
 
   return (
     <View style={styles.container}>
-      <View style={styles.logoRow}>
-        <Text style={[styles.letterB, { fontSize }]}>B</Text>
-        <Text style={[styles.letterF, { fontSize }]}>F</Text>
-        <View style={styles.numberContainer}>
-          <Text style={[styles.letter1, { fontSize }]}>1</Text>
-        </View>
+      <View style={styles.logoContainer}>
+        <Image 
+          source={require('../../assets/splash.png')} 
+          style={[styles.logoImage, imageSize]}
+          resizeMode="contain"
+        />
       </View>
       {showText && <Text style={styles.tagline}>La chaîne au coeur de nos défis</Text>}
     </View>
@@ -21,40 +34,19 @@ const Logo = ({ size = 'medium', showText = true }) => {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  logoRow: {
-    flexDirection: 'row',
+  logoContainer: {
     alignItems: 'center',
-  },
-  letterB: {
-    fontWeight: '900',
-    color: '#DC143C',
-    textShadowColor: 'rgba(220, 20, 60, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
-  },
-  letterF: {
-    fontWeight: '900',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(255, 255, 255, 0.3)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
-  },
-  numberContainer: {
-    backgroundColor: '#DC143C',
-    borderRadius: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    marginLeft: 2,
-    shadowColor: '#DC143C',
+    justifyContent: 'center',
+    shadowColor: '#E23E3E',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  letter1: {
-    fontWeight: '900',
-    color: '#FFFFFF',
+  logoImage: {
+    // Les dimensions exactes sont définies dynamiquement via getImageSize()
   },
   tagline: {
     fontSize: 12,
@@ -63,6 +55,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     fontStyle: 'italic',
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
 });
 

@@ -184,10 +184,12 @@ export default function DivertissementScreen({ navigation }) {
                     colors={['transparent', 'rgba(0,0,0,0.95)']}
                     style={baseStyles.interviewOverlay}
                   >
+                    {/* Badge "Divertissement" masqué
                     <View style={baseStyles.interviewBadge}>
                       <Ionicons name="mic" size={12} color="#fff" />
                       <Text style={baseStyles.interviewBadgeText}>Divertissement</Text>
                     </View>
+                    */}
                     <Text style={viewMode === 'grid' ? baseStyles.interviewTitle : baseStyles.interviewTitleList}>
                       {interview.title}
                     </Text>

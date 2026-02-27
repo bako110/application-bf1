@@ -28,7 +28,7 @@ import { formatLongDate, formatRelativeTime } from '../../utils/dateUtils';
 const { width } = Dimensions.get('window');
 
 export default function ShowDetailScreen({ route, navigation }) {
-  const { showId, isJTandMag = false, isDivertissement = false, isReportage = false, isTrending, isPopularProgram, isReplay = false, isInterview = false, isArchive = false, isProgram = false, programData = null, isBreakingNews = false } = route.params || {};
+  const { showId, isJTandMag = false, isEmission = false, isDivertissement = false, isReportage = false, isTrending, isPopularProgram, isReplay = false, isInterview = false, isArchive = false, isProgram = false, programData = null, isBreakingNews = false } = route.params || {};
   const { isPremium } = useAuth();
   const [show, setShow] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +44,7 @@ export default function ShowDetailScreen({ route, navigation }) {
                      isDivertissement ? 'divertissement' : 
                      isJTandMag ? 'jtandmag' : 
                      isTrending ? 'jtandmag' : 
+                     isEmission ? 'emission' : 
                      isPopularProgram ? 'popular_program' : 'show';
 
   useEffect(() => {
@@ -64,20 +65,6 @@ export default function ShowDetailScreen({ route, navigation }) {
   const loadShow = async () => {
     try {
       console.log('📺 ShowDetailScreen - Params:', { showId, isReplay, isTrending, isPopularProgram, isInterview, isArchive, isProgram, isBreakingNews });
-      console.log('📺 Types:', { 
-        isReplay: typeof isReplay, 
-        isReplayValue: isReplay,
-        isInterview: typeof isInterview,
-        isInterviewValue: isInterview,
-        isArchive: typeof isArchive,
-        isArchiveValue: isArchive,
-        isTrending: typeof isTrending,
-        isTrendingValue: isTrending,
-        isProgram: typeof isProgram,
-        isProgramValue: isProgram,
-        isBreakingNews: typeof isBreakingNews,
-        isBreakingNewsValue: isBreakingNews
-      });
       
       let data;
       if (isProgram && programData) {
@@ -115,6 +102,10 @@ export default function ShowDetailScreen({ route, navigation }) {
         console.log('✅ Chargement depuis popular programs');
         const popularProgramService = require('../../services/popularProgramService').default;
         data = await popularProgramService.getProgramById(showId);
+      } else if (isEmission) {
+        console.log('✅ Chargement depuis emission:', showId);
+        const emissionService = require('../../services/emissionsService').default;
+        data = await emissionService.getEmissionById(showId);
       } else {
         console.log('✅ Chargement depuis /shows/', showId);
         data = await showService.getShowById(showId);
@@ -130,6 +121,15 @@ export default function ShowDetailScreen({ route, navigation }) {
       console.error('❌ Erreur chargement émission:', error);
     }
     setLoading(false);
+  };
+
+  // Fonction pour trier du plus récent au plus ancien
+  const sortByDate = (items) => {
+    return items.sort((a, b) => {
+      const dateA = new Date(a.created_at || a.published_at || a.date || a.aired_at || 0);
+      const dateB = new Date(b.created_at || b.published_at || b.date || b.aired_at || 0);
+      return dateB - dateA; // Plus récent d'abord
+    });
   };
 
   const loadRelatedContent = async () => {
@@ -168,14 +168,22 @@ export default function ShowDetailScreen({ route, navigation }) {
       } else if (isPopularProgram) {
         const popularProgramService = require('../../services/popularProgramService').default;
         allContent = await popularProgramService.getAllPrograms();
+      } else if (isEmission) {
+        const emissionService = require('../../services/emissionsService').default;
+        allContent = await emissionService.getAllEmissions({ limit: 50 }); // Augmenté la limite pour avoir plus de contenu
       } else {
-        allContent = await showService.getAllShows({ limit: 20 });
+        allContent = await showService.getAllShows({ limit: 50 }); // Augmenté la limite pour avoir plus de contenu
       }
       
+      // Filtrer pour exclure l'élément courant ET trier du plus récent au plus ancien
       const filtered = allContent
-        .filter(item => (item.id || item._id) !== showId)
-        .slice(0, 6);
-      setRelatedContent(filtered);
+        .filter(item => (item.id || item._id) !== showId);
+      
+      // Appliquer le tri par date
+      const sortedFiltered = sortByDate(filtered);
+      
+      console.log(`📦 ${sortedFiltered.length} contenus similaires chargés et triés`);
+      setRelatedContent(sortedFiltered);
     } catch (error) {
       console.error('❌ Erreur chargement contenus similaires:', error);
     }
@@ -183,14 +191,6 @@ export default function ShowDetailScreen({ route, navigation }) {
 
   const handlePlay = async () => {
     console.log('🎬 handlePlay appelé');
-    console.log('📊 show:', show);
-    console.log('🔍 Conditions:', {
-      'show?.start_time': show?.start_time,
-      'isProgram': isProgram,
-      'isReplay': isReplay,
-      'isArchive': isArchive,
-      'isInterview': isInterview
-    });
     
     if (show?.is_premium && !isPremium) {
       setShowPremiumModal(true);
@@ -203,14 +203,8 @@ export default function ShowDetailScreen({ route, navigation }) {
       const now = new Date();
       const programStartTime = new Date(show.startTime || show.start_time);
       
-      console.log('⏰ Comparaison des heures:');
-      console.log('  - Maintenant:', now);
-      console.log('  - Programme:', programStartTime);
-      console.log('  - programStartTime > now:', programStartTime > now);
-      
       // Si l'heure du programme n'est pas encore arrivée
       if (programStartTime > now) {
-        console.log('⚠️ Programme à venir - Affichage du message');
         const hours = String(programStartTime.getHours()).padStart(2, '0');
         const minutes = String(programStartTime.getMinutes()).padStart(2, '0');
         Alert.alert(
@@ -222,27 +216,23 @@ export default function ShowDetailScreen({ route, navigation }) {
       }
       
       // Si l'heure est arrivée, charger le flux live directement
-      console.log('✅ Heure arrivée - Chargement du flux live');
       try {
         const bf1Stream = await liveStreamService.getBF1Stream();
         setLiveStreamUrl(bf1Stream.url);
-        console.log('📺 Flux live chargé:', bf1Stream.url);
       } catch (error) {
         console.error('❌ Erreur chargement flux live:', error);
-        // En cas d'erreur, rediriger vers LiveScreen
         navigation.navigate('Live');
       }
       return;
     }
     
     console.log('ℹ️ Pas un programme EPG - Lecture normale');
-    // Pour les autres types de contenu (replay, archive, interview), la vidéo se lit directement
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={'#DC143C'} />
+        <ActivityIndicator size="large" color={'#E23E3E'} />
       </View>
     );
   }
@@ -259,62 +249,31 @@ export default function ShowDetailScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.scrollContent}
+    >
       {/* Lecteur vidéo en haut */}
       <View style={styles.videoHeader}>
-        {/* Pour les programmes EPG, afficher le flux live si l'heure est arrivée, sinon une image */}
-        {(show?.start_time || show?.startTime || isProgram) && !isReplay && !isArchive && !isInterview ? (
-          liveStreamUrl ? (
+        {(() => {
+          const videoUrl = liveStreamUrl || show?.video_url || show?.replay_url || show?.live_url;
+          
+          return (
             <UniversalVideoPlayer
-              videoUrl={liveStreamUrl}
+              videoUrl={videoUrl}
               posterUrl={show?.image_url || show?.thumbnail}
               onPlayPress={handlePlay}
-              isPremium={false}
-              userHasPremium={true}
+              isPremium={show?.is_premium || false}
+              userHasPremium={isPremium}
+              onPremiumRequired={() => setShowPremiumModal(true)}
               style={styles.headerVideo}
+              showLiveBadge={show.is_live && !isReplay && !isArchive && !isInterview}
             />
-          ) : (
-            <>
-              <Image
-                source={{ uri: show?.image_url || show?.thumbnail }}
-                style={styles.coverImage}
-              />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.8)']}
-                style={styles.gradient}
-              />
-              <TouchableOpacity
-                style={styles.playButtonOverlay}
-                onPress={handlePlay}
-              >
-                <View style={styles.playIconContainer}>
-                  <Ionicons name="play" size={40} color="#fff" />
-                </View>
-                <Text style={styles.watchLiveText}>Regarder en direct</Text>
-              </TouchableOpacity>
-            </>
-          )
-        ) : (
-          <UniversalVideoPlayer
-            videoUrl={show?.video_url || show?.replay_url || show?.live_url}
-            posterUrl={show?.image_url || show?.thumbnail}
-            onPlayPress={handlePlay}
-            isPremium={show?.is_premium || false}
-            userHasPremium={isPremium}
-            onPremiumRequired={() => setShowPremiumModal(true)}
-            style={styles.headerVideo}
-          />
-        )}
+          );
+        })()}
         
-        {/* Bouton retour - Masqué car déjà géré par le header */}
-        {/* <TouchableOpacity
-          style={styles.backIconButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity> */}
-
-        {/* Badge Live - seulement pour les contenus en direct */}
+        {/* Badge Live */}
         {show.is_live && !isReplay && !isArchive && !isInterview && (
           <View style={styles.liveBadge}>
             <View style={styles.liveIndicator} />
@@ -338,13 +297,13 @@ export default function ShowDetailScreen({ route, navigation }) {
         <View style={styles.infoRow}>
           {show.host && (
             <View style={styles.infoItem}>
-              <Ionicons name="person" size={16} color={'#B0B0B0'} />
+              <Ionicons name="person" size={14} color={'#B0B0B0'} />
               <Text style={styles.infoText}>{show.host}</Text>
             </View>
           )}
           {(show.start_time || show.startTime) && (
             <View style={styles.infoItem}>
-              <Ionicons name="time" size={16} color={'#B0B0B0'} />
+              <Ionicons name="time" size={14} color={'#B0B0B0'} />
               <Text style={styles.infoText}>
                 {(() => {
                   const date = new Date(show.startTime || show.start_time);
@@ -356,7 +315,6 @@ export default function ShowDetailScreen({ route, navigation }) {
             </View>
           )}
         </View>
-
 
         {/* Actions (Like, Comment, Favorite) */}
         <ContentActions
@@ -371,7 +329,7 @@ export default function ShowDetailScreen({ route, navigation }) {
             <Text style={styles.sectionTitle}>Description</Text>
             <ExpandableText
               text={show.description}
-              numberOfLines={4}
+              numberOfLines={3}
               style={styles.description}
               expandedStyle={styles.description}
             />
@@ -392,58 +350,91 @@ export default function ShowDetailScreen({ route, navigation }) {
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Ajouté le</Text>
                 <Text style={styles.detailValue}>
-                  {new Date(show.created_at).toLocaleDateString('fr-FR')}
+                  {new Date(show.created_at).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </Text>
+              </View>
+            )}
+            {show.duration && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Durée</Text>
+                <Text style={styles.detailValue}>
+                  {show.duration} minutes
                 </Text>
               </View>
             )}
           </View>
         </View>
 
-        {/* Contenus similaires */}
+        {/* Contenus similaires - TOUS les éléments sans limite */}
         {relatedContent.length > 0 && (
           <View style={styles.relatedSection}>
             <View style={styles.relatedHeader}>
-              <Ionicons name="play-circle" size={20} color={'#DC143C'} />
+              <Ionicons name="play-circle" size={18} color={'#E23E3E'} />
               <Text style={styles.relatedTitle}>
                 {isInterview ? 'Autres divertissements' : 
                  isReplay ? 'Autres reportages' : 
                  isArchive ? 'Autres archives' : 
                  isTrending ? 'Autres JT et Magazines' : 
                  isPopularProgram ? 'Autres programmes populaires' : 
-                 'Autres contenus'}
+                 'Autres contenus'} ({relatedContent.length})
               </Text>
             </View>
             <View style={styles.relatedGrid}>
-              {relatedContent.map((item) => (
-                <TouchableOpacity
-                  key={item.id || item._id}
-                  style={styles.relatedCard}
-                  onPress={() => navigation.push('ShowDetail', { 
-                    showId: item.id || item._id,
-                    isReportage,
-                    isJTandMag,
-                    isDivertissement,
-                    isTrending,
-                    isPopularProgram,
-                    isReplay,
-                    isInterview,
-                    isArchive
-                  })}
-                >
-                  <Image
-                    source={{ uri: item.image_url || item.thumbnail }}
-                    style={styles.relatedImage}
-                  />
-                  <View style={styles.relatedContent}>
-                    <Text style={styles.relatedCardTitle} numberOfLines={2}>
-                      {item.title}
-                    </Text>
-                    {item.host && (
-                      <Text style={styles.relatedTime}>{item.host}</Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {relatedContent.map((item) => {
+                // Formater la date pour l'afficher
+                const itemDate = item.created_at || item.published_at || item.date || item.aired_at;
+                const formattedDate = itemDate ? 
+                  new Date(itemDate).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short'
+                  }) : null;
+                
+                return (
+                  <TouchableOpacity
+                    key={item.id || item._id}
+                    style={styles.relatedCard}
+                    onPress={() => navigation.push('ShowDetail', { 
+                      showId: item.id || item._id,
+                      isReportage,
+                      isJTandMag,
+                      isDivertissement,
+                      isTrending,
+                      isPopularProgram,
+                      isReplay,
+                      isInterview,
+                      isArchive
+                    })}
+                  >
+                    <Image
+                      source={{ uri: item.image_url || item.image || item.thumbnail || 'https://via.placeholder.com/100x85' }}
+                      style={styles.relatedImage}
+                    />
+                    <View style={styles.relatedContent}>
+                      <Text style={styles.relatedCardTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <View style={styles.relatedMeta}>
+                        {item.host && (
+                          <>
+                            <Ionicons name="person" size={10} color="#B0B0B0" />
+                            <Text style={styles.relatedTime}>{item.host}</Text>
+                          </>
+                        )}
+                        {formattedDate && (
+                          <>
+                            <Ionicons name="time" size={10} color="#B0B0B0" />
+                            <Text style={styles.relatedTime}>{formattedDate}</Text>
+                          </>
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}
@@ -468,6 +459,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  scrollContent: {
+    paddingBottom: 100,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -482,24 +476,24 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#FFFFFF',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   backButton: {
-    backgroundColor: '#DC143C',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#E23E3E',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 6,
   },
   backButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
   },
   videoHeader: {
     width: width,
-    height: width * 0.5625, // Ratio 16:9 (9/16 = 0.5625)
+    height: width * 0.5625,
     position: 'relative',
     backgroundColor: '#000',
   },
@@ -509,33 +503,6 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     marginVertical: 0,
   },
-  imageContainer: {
-    width: width,
-    height: width * 0.5625, // Ratio 16:9 pour cohérence
-    position: 'relative',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  gradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 150,
-  },
-  backIconButton: {
-    position: 'absolute',
-    top: 50,
-    left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   liveBadge: {
     position: 'absolute',
     top: 50,
@@ -543,180 +510,148 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FF3B30',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    zIndex: 10,
   },
   liveIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#fff',
-    marginRight: 6,
+    marginRight: 4,
   },
   liveText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   content: {
-    padding: 16,
+    padding: 14,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   categoryContainer: {
     alignSelf: 'flex-start',
-    backgroundColor: '#DC143C',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginBottom: 16,
+    backgroundColor: '#E23E3E',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 12,
   },
   category: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
   },
   infoRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 20,
-    gap: 16,
+    marginBottom: 16,
+    gap: 12,
   },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#B0B0B0',
-  },
-  playButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#DC143C',
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-    gap: 10,
-  },
-  playButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
   },
   section: {
-    marginTop: 24,
+    marginTop: 20,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 12,
-  },
-  description: {
-    fontSize: 15,
-    color: '#B0B0B0',
-    lineHeight: 24,
-  },
-  detailsGrid: {
-    gap: 16,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A0000',
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: '#B0B0B0',
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  relatedSection: {
-    marginTop: 32,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#1A0000',
-  },
-  relatedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  relatedTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  relatedGrid: {
-    flexDirection: 'column',
-    gap: 12,
-  },
-  relatedCard: {
-    width: '100%',
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#1A0000',
-    flexDirection: 'row',
-    height: 100,
-  },
-  relatedImage: {
-    width: 120,
-    height: '100%',
-  },
-  relatedContent: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'center',
-  },
-  relatedCardTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 8,
   },
-  relatedTime: {
+  description: {
+    fontSize: 13,
+    color: '#B0B0B0',
+    lineHeight: 20,
+  },
+  detailsGrid: {
+    gap: 12,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A0000',
+  },
+  detailLabel: {
     fontSize: 12,
     color: '#B0B0B0',
   },
-  playButtonOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+  detailValue: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '500',
   },
-  playIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(220, 20, 60, 0.9)',
-    justifyContent: 'center',
+  relatedSection: {
+    marginTop: 28,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#1A0000',
+    marginBottom: 20,
+  },
+  relatedHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     marginBottom: 12,
   },
-  watchLiveText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+  relatedTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  relatedGrid: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  relatedCard: {
+    width: '100%',
+    marginBottom: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#1A0000',
+    flexDirection: 'row',
+    height: 85,
+  },
+  relatedImage: {
+    width: 100,
+    height: '100%',
+    backgroundColor: '#2A2A2A',
+  },
+  relatedContent: {
+    flex: 1,
+    padding: 10,
+    justifyContent: 'center',
+  },
+  relatedCardTitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  relatedMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  relatedTime: {
+    fontSize: 11,
+    color: '#B0B0B0',
   },
 });

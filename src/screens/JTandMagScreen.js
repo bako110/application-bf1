@@ -123,7 +123,7 @@ export default function JTandMagScreen({ navigation }) {
             <Ionicons 
               name={viewMode === 'grid' ? 'list' : 'grid'} 
               size={24} 
-              color="#DC143C" 
+              color="#E23E3E" 
             />
           </TouchableOpacity>
           <NotificationHeader />
@@ -136,7 +136,7 @@ export default function JTandMagScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={'#DC143C'} />
+          <ActivityIndicator size="large" color={'#E23E3E'} />
           <Text style={styles.loadingText}>Chargement des émissions tendance...</Text>
         </View>
       </View>
@@ -147,7 +147,7 @@ export default function JTandMagScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color={'#DC143C'} />
+          <Ionicons name="alert-circle" size={48} color={'#E23E3E'} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadShows}>
             <Text style={styles.retryButtonText}>Réessayer</Text>
@@ -161,9 +161,10 @@ export default function JTandMagScreen({ navigation }) {
     <View style={styles.container}>
       <ScrollView
         style={styles.content}
+        contentContainerStyle={{ paddingBottom: 50 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#DC143C'} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#E23E3E'} />
         }
       >
         {filteredShows.length === 0 ? (
@@ -212,25 +213,23 @@ export default function JTandMagScreen({ navigation }) {
                       
                       <View style={styles.showMeta}>
                         <View style={styles.metaItem}>
-                          <Ionicons name="eye" size={14} color={'#DC143C'} />
+                          <Ionicons name="eye" size={14} color={'#E23E3E'} />
                           <Text style={styles.metaText}>{show.views || 0}</Text>
                         </View>
-                        <View style={styles.metaItem}>
-                          <Ionicons name="star" size={14} color="#FFD700" />
-                          <Text style={styles.metaText}>{show.rating || 0}</Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                          <Ionicons name="list" size={14} color={'#B0B0B0'} />
-                          <Text style={styles.metaText}>{show.episodes || 0}</Text>
+                        <View style={styles.hostItem}>
+                          <Ionicons name="person" size={12} color={'#B0B0B0'} />
+                          <Text style={styles.hostTextInline} numberOfLines={1}>
+                            {show.host || 'Inconnu'}
+                          </Text>
                         </View>
                       </View>
                       
-                      <View style={styles.hostContainer}>
+                      {/* <View style={styles.hostContainer}>
                         <Ionicons name="person" size={12} color={'#B0B0B0'} />
                         <Text style={styles.hostText} numberOfLines={1}>
                           Animé par {show.host || 'Inconnu'}
                         </Text>
-                      </View>
+                      </View> */}
                     </View>
                   ) : (
                     <LinearGradient
@@ -249,25 +248,23 @@ export default function JTandMagScreen({ navigation }) {
                       
                       <View style={styles.showMeta}>
                         <View style={styles.metaItem}>
-                          <Ionicons name="eye" size={14} color={'#DC143C'} />
+                          <Ionicons name="eye" size={14} color={'#E23E3E'} />
                           <Text style={styles.metaText}>{show.views || 0}</Text>
                         </View>
-                        <View style={styles.metaItem}>
-                          <Ionicons name="star" size={14} color="#FFD700" />
-                          <Text style={styles.metaText}>{show.rating || 0}</Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                          <Ionicons name="list" size={14} color={'#B0B0B0'} />
-                          <Text style={styles.metaText}>{show.episodes || 0}</Text>
+                        <View style={styles.hostItem}>
+                          <Ionicons name="person" size={12} color={'#B0B0B0'} />
+                          <Text style={styles.hostTextInline} numberOfLines={1}>
+                            {show.host || 'Inconnu'}
+                          </Text>
                         </View>
                       </View>
                       
-                      <View style={styles.hostContainer}>
+                      {/* <View style={styles.hostContainer}>
                         <Ionicons name="person" size={12} color={'#B0B0B0'} />
                         <Text style={styles.hostText} numberOfLines={1}>
                           Animé par {show.host || 'Inconnu'}
                         </Text>
-                      </View>
+                      </View> */}
                     </LinearGradient>
                   )}
                 </TouchableOpacity>

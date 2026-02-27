@@ -60,9 +60,9 @@ export const createEmissionDetailStyles = (colors) => StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 24,
+    fontSize: 17,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 11,
     color: colors.text,
   },
   actions: {
@@ -81,7 +81,7 @@ export const createEmissionDetailStyles = (colors) => StyleSheet.create({
   },
   actionText: {
     marginLeft: 6,
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '500',
     color: colors.text,
   },
@@ -104,7 +104,7 @@ export const createEmissionDetailStyles = (colors) => StyleSheet.create({
   },
   infoText: {
     marginLeft: 6,
-    fontSize: 14,
+    fontSize: 10,
     color: colors.textSecondary,
   },
   descriptionSection: {
@@ -116,14 +116,14 @@ export const createEmissionDetailStyles = (colors) => StyleSheet.create({
     borderColor: colors.border || '#333333',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 8,
     color: colors.text,
   },
   description: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 11,
+    lineHeight: 17,
     color: colors.textSecondary,
   },
   tagsSection: {
@@ -148,7 +148,7 @@ export const createEmissionDetailStyles = (colors) => StyleSheet.create({
     borderColor: colors.primary,
   },
   tagText: {
-    fontSize: 12,
+    fontSize: 8,
     fontWeight: '500',
     color: colors.primary,
   },
@@ -169,7 +169,7 @@ export const createEmissionDetailStyles = (colors) => StyleSheet.create({
   },
   categoryText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: '600',
   },
 });

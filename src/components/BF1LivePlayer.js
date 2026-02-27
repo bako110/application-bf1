@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   programBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,

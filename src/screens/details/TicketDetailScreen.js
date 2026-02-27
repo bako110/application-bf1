@@ -170,7 +170,7 @@ export default function TicketDetailScreen({ navigation, route }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'open': return '#DC143C';
+      case 'open': return '#E23E3E';
       case 'in_progress': return '#FFA500';
       case 'resolved': return '#4CAF50';
       case 'closed': return '#B0B0B0';
@@ -213,7 +213,7 @@ export default function TicketDetailScreen({ navigation, route }) {
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color="#DC143C" />
+        <ActivityIndicator size="large" color="#E23E3E" />
         <Text style={[styles.loadingText, { color: colors.text }]}>Chargement du ticket...</Text>
       </View>
     );
@@ -222,9 +222,9 @@ export default function TicketDetailScreen({ navigation, route }) {
   if (!ticket) {
     return (
       <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
-        <Ionicons name="alert-circle-outline" size={48} color="#DC143C" />
+        <Ionicons name="alert-circle-outline" size={48} color="#E23E3E" />
         <Text style={[styles.errorText, { color: colors.text }]}>Ticket non trouvé</Text>
-        <TouchableOpacity style={[styles.errorBackButton, { backgroundColor: '#DC143C' }]} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={[styles.errorBackButton, { backgroundColor: '#E23E3E' }]} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
       </View>
@@ -514,7 +514,7 @@ const createStyles = (colors) => StyleSheet.create({
     top: 70,
     left: 20,
     right: 20,
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -657,7 +657,7 @@ const createStyles = (colors) => StyleSheet.create({
   },
   adminBadgeText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#fff',
   },
   messageDate: {
@@ -694,7 +694,7 @@ const createStyles = (colors) => StyleSheet.create({
   emptyMessagesTitle: {
     marginTop: 12,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: colors.text,
   },
   emptyMessagesSubtext: {
@@ -720,7 +720,7 @@ const createStyles = (colors) => StyleSheet.create({
     gap: 8,
   },
   closeButton: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
   },
   reopenButton: {
     backgroundColor: '#4CAF50',
@@ -728,7 +728,7 @@ const createStyles = (colors) => StyleSheet.create({
   actionButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   addMessageSection: {
     paddingHorizontal: 20,

@@ -165,6 +165,8 @@ export default function FavoritesScreen({ navigation }) {
   };
 
   const handleRemoveFavorite = async (favoriteId, contentTitle) => {
+    console.log('🗑️ [FavoritesScreen] handleRemoveFavorite appelé:', { favoriteId, contentTitle });
+    
     Alert.alert(
       'Retirer des favoris',
       `Voulez-vous retirer "${contentTitle}" de vos favoris ?`,
@@ -174,10 +176,14 @@ export default function FavoritesScreen({ navigation }) {
           text: 'Retirer',
           style: 'destructive',
           onPress: async () => {
+            console.log('🗑️ [FavoritesScreen] Utilisateur clique sur "Retirer" pour:', favoriteId);
             try {
+              console.log('🗑️ [FavoritesScreen] Appel de favoriteService.removeFavorite...');
               await favoriteService.removeFavorite(favoriteId);
+              console.log('✅ [FavoritesScreen] Favori retiré avec succès, rechargement...');
               loadFavorites();
             } catch (error) {
+              console.error('❌ [FavoritesScreen] Erreur lors du retrait:', error);
               Alert.alert('Erreur', 'Impossible de retirer ce favori');
             }
           },
@@ -236,7 +242,7 @@ export default function FavoritesScreen({ navigation }) {
             style={[styles.filterButton, filter === 'movie' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('movie')}
           >
-            <Ionicons name="film" size={16} color={filter === 'movie' ? colors.text : colors.textSecondary} />
+            <Ionicons name="film-outline" size={16} color={filter === 'movie' ? colors.text : colors.textSecondary} />
             <Text style={[styles.filterText, filter === 'movie' && styles.filterTextActive]}>
               Films ({counts.movie})
             </Text>
@@ -248,7 +254,7 @@ export default function FavoritesScreen({ navigation }) {
             style={[styles.filterButton, filter === 'show' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('show')}
           >
-            <Ionicons name="tv" size={16} color={filter === 'show' ? colors.text : colors.textSecondary} />
+            <Ionicons name="tv-outline" size={16} color={filter === 'show' ? colors.text : colors.textSecondary} />
             <Text style={[styles.filterText, filter === 'show' && styles.filterTextActive]}>
               Émissions ({counts.show})
             </Text>
@@ -260,7 +266,7 @@ export default function FavoritesScreen({ navigation }) {
             style={[styles.filterButton, filter === 'breaking_news' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('breaking_news')}
           >
-            <Ionicons name="newspaper" size={16} color={filter === 'breaking_news' ? colors.text : colors.textSecondary} />
+            <Ionicons name="newspaper-outline" size={16} color={filter === 'breaking_news' ? colors.text : colors.textSecondary} />
             <Text style={[styles.filterText, filter === 'breaking_news' && styles.filterTextActive]}>Actus ({counts.breaking_news})</Text>
           </TouchableOpacity>
         )}
@@ -270,7 +276,7 @@ export default function FavoritesScreen({ navigation }) {
             style={[styles.filterButton, filter === 'trending_show' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('trending_show')}
           >
-            <Ionicons name="trending-up" size={16} color={filter === 'trending_show' ? colors.text : colors.textSecondary} />
+            <Ionicons name="trending-up-outline" size={16} color={filter === 'trending_show' ? colors.text : colors.textSecondary} />
             <Text style={[styles.filterText, filter === 'trending_show' && styles.filterTextActive]}>
               Tendances ({counts.trending_show})
             </Text>
@@ -282,7 +288,7 @@ export default function FavoritesScreen({ navigation }) {
             style={[styles.filterButton, filter === 'reportage' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('reportage')}
           >
-            <Ionicons name="play-circle" size={16} color={filter === 'reportage' ? colors.text : colors.textSecondary} />
+            <Ionicons name="play-circle-outline" size={16} color={filter === 'reportage' ? colors.text : colors.textSecondary} />
             <Text style={[styles.filterText, filter === 'reportage' && styles.filterTextActive]}>
               Reportages ({counts.reportage})
             </Text>
@@ -294,7 +300,7 @@ export default function FavoritesScreen({ navigation }) {
             style={[styles.filterButton, filter === 'divertissement' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('divertissement')}
           >
-            <Ionicons name="person" size={16} color={filter === 'divertissement' ? colors.text : colors.textSecondary} />
+            <Ionicons name="person-outline" size={16} color={filter === 'divertissement' ? colors.text : colors.textSecondary} />
             <Text style={[styles.filterText, filter === 'divertissement' && styles.filterTextActive]}>
               Divertissements ({counts.divertissement})
             </Text>
@@ -306,7 +312,7 @@ export default function FavoritesScreen({ navigation }) {
             style={[styles.filterButton, filter === 'archive' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('archive')}
           >
-            <Ionicons name="archive" size={16} color={filter === 'archive' ? colors.text : colors.textSecondary} />
+            <Ionicons name="archive-outline" size={16} color={filter === 'archive' ? colors.text : colors.textSecondary} />
             <Text style={[styles.filterText, filter === 'archive' && styles.filterTextActive]}>
               Archives ({counts.archive})
             </Text>
@@ -318,7 +324,7 @@ export default function FavoritesScreen({ navigation }) {
             style={[styles.filterButton, filter === 'reel' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('reel')}
           >
-            <Ionicons name="videocam" size={16} color={filter === 'reel' ? colors.text : colors.textSecondary} />
+            <Ionicons name="videocam-outline" size={16} color={filter === 'reel' ? colors.text : colors.textSecondary} />
             <Text style={[styles.filterText, filter === 'reel' && styles.filterTextActive]}>
               Reels ({counts.reel})
             </Text>
@@ -359,7 +365,7 @@ export default function FavoritesScreen({ navigation }) {
                   style={styles.removeButton}
                   onPress={() => handleRemoveFavorite(favorite.id, favorite.content_title)}
                 >
-                  <Ionicons name="heart" size={20} color={colors.error || '#DC143C'} />
+                  <Ionicons name="trash-outline" size={20} color={colors.error || '#E23E3E'} />
                 </TouchableOpacity>
                 <View style={styles.favoriteInfo}>
                   <Text style={styles.favoriteTitle} numberOfLines={2}>
@@ -382,7 +388,7 @@ export default function FavoritesScreen({ navigation }) {
           </Text>
           <TouchableOpacity
             style={styles.exploreButton}
-            onPress={() => navigation.navigate('Films')}
+            onPress={() => navigation.navigate('Accueil', { screen: 'Movies' })}
           >
             <Text style={styles.exploreButtonText}>Explorer les films</Text>
           </TouchableOpacity>

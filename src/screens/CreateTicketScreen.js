@@ -131,7 +131,7 @@ export default function CreateTicketScreen({ navigation, route }) {
 
         {/* Type Info */}
         <View style={styles.typeInfo}>
-          <Ionicons name="information-circle-outline" size={20} color="#DC143C" />
+          <Ionicons name="information-circle-outline" size={20} color="#E23E3E" />
           <Text style={styles.typeInfoText}>
             Type: {type === 'bug' ? '🐛 Bug' : type === 'feature' ? '✨ Fonctionnalité' : '❓ Question'}
           </Text>
@@ -185,7 +185,7 @@ const createStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
   },
   typeBadge: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -233,7 +233,7 @@ const createStyles = (colors) => StyleSheet.create({
     borderRadius: 8,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#DC143C' + '30',
+    borderColor: '#E23E3E' + '30',
   },
   typeInfoText: {
     marginLeft: 8,
@@ -242,12 +242,12 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: '500',
   },
   submitButton: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#DC143C',
+    shadowColor: '#E23E3E',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,

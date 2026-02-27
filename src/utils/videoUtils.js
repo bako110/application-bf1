@@ -12,7 +12,7 @@ export function extractYouTubeVideoId(url) {
 
   // Patterns YouTube supportés
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/,
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([^&\n?#]+)/,
     /^([a-zA-Z0-9_-]{11})$/, // ID direct
   ];
 
@@ -80,5 +80,7 @@ export function getYouTubeEmbedUrl(videoId) {
  * - https://www.youtube.com/watch?v=dQw4w9WgXcQ
  * - https://youtu.be/dQw4w9WgXcQ
  * - https://www.youtube.com/embed/dQw4w9WgXcQ
+ * - https://www.youtube.com/shorts/dQw4w9WgXcQ
+ * - https://www.youtube.com/live/dQw4w9WgXcQ
  * - dQw4w9WgXcQ (ID direct)
  */

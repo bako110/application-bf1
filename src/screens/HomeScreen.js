@@ -12,6 +12,7 @@ import {
   RefreshControl,
   SafeAreaView,
   Platform,
+  Easing,
 } from 'react-native';
 import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
@@ -52,40 +53,13 @@ const formatDuration = (duration) => {
   }
 };
 
-// Fonction pour normaliser l'affichage des dates en français
-const formatDate = (dateString) => {
-  if (!dateString) return 'Récemment';
-  
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now - date);
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
-  // Aujourd'hui
-  if (diffDays === 0) {
-    return "Aujourd'hui";
-  }
-  
-  // Hier
-  if (diffDays === 1) {
-    return 'Hier';
-  }
-  
-  // Cette semaine
-  if (diffDays <= 7) {
-    const options = { weekday: 'long' };
-    return date.toLocaleDateString('fr-FR', options);
-  }
-  
-  // Cette année
-  if (date.getFullYear() === now.getFullYear()) {
-    const options = { day: 'numeric', month: 'short' };
-    return date.toLocaleDateString('fr-FR', options);
-  }
-  
-  // Années précédentes
-  const options = { day: 'numeric', month: 'short', year: 'numeric' };
-  return date.toLocaleDateString('fr-FR', options);
+// Fonction pour trier les éléments par date (du plus récent au plus ancien)
+const sortByDate = (items) => {
+  return [...items].sort((a, b) => {
+    const dateA = new Date(a.created_at || a.published_at || a.aired_at || 0);
+    const dateB = new Date(b.created_at || b.published_at || b.aired_at || 0);
+    return dateB - dateA;
+  });
 };
 
 // Fonction pour formater le temps (HH:MM:SS)
@@ -104,6 +78,9 @@ const formatTime = (seconds) => {
 
 const { width, height } = Dimensions.get('window');
 
+// Constante pour le nombre d'éléments à afficher
+const INITIAL_DISPLAY_COUNT = 10; // Afficher 10 éléments par défaut
+
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
   const { colors, isDarkMode } = useTheme();
@@ -116,7 +93,7 @@ export default function HomeScreen({ navigation }) {
   const [archives, setArchives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
+  const liveDotOpacity = useRef(new Animated.Value(1)).current;
   // État pour le flux BF1
   const [bf1Stream, setBf1Stream] = useState(null);
   const [bf1Program, setBf1Program] = useState(null);
@@ -130,8 +107,8 @@ export default function HomeScreen({ navigation }) {
     currentTime: 0,
   });
 
-  // État pour suivre la fin des sections horizontales et la redirection
-  const [horizontalScrollEnd, setHorizontalScrollEnd] = useState({
+  // État pour détecter quand l'utilisateur atteint le dernier élément
+  const [lastItemVisible, setLastItemVisible] = useState({
     breakingNews: false,
     trendingShows: false,
     interviews: false,
@@ -148,7 +125,7 @@ export default function HomeScreen({ navigation }) {
     archives: false,
   });
 
-  // ÉTATS POUR LES ANIMATIONS SÉQUENTIELLES
+  // ÉTATS POUR LES ANIMATIONS SÉQUENTIELLES PROFESSIONNELLES
   const sectionAnimations = useRef({
     live: new Animated.Value(0),
     breakingNews: new Animated.Value(0),
@@ -195,72 +172,98 @@ export default function HomeScreen({ navigation }) {
         recentVideos: false,
         archives: false,
       });
+      setLastItemVisible({
+        breakingNews: false,
+        trendingShows: false,
+        interviews: false,
+        recentVideos: false,
+        archives: false,
+      });
     }, [])
   );
+
+  useEffect(() => {
+    if (bf1Stream?.isLive) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(liveDotOpacity, {
+            toValue: 0.2,
+            duration: 700,
+            useNativeDriver: true,
+          }),
+          Animated.timing(liveDotOpacity, {
+            toValue: 1,
+            duration: 700,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [bf1Stream]);
 
   useEffect(() => {
     loadContent();
     startAnimations();
   }, []);
 
-  // Animation séquentielle des sections
+  // Animation séquentielle des sections avec effets professionnels
   const startSequentialAnimation = useCallback(() => {
     const sections = [
       { key: 'live', delay: 0 },
-      { key: 'breakingNews', delay: 300 },
-      { key: 'jtMag', delay: 600 },
-      { key: 'divertissement', delay: 900 },
-      { key: 'reportages', delay: 1200 },
-      { key: 'archives', delay: 1500 },
+      { key: 'breakingNews', delay: 150 },
+      { key: 'jtMag', delay: 250 },
+      { key: 'divertissement', delay: 350 },
+      { key: 'reportages', delay: 450 },
+      { key: 'archives', delay: 550 },
     ];
 
     sections.forEach(section => {
-      Animated.spring(sectionAnimations[section.key], {
+      Animated.timing(sectionAnimations[section.key], {
         toValue: 1,
-        tension: 50,
-        friction: 7,
+        duration: 600,
         delay: section.delay,
         useNativeDriver: true,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       }).start();
     });
 
     // Animation des items individuels après les sections
     setTimeout(() => {
       animateItemsSequentially();
-    }, 1800);
+    }, 800);
   }, [animateItemsSequentially]);
 
   // Animation séquentielle des items dans chaque section
   const animateItemsSequentially = useCallback(() => {
     const allItems = [];
     
-    // Récupérer tous les items de chaque section
+    // Récupérer tous les items de chaque section (10 éléments maximum)
     if (breakingNews.length > 0) {
-      breakingNews.slice(0, 10).forEach((item, index) => {
+      breakingNews.slice(0, INITIAL_DISPLAY_COUNT).forEach((item, index) => {
         allItems.push({ section: 'breakingNews', item, index, id: item.id || item._id });
       });
     }
     
     if (trendingShows.length > 0) {
-      trendingShows.slice(0, 10).forEach((item, index) => {
+      trendingShows.slice(0, INITIAL_DISPLAY_COUNT).forEach((item, index) => {
         allItems.push({ section: 'trendingShows', item, index, id: item.id || item._id });
       });
     }
     
     if (interviews.length > 0) {
-      interviews.slice(0, 10).forEach((item, index) => {
+      interviews.slice(0, INITIAL_DISPLAY_COUNT).forEach((item, index) => {
         allItems.push({ section: 'interviews', item, index, id: item.id || item._id });
       });
     }
     
     if (recentVideos.length > 0) {
-      recentVideos.slice(0, 10).forEach((item, index) => {
+      recentVideos.slice(0, INITIAL_DISPLAY_COUNT).forEach((item, index) => {
         allItems.push({ section: 'recentVideos', item, index, id: item.id || item._id });
       });
     }
     
     if (archives.length > 0) {
-      archives.slice(0, 10).forEach((item, index) => {
+      archives.slice(0, INITIAL_DISPLAY_COUNT).forEach((item, index) => {
         allItems.push({ section: 'archives', item, index, id: item.id || item._id });
       });
     }
@@ -284,13 +287,13 @@ export default function HomeScreen({ navigation }) {
       
       if (animation) {
         setTimeout(() => {
-          Animated.spring(animation, {
+          Animated.timing(animation, {
             toValue: 1,
-            tension: 40,
-            friction: 5,
+            duration: 400,
             useNativeDriver: true,
+            easing: Easing.out(Easing.cubic),
           }).start();
-        }, 100 + (itemIndex * 50)); // Délai de 50ms entre chaque item
+        }, 50 + (itemIndex * 30));
       }
     });
   }, [breakingNews, trendingShows, interviews, recentVideos, archives, itemAnimations]);
@@ -306,19 +309,21 @@ export default function HomeScreen({ navigation }) {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: 800,
         useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
       }),
-      Animated.spring(scaleAnim, {
+      Animated.timing(scaleAnim, {
         toValue: 1,
-        friction: 4,
-        tension: 40,
+        duration: 800,
         useNativeDriver: true,
+        easing: Easing.out(Easing.back(1.1)),
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 800,
+        duration: 700,
         useNativeDriver: true,
+        easing: Easing.out(Easing.cubic),
       }),
     ]).start();
   };
@@ -329,43 +334,33 @@ export default function HomeScreen({ navigation }) {
       console.log('📺 Chargement silencieux des données...');
 
       const [news, trending, popular, reportages, divertissements, archivesData] = await Promise.all([
-        newsService.getAllNews({ limit: 10 }).catch(err => {
+        newsService.getAllNews({ limit: 20 }).catch(err => {
           console.error('Error loading news:', err);
           return [];
         }),
-        jtandMagService.getJTandMag({ limit: 4 }).then(data => {
-          return data.sort((a, b) => {
-            const dateA = new Date(a.created_at || a.published_at || 0);
-            const dateB = new Date(b.created_at || b.published_at || 0);
-            return dateB - dateA;
-          });
-        }).catch(err => {
+        jtandMagService.getJTandMag({ limit: 20 }).catch(err => {
           console.error('Error loading JT et Mag:', err);
           return [];
         }),
-        popularProgramService.getAllPrograms({ limit: 4 }).catch(err => {
+        popularProgramService.getAllPrograms({ limit: 20 }).catch(err => {
           console.error('Error loading popular programs:', err);
           return [];
         }),
-        api.get('/reportage', { params: { limit: 4 } }).then(response =>
+        api.get('/reportage', { params: { limit: 20 } }).then(response =>
           response.data.map(reportage => ({
             ...reportage,
             id: reportage._id || reportage.id,
             image_url: reportage.thumbnail || reportage.image_url,
-          })).sort((a, b) => {
-            const dateA = new Date(a.created_at || a.aired_at || 0);
-            const dateB = new Date(b.created_at || b.aired_at || 0);
-            return dateB - dateA;
-          })
+          }))
         ).catch(err => {
           console.error('Error loading reportages:', err);
           return [];
         }),
-        divertissementService.getAllDivertissements({ limit: 4 }).catch(err => {
+        divertissementService.getAllDivertissements({ limit: 20 }).catch(err => {
           console.error('Error loading divertissements:', err);
           return [];
         }),
-        archiveService.getAllArchives({ limit: 4 }).catch(err => {
+        archiveService.getAllArchives({ limit: 20 }).catch(err => {
           console.error('Error loading archives:', err);
           return [];
         }),
@@ -376,12 +371,14 @@ export default function HomeScreen({ navigation }) {
       const viewers = await liveStreamService.getViewers();
 
       setLiveShows([]);
-      setBreakingNews(news);
-      setTrendingShows(trending);
-      setPopularPrograms(popular);
-      setRecentVideos(reportages);
-      setInterviews(divertissements);
-      setArchives(archivesData);
+      
+      // Trier chaque section par date avant de les stocker
+      setBreakingNews(sortByDate(news));
+      setTrendingShows(sortByDate(trending));
+      setPopularPrograms(sortByDate(popular));
+      setRecentVideos(sortByDate(reportages));
+      setInterviews(sortByDate(divertissements));
+      setArchives(sortByDate(archivesData));
 
       setBf1Stream(stream);
       setBf1Program(program);
@@ -398,7 +395,7 @@ export default function HomeScreen({ navigation }) {
     try {
       setRefreshing(true);
       
-      // Réinitialiser les animations AVANT de charger les nouvelles données
+      // Réinitialiser les animations
       animatedItemsRef.current.clear();
       setItemAnimations({});
       Object.keys(sectionAnimations).forEach(key => {
@@ -408,7 +405,7 @@ export default function HomeScreen({ navigation }) {
       // Charger les nouvelles données
       await loadContentSilently();
       
-      // Redémarrer les animations avec les nouvelles données
+      // Redémarrer les animations
       setTimeout(() => {
         startSequentialAnimation();
       }, 100);
@@ -425,43 +422,33 @@ export default function HomeScreen({ navigation }) {
       setLoading(true);
 
       const [news, trending, popular, reportages, divertissements, archivesData] = await Promise.all([
-        newsService.getAllNews({ limit: 10 }).catch(err => {
+        newsService.getAllNews({ limit: 20 }).catch(err => {
           console.error('Error loading news:', err);
           return [];
         }),
-        jtandMagService.getJTandMag({ limit: 4 }).then(data => {
-          return data.sort((a, b) => {
-            const dateA = new Date(a.created_at || a.published_at || 0);
-            const dateB = new Date(b.created_at || b.published_at || 0);
-            return dateB - dateA;
-          });
-        }).catch(err => {
+        jtandMagService.getJTandMag({ limit: 20 }).catch(err => {
           console.error('Error loading JT et Mag:', err);
           return [];
         }),
-        popularProgramService.getAllPrograms({ limit: 4 }).catch(err => {
+        popularProgramService.getAllPrograms({ limit: 20 }).catch(err => {
           console.error('Error loading popular programs:', err);
           return [];
         }),
-        api.get('/reportage', { params: { limit: 4 } }).then(response =>
+        api.get('/reportage', { params: { limit: 20 } }).then(response =>
           response.data.map(reportage => ({
             ...reportage,
             id: reportage._id || reportage.id,
             image_url: reportage.thumbnail || reportage.image_url,
-          })).sort((a, b) => {
-            const dateA = new Date(a.created_at || a.aired_at || 0);
-            const dateB = new Date(b.created_at || b.aired_at || 0);
-            return dateB - dateA;
-          })
+          }))
         ).catch(err => {
           console.error('Error loading reportages:', err);
           return [];
         }),
-        divertissementService.getAllDivertissements({ limit: 4 }).catch(err => {
+        divertissementService.getAllDivertissements({ limit: 20 }).catch(err => {
           console.error('Error loading divertissements:', err);
           return [];
         }),
-        archiveService.getAllArchives({ limit: 4 }).catch(err => {
+        archiveService.getAllArchives({ limit: 20 }).catch(err => {
           console.error('Error loading archives:', err);
           return [];
         }),
@@ -472,12 +459,14 @@ export default function HomeScreen({ navigation }) {
       const viewers = await liveStreamService.getViewers();
 
       setLiveShows([]);
-      setBreakingNews(news);
-      setTrendingShows(trending);
-      setPopularPrograms(popular);
-      setRecentVideos(reportages);
-      setInterviews(divertissements);
-      setArchives(archivesData);
+      
+      // Trier chaque section par date
+      setBreakingNews(sortByDate(news));
+      setTrendingShows(sortByDate(trending));
+      setPopularPrograms(sortByDate(popular));
+      setRecentVideos(sortByDate(reportages));
+      setInterviews(sortByDate(divertissements));
+      setArchives(sortByDate(archivesData));
 
       setBf1Stream(stream);
       setBf1Program(program);
@@ -489,78 +478,52 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  // MEILLEURE OPTION: Détection avec momentum et fin de défilement
-  const handleMomentumScrollEnd = (sectionName, navigationTarget, event) => {
+  // Fonction pour détecter quand l'utilisateur atteint le dernier élément (le 10ème)
+  const handleScroll = (sectionName, navigationTarget, event) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
-    const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 30;
+    
+    // Calculer si on est à la fin du scroll horizontal
+    const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 50;
     
     if (isAtEnd && !redirectLock[sectionName]) {
-      console.log(`👉 Fin du défilement - Redirection vers ${navigationTarget}`);
+      console.log(`👉 Fin du scroll - Redirection vers ${navigationTarget}`);
       
-      // Verrouiller pour éviter les redirections multiples
+      setLastItemVisible(prev => ({ ...prev, [sectionName]: true }));
       setRedirectLock(prev => ({ ...prev, [sectionName]: true }));
       
-      // Retour haptique (optionnel)
+      // Optionnel: retour haptique
       // if (Platform.OS === 'ios') {
       //   Haptic.trigger('impactLight');
       // }
       
-      // Rediriger
-      navigation.navigate(navigationTarget);
+      // Rediriger après un petit délai pour une meilleure UX
+      setTimeout(() => {
+        navigation.navigate(navigationTarget);
+      }, 100);
       
       // Déverrouiller après 2 secondes
       setTimeout(() => {
         setRedirectLock(prev => ({ ...prev, [sectionName]: false }));
+        setLastItemVisible(prev => ({ ...prev, [sectionName]: false }));
       }, 2000);
     }
   };
 
-  // Option secondaire: Détection avec fin de glissement
-  const handleScrollEndDrag = (sectionName, navigationTarget, event) => {
-    const { contentOffset, layoutMeasurement, contentSize, velocity } = event.nativeEvent;
-    const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 30;
-    
-    // Si on est à la fin et qu'on a un mouvement significatif vers la gauche
-    if (isAtEnd && velocity && velocity.x < -0.3 && !redirectLock[sectionName]) {
-      console.log(`👉 Glissement terminé - Redirection vers ${navigationTarget}`);
-      
-      setRedirectLock(prev => ({ ...prev, [sectionName]: true }));
-      
-      // Retour haptique
-      // Haptic.trigger('impactLight');
-      
-      navigation.navigate(navigationTarget);
-      
-      setTimeout(() => {
-        setRedirectLock(prev => ({ ...prev, [sectionName]: false }));
-      }, 2000);
-    }
-  };
-
-  // Fonction pour gérer le défilement horizontal et détecter la fin
-  const handleHorizontalScroll = (sectionName, event) => {
-    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
-    const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 20;
-    
-    setHorizontalScrollEnd(prev => ({
-      ...prev,
-      [sectionName]: isAtEnd
-    }));
-  };
-
-  // Fonction pour réinitialiser le lock quand on quitte la fin
-  const handleScrollBeginDrag = (sectionName, event) => {
-    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
-    const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 30;
-    
-    if (!isAtEnd && redirectLock[sectionName]) {
-      setRedirectLock(prev => ({ ...prev, [sectionName]: false }));
+  // Fonction pour obtenir les éléments d'une section (10 éléments maximum)
+  const getSectionItems = (sectionName) => {
+    switch(sectionName) {
+      case 'breakingNews': return breakingNews.slice(0, INITIAL_DISPLAY_COUNT);
+      case 'trendingShows': return trendingShows.slice(0, INITIAL_DISPLAY_COUNT);
+      case 'interviews': return interviews.slice(0, INITIAL_DISPLAY_COUNT);
+      case 'recentVideos': return recentVideos.slice(0, INITIAL_DISPLAY_COUNT);
+      case 'archives': return archives.slice(0, INITIAL_DISPLAY_COUNT);
+      default: return [];
     }
   };
 
   // Fonction pour gérer le clic sur la vidéo
   const handleVideoPress = () => {
-    navigation.navigate('Direct'); // Naviguer vers l'écran Live (Direct)
+    navigation.navigate('Direct');
   };
 
   // Fonction pour quitter le plein écran
@@ -611,7 +574,7 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
-  // 🔥 Bouton moderne avec seulement une flèche
+  // Bouton moderne avec seulement une flèche
   const ModernSeeMoreButton = ({ onPress }) => {
     return (
       <TouchableOpacity 
@@ -648,18 +611,17 @@ export default function HomeScreen({ navigation }) {
         }
       >
         <View style={styles.contentContainer}>
-          {/* En-tête avec notification seulement */}
-          <View style={styles.headerContainer}>
-            <NotificationHeader />
-          </View>
-
-          {/* Section BF1 avec animation */}
+          {/* Section BF1 avec animation professionnelle */}
           <Animated.View style={{
             opacity: sectionAnimations.live,
             transform: [
+              { translateY: sectionAnimations.live.interpolate({
+                inputRange: [0, 1],
+                outputRange: [30, 0]
+              })},
               { scale: sectionAnimations.live.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0.8, 1]
+                outputRange: [0.95, 1]
               })}
             ]
           }}>
@@ -684,7 +646,19 @@ export default function HomeScreen({ navigation }) {
                     colors={['transparent', 'rgba(0,0,0,0.9)']}
                     style={styles.liveOverlayFull}
                   >
-                    <Text style={styles.liveTitleFull}>{bf1Stream.name}</Text>
+                    <View style={styles.liveTitleContainer}>
+                      {bf1Stream.isLive && (
+                        <Animated.View
+                          style={[
+                            styles.liveDot,
+                            { opacity: liveDotOpacity }
+                          ]}
+                        />
+                      )}
+                      <Text style={styles.liveTitleFull}>
+                        {bf1Stream.name}
+                      </Text>
+                    </View>
                     {bf1Viewers > 0 && (
                       <View style={styles.liveViewers}>
                         <Ionicons name="eye" size={16} color="#fff" />
@@ -758,13 +732,13 @@ export default function HomeScreen({ navigation }) {
             </View>
           </Modal>
 
-          {/* Flash Info avec animation */}
+          {/* Flash Info - 10 éléments */}
           <Animated.View style={{
             opacity: sectionAnimations.breakingNews,
             transform: [
-              { translateX: sectionAnimations.breakingNews.interpolate({
+              { translateY: sectionAnimations.breakingNews.interpolate({
                 inputRange: [0, 1],
-                outputRange: [50, 0]
+                outputRange: [30, 0]
               })}
             ]
           }}>
@@ -780,15 +754,14 @@ export default function HomeScreen({ navigation }) {
                   ref={scrollViewRefs.breakingNews}
                   horizontal 
                   showsHorizontalScrollIndicator={false}
-                  onScroll={(event) => handleHorizontalScroll('breakingNews', event)}
-                  onScrollBeginDrag={(event) => handleScrollBeginDrag('breakingNews', event)}
-                  onScrollEndDrag={(event) => handleScrollEndDrag('breakingNews', 'BreakingNews', event)}
-                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('breakingNews', 'BreakingNews', event)}
+                  onScroll={(event) => handleScroll('breakingNews', 'BreakingNews', event)}
                   scrollEventThrottle={16}
                   decelerationRate="normal"
                 >
-                  {breakingNews.length > 0 ? breakingNews.slice(0, 10).map((news, index) => {
+                  {breakingNews.length > 0 ? breakingNews.slice(0, INITIAL_DISPLAY_COUNT).map((news, index) => {
                     const itemAnim = getItemAnimation('breakingNews', news, index);
+                    const isLastItem = index === INITIAL_DISPLAY_COUNT - 1;
+                    
                     return (
                       <Animated.View
                         key={news.id || news._id}
@@ -804,7 +777,11 @@ export default function HomeScreen({ navigation }) {
                         }}
                       >
                         <TouchableOpacity
-                          style={[styles.newsCard, { backgroundColor: colors.card }]}
+                          style={[
+                            styles.newsCard, 
+                            { backgroundColor: colors.card },
+                            isLastItem && { borderRightWidth: 3, borderRightColor: colors.primary }
+                          ]}
                           onPress={() => navigation.navigate('NewsDetail', { newsId: news.id || news._id })}
                         >
                           <Image source={{ uri: news.image_url || news.image || 'https://via.placeholder.com/400x250' }} style={styles.newsImage} />
@@ -827,26 +804,22 @@ export default function HomeScreen({ navigation }) {
                   )}
                   <View style={{ width: 40 }} />
                 </ScrollView>
-                {horizontalScrollEnd.breakingNews && !redirectLock.breakingNews && (
-                  <TouchableOpacity 
-                    style={styles.endOfSectionIndicator}
-                    onPress={() => navigation.navigate('BreakingNews')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
-                  </TouchableOpacity>
+                {lastItemVisible.breakingNews && (
+                  <View style={styles.endOfSectionIndicator}>
+                    <Text style={styles.endOfSectionText}>Chargement de plus d'actualités...</Text>
+                  </View>
                 )}
               </Animated.View>
             </View>
           </Animated.View>
 
-          {/* JT et Mag avec animation */}
+          {/* JT et Mag - 10 éléments */}
           <Animated.View style={{
             opacity: sectionAnimations.jtMag,
             transform: [
-              { translateX: sectionAnimations.jtMag.interpolate({
+              { translateY: sectionAnimations.jtMag.interpolate({
                 inputRange: [0, 1],
-                outputRange: [50, 0]
+                outputRange: [30, 0]
               })}
             ]
           }}>
@@ -862,15 +835,14 @@ export default function HomeScreen({ navigation }) {
                   ref={scrollViewRefs.trendingShows}
                   horizontal 
                   showsHorizontalScrollIndicator={false}
-                  onScroll={(event) => handleHorizontalScroll('trendingShows', event)}
-                  onScrollBeginDrag={(event) => handleScrollBeginDrag('trendingShows', event)}
-                  onScrollEndDrag={(event) => handleScrollEndDrag('trendingShows', 'JTandMag', event)}
-                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('trendingShows', 'JTandMag', event)}
+                  onScroll={(event) => handleScroll('trendingShows', 'JTandMag', event)}
                   scrollEventThrottle={16}
                   decelerationRate="normal"
                 >
-                  {trendingShows.length > 0 ? trendingShows.slice(0, 10).map((show, index) => {
+                  {trendingShows.length > 0 ? trendingShows.slice(0, INITIAL_DISPLAY_COUNT).map((show, index) => {
                     const itemAnim = getItemAnimation('trendingShows', show, index);
+                    const isLastItem = index === INITIAL_DISPLAY_COUNT - 1;
+                    
                     return (
                       <Animated.View
                         key={show.id || show._id}
@@ -886,7 +858,11 @@ export default function HomeScreen({ navigation }) {
                         }}
                       >
                         <TouchableOpacity
-                          style={[styles.trendingCard, { backgroundColor: colors.card }]}
+                          style={[
+                            styles.trendingCard, 
+                            { backgroundColor: colors.card },
+                            isLastItem && { borderRightWidth: 3, borderRightColor: colors.primary }
+                          ]}
                           onPress={() => navigation.navigate('ShowDetail', { showId: show.id || show._id, isJTandMag: true })}
                         >
                           <Image source={{ uri: show.image_url || show.image || 'https://via.placeholder.com/300x200' }} style={styles.trendingImage} />
@@ -894,7 +870,9 @@ export default function HomeScreen({ navigation }) {
                             <Text style={[styles.trendingTitle, { color: colors.text }]} numberOfLines={1}>{show.title}</Text>
                             <View style={styles.trendingMeta}>
                               <Ionicons name="eye" size={14} color={colors.textSecondary} />
-                              <Text style={[styles.trendingViews, { color: colors.textSecondary }]}>{show.views_count || show.views || '0'} vues</Text>
+                              <Text style={[styles.trendingViews, { color: colors.textSecondary }]}>
+                                {formatRelativeTime(show.created_at || show.published_at || show.aired_at)}
+                              </Text>
                             </View>
                           </View>
                         </TouchableOpacity>
@@ -908,26 +886,22 @@ export default function HomeScreen({ navigation }) {
                   )}
                   <View style={{ width: 40 }} />
                 </ScrollView>
-                {horizontalScrollEnd.trendingShows && !redirectLock.trendingShows && (
-                  <TouchableOpacity 
-                    style={styles.endOfSectionIndicator}
-                    onPress={() => navigation.navigate('JTandMag')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
-                  </TouchableOpacity>
+                {lastItemVisible.trendingShows && (
+                  <View style={styles.endOfSectionIndicator}>
+                    <Text style={styles.endOfSectionText}>Chargement de plus d'émissions...</Text>
+                  </View>
                 )}
               </Animated.View>
             </View>
           </Animated.View>
 
-          {/* Divertissement avec animation */}
+          {/* Divertissement - 10 éléments */}
           <Animated.View style={{
             opacity: sectionAnimations.divertissement,
             transform: [
-              { translateX: sectionAnimations.divertissement.interpolate({
+              { translateY: sectionAnimations.divertissement.interpolate({
                 inputRange: [0, 1],
-                outputRange: [50, 0]
+                outputRange: [30, 0]
               })}
             ]
           }}>
@@ -943,15 +917,14 @@ export default function HomeScreen({ navigation }) {
                   ref={scrollViewRefs.interviews}
                   horizontal 
                   showsHorizontalScrollIndicator={false}
-                  onScroll={(event) => handleHorizontalScroll('interviews', event)}
-                  onScrollBeginDrag={(event) => handleScrollBeginDrag('interviews', event)}
-                  onScrollEndDrag={(event) => handleScrollEndDrag('interviews', 'Divertissement', event)}
-                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('interviews', 'Divertissement', event)}
+                  onScroll={(event) => handleScroll('interviews', 'Divertissement', event)}
                   scrollEventThrottle={16}
                   decelerationRate="normal"
                 >
-                  {interviews.length > 0 ? interviews.slice(0, 10).map((interview, index) => {
+                  {interviews.length > 0 ? interviews.slice(0, INITIAL_DISPLAY_COUNT).map((interview, index) => {
                     const itemAnim = getItemAnimation('interviews', interview, index);
+                    const isLastItem = index === INITIAL_DISPLAY_COUNT - 1;
+                    
                     return (
                       <Animated.View
                         key={interview.id || interview._id}
@@ -967,17 +940,19 @@ export default function HomeScreen({ navigation }) {
                         }}
                       >
                         <TouchableOpacity
-                          style={[styles.interviewCard, { backgroundColor: colors.card }]}
+                          style={[
+                            styles.interviewCard, 
+                            { backgroundColor: colors.card },
+                            isLastItem && { borderRightWidth: 3, borderRightColor: colors.primary }
+                          ]}
                           onPress={() => navigation.navigate('ShowDetail', { showId: interview.id || interview._id, isDivertissement: true })}
                         >
                           <Image source={{ uri: interview.image_url || interview.image || 'https://via.placeholder.com/300x200' }} style={styles.interviewImage} />
                           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.interviewOverlay}>
-                            <View style={styles.interviewBadge}>
-                              <Ionicons name="mic" size={12} color="#fff" />
-                              <Text style={styles.interviewBadgeText}>Divertissement</Text>
-                            </View>
                             <Text style={styles.interviewTitle} numberOfLines={2}>{interview.title}</Text>
-                            <Text style={styles.interviewGuest} numberOfLines={1}>{interview.guest || 'Artiste'}</Text>
+                            <Text style={styles.interviewGuest} numberOfLines={1}>
+                              {formatRelativeTime(interview.created_at || interview.published_at)}
+                            </Text>
                           </LinearGradient>
                         </TouchableOpacity>
                       </Animated.View>
@@ -990,26 +965,22 @@ export default function HomeScreen({ navigation }) {
                   )}
                   <View style={{ width: 40 }} />
                 </ScrollView>
-                {horizontalScrollEnd.interviews && !redirectLock.interviews && (
-                  <TouchableOpacity 
-                    style={styles.endOfSectionIndicator}
-                    onPress={() => navigation.navigate('Divertissement')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
-                  </TouchableOpacity>
+                {lastItemVisible.interviews && (
+                  <View style={styles.endOfSectionIndicator}>
+                    <Text style={styles.endOfSectionText}>Chargement de plus de divertissements...</Text>
+                  </View>
                 )}
               </Animated.View>
             </View>
           </Animated.View>
 
-          {/* Reportages avec animation */}
+          {/* Reportages - 10 éléments */}
           <Animated.View style={{
             opacity: sectionAnimations.reportages,
             transform: [
-              { translateX: sectionAnimations.reportages.interpolate({
+              { translateY: sectionAnimations.reportages.interpolate({
                 inputRange: [0, 1],
-                outputRange: [50, 0]
+                outputRange: [30, 0]
               })}
             ]
           }}>
@@ -1025,15 +996,14 @@ export default function HomeScreen({ navigation }) {
                   ref={scrollViewRefs.recentVideos}
                   horizontal 
                   showsHorizontalScrollIndicator={false}
-                  onScroll={(event) => handleHorizontalScroll('recentVideos', event)}
-                  onScrollBeginDrag={(event) => handleScrollBeginDrag('recentVideos', event)}
-                  onScrollEndDrag={(event) => handleScrollEndDrag('recentVideos', 'Reportages', event)}
-                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('recentVideos', 'Reportages', event)}
+                  onScroll={(event) => handleScroll('recentVideos', 'Reportages', event)}
                   scrollEventThrottle={16}
                   decelerationRate="normal"
                 >
-                  {recentVideos.length > 0 ? recentVideos.slice(0, 10).map((video, index) => {
+                  {recentVideos.length > 0 ? recentVideos.slice(0, INITIAL_DISPLAY_COUNT).map((video, index) => {
                     const itemAnim = getItemAnimation('recentVideos', video, index);
+                    const isLastItem = index === INITIAL_DISPLAY_COUNT - 1;
+                    
                     return (
                       <Animated.View
                         key={video.id || video._id}
@@ -1049,7 +1019,11 @@ export default function HomeScreen({ navigation }) {
                         }}
                       >
                         <TouchableOpacity
-                          style={[styles.videoCard, { backgroundColor: colors.card }]}
+                          style={[
+                            styles.videoCard, 
+                            { backgroundColor: colors.card },
+                            isLastItem && { borderRightWidth: 3, borderRightColor: colors.primary }
+                          ]}
                           onPress={() => navigation.navigate('ShowDetail', { showId: video.id || video._id, isReportage: true })}
                         >
                           <Image source={{ uri: video.image_url || video.image || 'https://via.placeholder.com/300x200' }} style={styles.videoImage} />
@@ -1058,7 +1032,9 @@ export default function HomeScreen({ navigation }) {
                           </View>
                           <View style={styles.videoInfo}>
                             <Text style={[styles.videoTitle, { color: colors.text }]} numberOfLines={2}>{video.title}</Text>
-                            <Text style={[styles.videoDate, { color: colors.textSecondary }]}>{formatDate(video.aired_at || video.created_at)}</Text>
+                            <Text style={[styles.videoDate, { color: colors.textSecondary }]}>
+                              {formatRelativeTime(video.aired_at || video.created_at)}
+                            </Text>
                           </View>
                         </TouchableOpacity>
                       </Animated.View>
@@ -1071,26 +1047,22 @@ export default function HomeScreen({ navigation }) {
                   )}
                   <View style={{ width: 40 }} />
                 </ScrollView>
-                {horizontalScrollEnd.recentVideos && !redirectLock.recentVideos && (
-                  <TouchableOpacity 
-                    style={styles.endOfSectionIndicator}
-                    onPress={() => navigation.navigate('Reportages')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
-                  </TouchableOpacity>
+                {lastItemVisible.recentVideos && (
+                  <View style={styles.endOfSectionIndicator}>
+                    <Text style={styles.endOfSectionText}>Chargement de plus de reportages...</Text>
+                  </View>
                 )}
               </Animated.View>
             </View>
           </Animated.View>
 
-          {/* Archives Vidéo Premium avec animation */}
+          {/* Archives Vidéo Premium - 10 éléments */}
           <Animated.View style={{
             opacity: sectionAnimations.archives,
             transform: [
-              { translateX: sectionAnimations.archives.interpolate({
+              { translateY: sectionAnimations.archives.interpolate({
                 inputRange: [0, 1],
-                outputRange: [50, 0]
+                outputRange: [30, 0]
               })}
             ]
           }}>
@@ -1110,15 +1082,14 @@ export default function HomeScreen({ navigation }) {
                   ref={scrollViewRefs.archives}
                   horizontal 
                   showsHorizontalScrollIndicator={false}
-                  onScroll={(event) => handleHorizontalScroll('archives', event)}
-                  onScrollBeginDrag={(event) => handleScrollBeginDrag('archives', event)}
-                  onScrollEndDrag={(event) => handleScrollEndDrag('archives', 'Archive', event)}
-                  onMomentumScrollEnd={(event) => handleMomentumScrollEnd('archives', 'Archive', event)}
+                  onScroll={(event) => handleScroll('archives', 'Archive', event)}
                   scrollEventThrottle={16}
                   decelerationRate="normal"
                 >
-                  {archives.length > 0 ? archives.slice(0, 10).map((archive, index) => {
+                  {archives.length > 0 ? archives.slice(0, INITIAL_DISPLAY_COUNT).map((archive, index) => {
                     const itemAnim = getItemAnimation('archives', archive, index);
+                    const isLastItem = index === INITIAL_DISPLAY_COUNT - 1;
+                    
                     return (
                       <Animated.View
                         key={archive.id || archive._id}
@@ -1134,7 +1105,11 @@ export default function HomeScreen({ navigation }) {
                         }}
                       >
                         <TouchableOpacity
-                          style={[styles.archiveCard, { backgroundColor: colors.card }]}
+                          style={[
+                            styles.archiveCard, 
+                            { backgroundColor: colors.card },
+                            isLastItem && { borderRightWidth: 3, borderRightColor: colors.primary }
+                          ]}
                           onPress={() => navigation.navigate('ArchiveDetail', { archiveId: archive.id || archive._id })}
                         >
                           <Image source={{ uri: archive.image || archive.thumbnail || 'https://via.placeholder.com/300x200' }} style={styles.archiveImage} />
@@ -1155,6 +1130,11 @@ export default function HomeScreen({ navigation }) {
                                   <Text style={styles.archiveMetaText}>{archive.duration_minutes} min</Text>
                                 </>
                               )}
+                              <Text style={styles.archiveMetaSeparator}>•</Text>
+                              <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                              <Text style={styles.archiveMetaText}>
+                                {formatRelativeTime(archive.created_at || archive.published_at)}
+                              </Text>
                             </View>
                           </LinearGradient>
                         </TouchableOpacity>
@@ -1168,14 +1148,10 @@ export default function HomeScreen({ navigation }) {
                   )}
                   <View style={{ width: 40 }} />
                 </ScrollView>
-                {horizontalScrollEnd.archives && !redirectLock.archives && (
-                  <TouchableOpacity 
-                    style={styles.endOfSectionIndicator}
-                    onPress={() => navigation.navigate('Archive')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.endOfSectionText}>Tirez pour voir plus →</Text>
-                  </TouchableOpacity>
+                {lastItemVisible.archives && (
+                  <View style={styles.endOfSectionIndicator}>
+                    <Text style={styles.endOfSectionText}>Chargement de plus d'archives...</Text>
+                  </View>
                 )}
               </Animated.View>
             </View>

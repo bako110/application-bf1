@@ -6,7 +6,7 @@ export const createAppStyles = (colors) => StyleSheet.create({
     position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -106,7 +106,7 @@ export const createAppStyles = (colors) => StyleSheet.create({
   markAllReadButton: { 
     margin: 20, 
     padding: 16, 
-    backgroundColor: '#DC143C', 
+    backgroundColor: '#E23E3E', 
     borderRadius: 12, 
     alignItems: 'center' 
   },

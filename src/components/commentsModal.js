@@ -185,7 +185,7 @@ const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequir
           {/* Liste des commentaires */}
           <ScrollView style={styles.commentsList}>
             {loading ? (
-              <ActivityIndicator size="large" color={'#DC143C'} style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color={'#E23E3E'} style={{ marginTop: 20 }} />
             ) : comments.length > 0 ? (
               comments.map((comment) => {
                 const isOwner = currentUser && comment.user_id === currentUser.id;
@@ -237,7 +237,7 @@ const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequir
                           onPress={() => handleEditComment(comment)}
                           style={styles.actionButton}
                         >
-                          <Ionicons name="create-outline" size={18} color={'#DC143C'} />
+                          <Ionicons name="create-outline" size={18} color={'#E23E3E'} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handleDeleteComment(comment.id)}
@@ -284,12 +284,12 @@ const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequir
               disabled={!commentText.trim() || submitting}
             >
               {submitting ? (
-                <ActivityIndicator size="small" color={'#DC143C'} />
+                <ActivityIndicator size="small" color={'#E23E3E'} />
               ) : (
                 <Ionicons
                   name="send"
                   size={20}
-                  color={commentText.trim() ? '#DC143C' : '#B0B0B0'}
+                  color={commentText.trim() ? '#E23E3E' : '#B0B0B0'}
                 />
               )}
             </TouchableOpacity>
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#DC143C',
+    borderColor: '#E23E3E',
     marginBottom: 8,
     minHeight: 60,
   },
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
   },
   saveButtonText: {
     color: '#fff',

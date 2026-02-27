@@ -76,7 +76,7 @@ class ReminderNotificationService {
             sound: 'default',
             vibrationPattern: [300, 500],
             smallIcon: 'ic_launcher',
-            color: '#DC143C',
+            color: '#E23E3E',
           },
           ios: {
             sound: 'default',
@@ -162,7 +162,7 @@ class ReminderNotificationService {
           importance: AndroidImportance.HIGH,
           sound: 'default',
           smallIcon: 'ic_launcher',
-          color: '#DC143C',
+          color: '#E23E3E',
         },
         ios: {
           sound: 'default',

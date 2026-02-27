@@ -47,7 +47,7 @@ export const NotificationsModal = ({
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Notifications</Text>
                 <TouchableOpacity onPress={onClose}>
-                  <Ionicons name="close" size={24} color="#DC143C" />
+                  <Ionicons name="close" size={24} color="#E23E3E" />
                 </TouchableOpacity>
               </View>
 
@@ -63,7 +63,7 @@ export const NotificationsModal = ({
                       style={[styles.notificationItem, !n.is_read && styles.unreadNotification]}
                       onPress={() => !n.is_read && onMarkAsRead(n._id)}
                     >
-                      <Ionicons name="notifications-outline" size={20} color="#DC143C" style={{ marginRight: 12 }} />
+                      <Ionicons name="notifications-outline" size={20} color="#E23E3E" style={{ marginRight: 12 }} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.notificationTitle}>{n.title}</Text>
                         <Text style={styles.notificationMessage}>{n.message}</Text>
@@ -125,7 +125,7 @@ export const HeaderRightWithNotifications = () => {
   return (
     <>
       <TouchableOpacity onPress={() => setModalVisible(true)} style={{ marginRight: 16 }}>
-        <Ionicons name="notifications-outline" size={24} color="#DC143C" />
+        <Ionicons name="notifications-outline" size={24} color="#E23E3E" />
         <NotificationBadge count={unreadCount} />
       </TouchableOpacity>
 
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   markAllReadButton: { 
     margin: 20, 
     padding: 16, 
-    backgroundColor: '#DC143C', 
+    backgroundColor: '#E23E3E', 
     borderRadius: 12, 
     alignItems: 'center' 
   },

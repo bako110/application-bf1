@@ -32,24 +32,39 @@ export default function NewsDetailScreen({ route, navigation }) {
     loadNews();
   }, [newsId]);
 
+  // Fonction pour trier du plus récent au plus ancien
+  const sortByDate = (items) => {
+    return items.sort((a, b) => {
+      const dateA = new Date(a.created_at || a.published_at || a.date || 0);
+      const dateB = new Date(b.created_at || b.published_at || b.date || 0);
+      return dateB - dateA; // Plus récent d'abord
+    });
+  };
+
   const loadNews = async () => {
     try {
       const data = await newsService.getNewsById(newsId);
       setNews(data);
       
-      // Charger les actualités similaires
-      const allNews = await newsService.getAllNews({ limit: 20 });
+      // Charger toutes les actualités similaires (sans limite)
+      const allNews = await newsService.getAllNews({ limit: 50 }); // Augmenté la limite
+      
+      // Filtrer pour exclure l'actualité courante
       const filtered = allNews
-        .filter(item => item.id !== newsId && item._id !== newsId)
-        .slice(0, 6);
-      setRelatedNews(filtered);
+        .filter(item => item.id !== newsId && item._id !== newsId);
+      
+      // Trier du plus récent au plus ancien
+      const sortedFiltered = sortByDate(filtered);
+      
+      console.log(`📦 ${sortedFiltered.length} actualités similaires chargées et triées`);
+      setRelatedNews(sortedFiltered);
     } catch (error) {
-      console.error('Erreur chargement actualité:', error);
+      console.error('❌ Erreur chargement actualité:', error);
     }
     setLoading(false);
   };
 
-  // Fonction de partage sur Facebook
+  // Fonctions de partage
   const shareOnFacebook = () => {
     const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://bf1tv.com/news/' + newsId)}`;
     Linking.openURL(url).catch(() => {
@@ -57,7 +72,6 @@ export default function NewsDetailScreen({ route, navigation }) {
     });
   };
 
-  // Fonction de partage sur Twitter
   const shareOnTwitter = () => {
     const text = encodeURIComponent(news?.title || 'Actualité BF1');
     const url = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent('https://bf1tv.com/news/' + newsId)}`;
@@ -66,7 +80,6 @@ export default function NewsDetailScreen({ route, navigation }) {
     });
   };
 
-  // Fonction de partage sur WhatsApp
   const shareOnWhatsApp = () => {
     const text = encodeURIComponent(`${news?.title || 'Actualité BF1'} - https://bf1tv.com/news/${newsId}`);
     const url = `whatsapp://send?text=${text}`;
@@ -75,7 +88,6 @@ export default function NewsDetailScreen({ route, navigation }) {
     });
   };
 
-  // Fonction de partage natif
   const shareNative = async () => {
     try {
       await Share.share({
@@ -90,7 +102,7 @@ export default function NewsDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={'#DC143C'} />
+        <ActivityIndicator size="large" color={'#E23E3E'} />
       </View>
     );
   }
@@ -107,7 +119,11 @@ export default function NewsDetailScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.scrollContent}
+    >
       {/* Image de couverture */}
       {news.image_url && (
         <View style={styles.imageContainer}>
@@ -119,14 +135,6 @@ export default function NewsDetailScreen({ route, navigation }) {
             colors={['transparent', '#000000']}
             style={styles.gradient}
           />
-          
-          {/* Bouton retour - Masqué car déjà géré par le header */}
-          {/* <TouchableOpacity
-            style={styles.backIconButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity> */}
         </View>
       )}
 
@@ -201,40 +209,57 @@ export default function NewsDetailScreen({ route, navigation }) {
               <Text style={styles.shareButtonText}>WhatsApp</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.shareButton} onPress={shareNative}>
-              <Ionicons name="share-social" size={24} color={'#DC143C'} />
+              <Ionicons name="share-social" size={24} color={'#E23E3E'} />
               <Text style={styles.shareButtonText}>Plus</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Autres actualités */}
+        {/* Autres actualités - TOUTES les actualités sans limite */}
         {relatedNews.length > 0 && (
           <View style={styles.relatedSection}>
             <View style={styles.relatedHeader}>
-              <Ionicons name="newspaper" size={20} color={'#DC143C'} />
-              <Text style={styles.relatedTitle}>Autres actualités</Text>
+              <Ionicons name="newspaper" size={20} color={'#E23E3E'} />
+              <Text style={styles.relatedTitle}>
+                Autres actualités ({relatedNews.length})
+              </Text>
             </View>
             <View style={styles.relatedGrid}>
-              {relatedNews.map((item) => (
-                <TouchableOpacity
-                  key={item.id || item._id}
-                  style={styles.relatedCard}
-                  onPress={() => navigation.push('NewsDetail', { newsId: item.id || item._id })}
-                >
-                  <Image
-                    source={{ uri: item.image_url || item.image }}
-                    style={styles.relatedImage}
-                  />
-                  <View style={styles.relatedContent}>
-                    <Text style={styles.relatedCardTitle} numberOfLines={2}>
-                      {item.title}
-                    </Text>
-                    <Text style={styles.relatedTime}>
-                      {formatRelativeTime(item.created_at)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {relatedNews.map((item) => {
+                // Formater la date pour l'afficher
+                const itemDate = item.created_at || item.published_at || item.date;
+                const formattedDate = itemDate ? 
+                  formatRelativeTime(itemDate) : null;
+                
+                return (
+                  <TouchableOpacity
+                    key={item.id || item._id}
+                    style={styles.relatedCard}
+                    onPress={() => navigation.push('NewsDetail', { newsId: item.id || item._id })}
+                  >
+                    <Image
+                      source={{ uri: item.image_url || item.image || item.thumbnail || 'https://via.placeholder.com/120x100' }}
+                      style={styles.relatedImage}
+                    />
+                    <View style={styles.relatedContent}>
+                      <Text style={styles.relatedCardTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                      <View style={styles.relatedMeta}>
+                        <Ionicons name="time" size={12} color="#B0B0B0" />
+                        <Text style={styles.relatedTime}>
+                          {formattedDate || formatRelativeTime(item.created_at)}
+                        </Text>
+                      </View>
+                      {item.category && (
+                        <View style={styles.relatedCategoryBadge}>
+                          <Text style={styles.relatedCategoryText}>{item.category}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}
@@ -254,12 +279,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#000000',
   },
+  scrollContent: {
+    paddingBottom: 100, // Padding bottom ajouté ici
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#000000',
     padding: 20,
+    paddingBottom: 100, // Padding bottom ajouté
   },
   errorText: {
     fontSize: 18,
@@ -294,7 +323,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backButton: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -314,7 +343,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   categoryBadge: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -400,7 +429,7 @@ const styles = StyleSheet.create({
   shareButtonText: {
     fontSize: 11,
     color: '#B0B0B0',
-    fontWeight: '600',
+    fontWeight: '500',
     marginTop: 4,
   },
   relatedSection: {
@@ -408,6 +437,7 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     borderTopWidth: 1,
     borderTopColor: '#1A0000',
+    marginBottom: 20,
   },
   relatedHeader: {
     flexDirection: 'row',
@@ -417,7 +447,7 @@ const styles = StyleSheet.create({
   },
   relatedTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   relatedGrid: {
@@ -436,6 +466,7 @@ const styles = StyleSheet.create({
   relatedImage: {
     width: 120,
     height: '100%',
+    backgroundColor: '#2A2A2A',
   },
   relatedContent: {
     flex: 1,
@@ -444,12 +475,30 @@ const styles = StyleSheet.create({
   },
   relatedCardTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 6,
+  },
+  relatedMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
   },
   relatedTime: {
     fontSize: 12,
     color: '#B0B0B0',
+  },
+  relatedCategoryBadge: {
+    backgroundColor: '#E23E3E20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  relatedCategoryText: {
+    fontSize: 10,
+    color: '#E23E3E',
+    fontWeight: '500',
   },
 });

@@ -43,12 +43,12 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     borderRadius: 2,
   },
   timeText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     minWidth: 40,
   },
   controlButtons: {
@@ -66,14 +66,14 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
   },
   stopButton: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     flexDirection: 'row',
     width: 80,
     gap: 4,
   },
   stopButtonText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   headerContainer: {
@@ -94,7 +94,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     marginBottom: 16,
   },
   liveSectionTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.text,
     marginLeft: 12,
@@ -122,7 +122,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     padding: 20,
   },
   liveTitleFull: {
-    fontSize: 20,
+    fontSize: 8,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 8,
@@ -139,7 +139,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   liveViewersText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   liveCard: {
@@ -161,7 +161,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     padding: 16,
   },
   liveTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 8,
@@ -170,7 +170,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     position: 'absolute',
     top: 16,
     left: 16,
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -180,7 +180,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   liveBadgeText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   section: {
@@ -199,11 +199,10 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     gap: 8,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: colors.text,
   },
-  // 🔥 NOUVEAUX STYLES MODERNES POUR "VOIR PLUS"
   modernSeeMoreButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -226,12 +225,11 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     marginRight: 4,
   },
   modernSeeMoreText: {
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: '600',
     marginRight: 4,
-    color: '#DC143C',
+    color: '#E23E3E',
   },
-  // 🔥 FIN DES NOUVEAUX STYLES
   newsCard: {
     width: width * 0.75,
     height: 200,
@@ -254,7 +252,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   newsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -264,18 +262,18 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   newsBadgeText: {
     color: '#fff',
-    fontSize: 9,
+    fontSize: 7,
     fontWeight: 'bold',
   },
   newsTitle: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   newsTime: {
     color: '#B0B0B0',
-    fontSize: 11,
+    fontSize: 9,
   },
   trendingCard: {
     width: 140,
@@ -293,7 +291,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     padding: 10,
   },
   trendingTitle: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
     marginBottom: 6,
   },
@@ -303,7 +301,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     gap: 4,
   },
   trendingViews: {
-    fontSize: 11,
+    fontSize: 9,
   },
   videoCard: {
     width: 140,
@@ -328,19 +326,19 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   videoDurationText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: 'bold',
   },
   videoInfo: {
     padding: 10,
   },
   videoTitle: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
     marginBottom: 6,
   },
   videoDate: {
-    fontSize: 11,
+    fontSize: 9,
   },
   programCard: {
     width: width * 0.8,
@@ -363,13 +361,13 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   programTitle: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   programTime: {
     color: '#B0B0B0',
-    fontSize: 12,
+    fontSize: 10,
   },
   interviewCard: {
     width: 200,
@@ -393,7 +391,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   interviewBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -403,18 +401,18 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   interviewBadgeText: {
     color: '#fff',
-    fontSize: 9,
+    fontSize: 7,
     fontWeight: 'bold',
   },
   interviewTitle: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   interviewGuest: {
     color: '#B0B0B0',
-    fontSize: 11,
+    fontSize: 9,
   },
   noLiveContainer: {
     alignItems: 'center',
@@ -428,13 +426,13 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     height: height * 0.4,
   },
   noLiveText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 8,
   },
   noLiveSubtext: {
-    fontSize: 12,
+    fontSize: 10,
     textAlign: 'center',
   },
   emptyStateHorizontal: {
@@ -445,7 +443,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     marginLeft: 16,
   },
   emptyStateText: {
-    fontSize: 12,
+    fontSize: 10,
     marginTop: 12,
   },
   archiveBanner: {
@@ -485,7 +483,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   premiumBadgeTextSmall: {
     color: '#FFD700',
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   archiveCard: {
@@ -520,17 +518,17 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   archivePremiumText: {
     color: '#FFD700',
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   archivePriceText: {
     color: '#FFD700',
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '600',
   },
   archiveTitle: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: 'bold',
     marginBottom: 6,
   },
@@ -541,36 +539,36 @@ export const createHomeStyles = (colors) => StyleSheet.create({
   },
   archiveMetaText: {
     color: '#B0B0B0',
-    fontSize: 11,
+    fontSize: 9,
   },
   archiveMetaSeparator: {
     color: '#B0B0B0',
-    fontSize: 11,
+    fontSize: 9,
     marginHorizontal: 4,
   },
   archiveBannerTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
   },
   archiveBannerDescription: {
-    fontSize: 13,
+    fontSize: 10,
     color: colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 16,
   },
   archiveBannerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#DC143C',
+    justifyCenter: 'center',
+    backgroundColor: '#E23E3E',
     paddingVertical: 12,
     borderRadius: 10,
     gap: 8,
   },
   archiveBannerButtonText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   contentContainer: {
@@ -582,21 +580,31 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     gap: 4,
   },
   seeMoreText: {
-    color: '#DC143C',
-    fontSize: 14,
+    color: '#E23E3E',
+    fontSize: 11,
     fontWeight: '600',
   },
-
-  // Ajoutez ces styles à votre fichier homeStyles.js
-endOfSectionIndicator: {
-  paddingVertical: 8,
-  paddingHorizontal: 16,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-endOfSectionText: {
-  color: colors.primary,
-  fontSize: 14,
-  fontWeight: '600',
-},
+  endOfSectionIndicator: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endOfSectionText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  liveTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  liveDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#E23E3E',
+    marginRight: 8,
+  },
+  
 });

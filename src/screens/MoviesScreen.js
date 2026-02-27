@@ -179,7 +179,7 @@ export default function MoviesScreen({ navigation }) {
             }} 
             style={styles.resetBtn}
           >
-            <Ionicons name="refresh" size={16} color={'#DC143C'} />
+            <Ionicons name="refresh" size={16} color={'#E23E3E'} />
             <Text style={styles.resetBtnText}>Réinitialiser</Text>
           </TouchableOpacity>
 
@@ -289,7 +289,7 @@ export default function MoviesScreen({ navigation }) {
       {/* Movies Display */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={'#DC143C'} />
+          <ActivityIndicator size="large" color={'#E23E3E'} />
         </View>
       ) : viewMode === 'row' ? (
         <ScrollView 

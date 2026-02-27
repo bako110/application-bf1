@@ -6,11 +6,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ==========================================
 
 // Changez cette valeur pour basculer entre local et production
-const IS_PRODUCTION = false; // true = production, false = local
+const IS_PRODUCTION = true; // true = production, false = local
 
 // Option 1: Production (serveur en ligne)
 const PRODUCTION_API_URL = 'https://backend-bf1.onrender.com';
-
 // Option 2: Local (votre PC sur le réseau local)
 const LOCAL_API_URL = 'http://192.168.137.1:8000'; // Changez l'IP selon votre réseau
 
@@ -86,7 +85,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Ne supprimer le token QUE sur erreur 401 (non autorisé)
+    // Ne supprimer le token QUE sur erreur 40^^^^1 (non autorisé)
     if (error.response?.status === 401) {
       console.log('🔐 Token expiré ou invalide (401), déconnexion...');
       await AsyncStorage.removeItem('authToken');
@@ -102,4 +101,4 @@ api.interceptors.response.use(
 
 export default api;
 export { clearTokenCache };
-// API_BASE_URL is already available via api.defaults.baseURL
+

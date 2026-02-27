@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Image, Easing } from 'react-native';
 import axios from 'axios';
 import { API_ROOT_URL } from '../config/api';
+import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Circle, Path, G } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 
@@ -10,73 +12,209 @@ interface SplashProps {
 }
 
 const Splash: React.FC<SplashProps> = ({ onReady }) => {
-  // Animations principales - Agrandissement progressif + mouvement continu
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const taglineOpacity = useRef(new Animated.Value(0)).current;
-  const taglineSlide = useRef(new Animated.Value(30)).current;
+  // Animations pour le SERPENT
+  const snakeProgress = useRef(new Animated.Value(0)).current;
+  const snakeOpacity = useRef(new Animated.Value(1)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
   
   const [taglineText, setTaglineText] = useState('');
-  const fullTagline = "La chaine au coeur de nos défis";
-  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-  const [statusMessage, setStatusMessage] = useState('Connexion au serveur...');
-  const startTimeRef = useRef(Date.now());
+  const fullTagline = "La chaîne au cœur de nos défis";
+  
+  // État pour gérer le timing
+  const [imageVisible, setImageVisible] = useState(false);
+  const [serverReady, setServerReady] = useState(false);
+  const imageDisplayTimeRef = useRef<number | null>(null);
 
-  // Vérifier la connexion au backend
+  // Effet SERPENT - Le logo se construit comme un serpent qui s'enroule
   useEffect(() => {
-    checkBackendHealth();
+    // Animation du serpent qui s'enroule
+    Animated.timing(snakeProgress, {
+      toValue: 1,
+      duration: 2500,
+      easing: Easing.bezier(0.42, 0, 0.58, 1),
+      useNativeDriver: true,
+    }).start(() => {
+      // Une fois le serpent terminé, le logo apparaît
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.ease,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.timing(snakeOpacity, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // L'image est maintenant visible, on note le moment
+        setImageVisible(true);
+        imageDisplayTimeRef.current = Date.now();
+        
+        // Vérifier si le serveur est déjà prêt
+        if (serverReady) {
+          checkAndRedirect();
+        }
+      });
+
+      // Effet de glow pulsant pour le logo final
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 2000,
+            easing: Easing.ease,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 2000,
+            easing: Easing.ease,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    });
   }, []);
 
-  const checkBackendHealth = async () => {
-    let retries = 0;
-    const maxRetries = 10;
-    const retryDelay = 2000; // 2 secondes entre chaque tentative
-    const minDisplayTime = 3000; // 3 secondes minimum d'affichage
+  // Fonction pour vérifier si on peut rediriger
+  const checkAndRedirect = () => {
+    if (!imageVisible || !imageDisplayTimeRef.current) return;
+    
+    const elapsedTime = Date.now() - imageDisplayTimeRef.current;
+    const remainingTime = Math.max(0, 3000 - elapsedTime);
+    
+    setTimeout(() => {
+      if (onReady) onReady();
+    }, remainingTime);
+  };
 
-    const attemptConnection = async (): Promise<boolean> => {
+  // Vérification backend en arrière-plan (sans affichage)
+  useEffect(() => {
+    const checkBackendHealth = async () => {
       try {
-        setStatusMessage(`Connexion au serveur... (${retries + 1}/${maxRetries})`);
         const response = await axios.get(`${API_ROOT_URL}/health`, {
           timeout: 5000,
         });
         
         if (response.data && response.data.status === 'healthy') {
-          setBackendStatus('connected');
-          setStatusMessage('Serveur connecté ✓');
+          setServerReady(true);
           
-          // Calculer le temps écoulé depuis le début
-          const elapsedTime = Date.now() - startTimeRef.current;
-          const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
-          
-          // Attendre le temps restant pour garantir 3 secondes minimum
-          setTimeout(() => {
-            if (onReady) onReady();
-          }, remainingTime);
-          
-          return true;
+          // Si l'image est déjà visible, vérifier le timing
+          if (imageVisible) {
+            checkAndRedirect();
+          }
         }
-        return false;
       } catch (error) {
-        console.log('Backend health check failed:', error);
-        retries++;
-        
-        if (retries < maxRetries) {
-          setStatusMessage(`Reconnexion... (${retries}/${maxRetries})`);
-          await new Promise<void>(resolve => setTimeout(() => resolve(), retryDelay));
-          return attemptConnection();
-        } else {
-          setBackendStatus('error');
-          setStatusMessage('Impossible de se connecter au serveur');
-          return false;
-        }
+        console.log('Backend health check failed (silent):', error);
+        // On ne fait rien, pas d'affichage d'erreur
       }
     };
 
-    await attemptConnection();
+    checkBackendHealth();
+  }, [imageVisible]);
+
+  // Composant du serpent SVG
+  const SnakePath = () => {
+    // Points de contrôle pour une spirale parfaite
+    const radius = 60;
+    const centerX = 90;
+    const centerY = 90;
+    
+    // Génération du chemin en spirale complet (une seule fois)
+    const getFullSpiralPath = () => {
+      const steps = 100;
+      const maxTurns = 3;
+      const points = [];
+      
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const angle = t * maxTurns * Math.PI * 2;
+        const currentRadius = radius * t;
+        const springEffect = Math.sin(t * Math.PI) * 0.2;
+        
+        const x = centerX + Math.cos(angle) * (currentRadius + springEffect * 20);
+        const y = centerY + Math.sin(angle) * (currentRadius + springEffect * 20);
+        
+        if (i === 0) {
+          points.push(`M${x.toFixed(2)},${y.toFixed(2)}`);
+        } else {
+          points.push(`L${x.toFixed(2)},${y.toFixed(2)}`);
+        }
+      }
+      
+      return points.join(' ');
+    };
+    
+    const fullPath = getFullSpiralPath();
+
+    return (
+      <Svg width={180} height={180} viewBox="0 0 180 180">
+        {/* Traînée lumineuse du serpent */}
+        <Circle
+          cx={90}
+          cy={90}
+          r={65}
+          fill="none"
+          stroke="rgba(220, 20, 60, 0.1)"
+          strokeWidth="2"
+        />
+        
+        {/* Le serpent principal - animé avec strokeDashoffset */}
+        <AnimatedPath
+          d={fullPath}
+          stroke="#DC143C"
+          strokeWidth={snakeProgress.interpolate({
+            inputRange: [0, 0.3, 0.7, 1],
+            outputRange: [2, 4, 6, 8],
+          })}
+          strokeLinecap="round"
+          fill="none"
+          opacity={snakeOpacity}
+          strokeDasharray={1000}
+          strokeDashoffset={snakeProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1000, 0],
+          })}
+        />
+        
+        {/* Tête du serpent (un point plus lumineux) */}
+        <AnimatedCircle
+          cx={90 + radius * Math.cos(3 * 2 * Math.PI)}
+          cy={90 + radius * Math.sin(3 * 2 * Math.PI)}
+          r={snakeProgress.interpolate({
+            inputRange: [0, 0.5, 1],
+            outputRange: [0, 6, 4],
+          })}
+          fill="#DC143C"
+          opacity={snakeOpacity}
+        />
+        
+        {/* Particules lumineuses qui suivent le serpent */}
+        {[0, 1, 2].map((i) => (
+          <Circle
+            key={`particle-${i}`}
+            cx={90 + radius * 0.8 * Math.cos((3 - i * 0.5) * 2 * Math.PI)}
+            cy={90 + radius * 0.8 * Math.sin((3 - i * 0.5) * 2 * Math.PI)}
+            r={2}
+            fill="#FF69B4"
+            opacity={0.6}
+          />
+        ))}
+      </Svg>
+    );
   };
 
-  // Typewriter effect
+  // Typewriter effect pour la tagline
   useEffect(() => {
     let index = 0;
     const interval = setInterval(() => {
@@ -86,77 +224,53 @@ const Splash: React.FC<SplashProps> = ({ onReady }) => {
       } else {
         clearInterval(interval);
       }
-    }, 50);
+    }, 60);
     return () => clearInterval(interval);
   }, []);
 
-  // Main animation sequence - AGRANDISSEMENT + MOUVEMENT CONTINU
-  useEffect(() => {
-    // 1. Agrandissement progressif de l'image (de 0 à 1)
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 1500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // 2. Pulsation continue (mouvement constant)
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // 3. Tagline animation
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(taglineOpacity, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.spring(taglineSlide, {
-          toValue: 0,
-          friction: 6,
-          tension: 50,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 800);
-  }, []);
-
+  // Style pour l'effet de glow
+  const glowStyle = {
+    shadowColor: '#DC143C',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: glowAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.3, 0.8],
+    }),
+    shadowRadius: glowAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [10, 30],
+    }),
+    elevation: glowAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [5, 15],
+    }),
+  };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#000000', '#1a1a1a', '#000000']}
+      style={styles.container}
+    >
       <View style={styles.content}>
-        {/* Logo container avec agrandissement progressif */}
+        {/* Le serpent qui s'enroule */}
+        <Animated.View style={[
+          styles.snakeContainer,
+          { opacity: snakeOpacity }
+        ]}>
+          <SnakePath />
+        </Animated.View>
+
+        {/* Logo final qui apparaît après le serpent */}
         <Animated.View
           style={[
             styles.logoContainer,
             {
-              opacity: fadeAnim,
-              transform: [
-                { scale: Animated.multiply(scaleAnim, pulseAnim) },
-              ],
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
+              ...glowStyle,
             },
           ]}
         >
-          {/* Image du logo BF1 */}
           <Image
             source={require('../../assets/splash.png')}
             style={styles.logoImage}
@@ -164,106 +278,30 @@ const Splash: React.FC<SplashProps> = ({ onReady }) => {
           />
         </Animated.View>
 
-        {/* Tagline with typewriter effect */}
-        <Animated.View
-          style={[
-            styles.taglineContainer,
-            {
-              opacity: taglineOpacity,
-              transform: [{ translateY: taglineSlide }],
-            },
-          ]}
-        >
-          <Text style={styles.tagline}>{taglineText}</Text>
-          <View style={styles.cursor} />
-        </Animated.View>
-
-        {/* Status message */}
-        <Animated.View style={[styles.statusContainer, { opacity: taglineOpacity }]}>
-          <Text style={[
-            styles.statusText,
-            backendStatus === 'connected' && styles.statusSuccess,
-            backendStatus === 'error' && styles.statusError,
-          ]}>
-            {statusMessage}
-          </Text>
-        </Animated.View>
-
-        {/* Loading dots */}
-        {backendStatus === 'checking' && (
-          <Animated.View style={[styles.loadingContainer, { opacity: taglineOpacity }]}>
-            <LoadingDots />
-          </Animated.View>
-        )}
+        {/* Tagline avec effet machine à écrire */}
+        <View style={styles.bottomContainer}>
+          <View style={styles.taglineWrapper}>
+            <Text style={styles.tagline}>{taglineText}</Text>
+            <Animated.View 
+              style={[
+                styles.cursor,
+                { opacity: taglineText.length === fullTagline.length ? 0 : 1 }
+              ]} 
+            />
+          </View>
+        </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 };
 
-// Loading dots component
-const LoadingDots = () => {
-  const dot1 = useRef(new Animated.Value(0)).current;
-  const dot2 = useRef(new Animated.Value(0)).current;
-  const dot3 = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animateDot = (dot: Animated.Value, delay: number) => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(dot, {
-            toValue: 1,
-            duration: 400,
-            delay,
-            useNativeDriver: true,
-          }),
-          Animated.timing(dot, {
-            toValue: 0,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    };
-
-    animateDot(dot1, 0);
-    animateDot(dot2, 200);
-    animateDot(dot3, 400);
-  }, []);
-
-  const getDotStyle = (anim: Animated.Value) => ({
-    transform: [
-      {
-        translateY: anim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0, -10],
-        }),
-      },
-      {
-        scale: anim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1, 1.3],
-        }),
-      },
-    ],
-    opacity: anim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.4, 1],
-    }),
-  });
-
-  return (
-    <View style={styles.dotsContainer}>
-      <Animated.View style={[styles.dot, getDotStyle(dot1)]} />
-      <Animated.View style={[styles.dot, getDotStyle(dot2)]} />
-      <Animated.View style={[styles.dot, getDotStyle(dot3)]} />
-    </View>
-  );
-};
+// Composants SVG animés
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -271,65 +309,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  snakeContainer: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   logoContainer: {
     width: 200,
     height: 200,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
   },
   logoImage: {
-    width: 180,
-    height: 180,
+    width: 200,
+    height: 200,
     borderRadius: 20,
   },
-  taglineContainer: {
+  bottomContainer: {
+    position: 'absolute',
+    bottom: -150,
+    alignItems: 'center',
+    width: width - 40,
+  },
+  taglineWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 30,
+    justifyContent: 'center',
   },
   tagline: {
     fontSize: 18,
     color: '#FFFFFF',
-    fontWeight: '500',
-    letterSpacing: 1,
+    fontWeight: '400',
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(220, 20, 60, 0.3)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   cursor: {
     width: 3,
     height: 20,
     backgroundColor: '#DC143C',
     marginLeft: 4,
-    opacity: 0.8,
-  },
-  loadingContainer: {
-    marginTop: 30,
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#DC143C',
-  },
-  statusContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  statusText: {
-    fontSize: 14,
-    color: '#AAAAAA',
-    fontWeight: '500',
-  },
-  statusSuccess: {
-    color: '#4CAF50',
-  },
-  statusError: {
-    color: '#DC143C',
+    shadowColor: '#DC143C',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
 });
 

@@ -226,7 +226,7 @@ const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
 
             {!isAuthenticated && (
               <View style={styles.loginPrompt}>
-                <Ionicons name="lock-closed" size={48} color={'#DC143C'} />
+                <Ionicons name="lock-closed" size={48} color={'#E23E3E'} />
                 <Text style={styles.loginPromptTitle}>Connexion requise</Text>
                 <Text style={styles.loginPromptText}>
                   Connectez-vous pour accéder aux offres premium et profiter de tous les avantages
@@ -248,7 +248,7 @@ const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
             {currentStep === 1 && (
               loading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={'#DC143C'} />
+                  <ActivityIndicator size="large" color={'#E23E3E'} />
                   <Text style={styles.loadingText}>Chargement des plans...</Text>
                 </View>
               ) : plans.length === 0 ? (
@@ -260,7 +260,7 @@ const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
                 <>
                   {plans.length > 0 && !plans[0].isInCountry && (
                     <View style={styles.locationBanner}>
-                      <Ionicons name="location" size={20} color={'#DC143C'} />
+                      <Ionicons name="location" size={20} color={'#E23E3E'} />
                       <Text style={styles.locationBannerText}>
                         Tarif international appliqué (x{plans[0].priceMultiplier})
                       </Text>
@@ -358,7 +358,7 @@ const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
                   onPress={() => handleSelectPayment('card')}
                 >
                   <View style={styles.paymentIconContainer}>
-                    <Ionicons name="card" size={32} color={'#DC143C'} />
+                    <Ionicons name="card" size={32} color={'#E23E3E'} />
                   </View>
                   <View style={styles.paymentInfo}>
                     <Text style={styles.paymentName}>Carte bancaire</Text>
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#DC143C',
+    borderColor: '#E23E3E',
   },
   loginPromptTitle: {
     fontSize: 20,
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
   loginButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   savingsBadge: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#DC143C',
+    color: '#E23E3E',
   },
   duration: {
     fontSize: 16,
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     fontSize: 18,
-    color: '#DC143C',
+    color: '#E23E3E',
     marginRight: 10,
     fontWeight: 'bold',
   },
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   subscribeButton: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -684,8 +684,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepDotActive: {
-    backgroundColor: '#DC143C',
-    borderColor: '#DC143C',
+    backgroundColor: '#E23E3E',
+    borderColor: '#E23E3E',
   },
   stepDotText: {
     color: '#FFFFFF',
@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2a2a2a',
   },
   stepLineActive: {
-    backgroundColor: '#DC143C',
+    backgroundColor: '#E23E3E',
   },
   selectedPlanSummary: {
     backgroundColor: '#1a1a1a',
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#DC143C',
+    borderColor: '#E23E3E',
   },
   summaryLabel: {
     fontSize: 14,
@@ -722,7 +722,7 @@ const styles = StyleSheet.create({
   summaryPrice: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#DC143C',
+    color: '#E23E3E',
   },
   paymentOption: {
     flexDirection: 'row',
@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#DC143C',
+    borderColor: '#E23E3E',
     gap: 12,
   },
   locationBannerText: {

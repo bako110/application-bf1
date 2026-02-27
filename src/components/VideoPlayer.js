@@ -182,7 +182,17 @@ export default function VideoPlayer({ videoUrl, posterUrl, onPlayPress, isPremiu
           progressUpdateInterval={250}
           playInBackground={false}
           playWhenInactive={false}
-          onError={(error) => console.error('VideoPlayer error:', error)}
+          onError={(error) => {
+            console.error('VideoPlayer error details:', {
+              error,
+              videoUrl,
+              posterUrl,
+              errorCode: error?.error?.code,
+              errorDomain: error?.error?.domain,
+              errorDescription: error?.error?.localizedDescription || error?.error?.description,
+              target: error?.target
+            });
+          }}
           onBuffer={({ isBuffering }) => {
             if (isBuffering) {
               console.log('VideoPlayer buffering...');

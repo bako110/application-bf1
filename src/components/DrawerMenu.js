@@ -100,8 +100,8 @@ export default function DrawerMenu({ visible, onClose }) {
           navigation.navigate('Accueil', { screen: 'BreakingNews' });
           break;
         case 'MoviesList':
-          // Films - Naviguer vers MoviesStack
-          navigation.navigate('Films', { screen: 'MoviesList' });
+          // Films - Dans HomeStack
+          navigation.navigate('Accueil', { screen: 'Movies' });
           break;
         case 'Archive':
           // Archive - Dans HomeStack
