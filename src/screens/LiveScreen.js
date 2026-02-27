@@ -20,6 +20,7 @@ import divertissementService from '../services/divertissementService';
 import api from '../config/api';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
+import Orientation from 'react-native-orientation-locker';
 
 const { width, height } = Dimensions.get('window');
 const VIDEO_HEIGHT = width * 9 / 16; // Format 16:9
@@ -104,6 +105,21 @@ function LiveScreen({ navigation }) {
         });
       };
     }, [isFirstLoad])
+  );
+
+  // Gestion de l'orientation : permettre la rotation seulement dans LiveScreen
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('📱 [LiveScreen] Écran focus - permettre rotation');
+      // Permettre toutes les orientations quand LiveScreen est actif
+      Orientation.unlockAllOrientations();
+      
+      return () => {
+        console.log('📱 [LiveScreen] Écran unfocus - verrouiller en portrait');
+        // Revenir au portrait quand on quitte LiveScreen
+        Orientation.lockToPortrait();
+      };
+    }, [])
   );
 
   const loadStream = async () => {
