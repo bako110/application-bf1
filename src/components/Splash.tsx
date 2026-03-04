@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Animated, Dimensions, Image, Easing } from 'rea
 import axios from 'axios';
 import { API_ROOT_URL } from '../config/api';
 import LinearGradient from 'react-native-linear-gradient';
-import Svg, { Circle, Path, G } from 'react-native-svg';
+import Orientation from 'react-native-orientation-locker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -12,9 +12,7 @@ interface SplashProps {
 }
 
 const Splash: React.FC<SplashProps> = ({ onReady }) => {
-  // Animations pour le SERPENT
-  const snakeProgress = useRef(new Animated.Value(0)).current;
-  const snakeOpacity = useRef(new Animated.Value(1)).current;
+  // Animations simplifiées juste pour le logo
   const logoScale = useRef(new Animated.Value(0.8)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -27,63 +25,55 @@ const Splash: React.FC<SplashProps> = ({ onReady }) => {
   const [serverReady, setServerReady] = useState(false);
   const imageDisplayTimeRef = useRef<number | null>(null);
 
-  // Effet SERPENT - Le logo se construit comme un serpent qui s'enroule
+  // Verrouiller l'orientation en portrait dès le début
   useEffect(() => {
-    // Animation du serpent qui s'enroule
-    Animated.timing(snakeProgress, {
-      toValue: 1,
-      duration: 2500,
-      easing: Easing.bezier(0.42, 0, 0.58, 1),
-      useNativeDriver: true,
-    }).start(() => {
-      // Une fois le serpent terminé, le logo apparaît
-      Animated.parallel([
-        Animated.timing(logoOpacity, {
+    Orientation.lockToPortrait();
+  }, []);
+
+  // Animation simple du logo qui apparaît directement
+  useEffect(() => {
+    // Le logo apparaît directement
+    Animated.parallel([
+      Animated.timing(logoOpacity, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.ease,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoScale, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // L'image est maintenant visible, on note le moment
+      setImageVisible(true);
+      imageDisplayTimeRef.current = Date.now();
+      
+      // Vérifier si le serveur est déjà prêt
+      if (serverReady) {
+        checkAndRedirect();
+      }
+    });
+
+    // Effet de glow pulsant pour le logo
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
           toValue: 1,
-          duration: 600,
+          duration: 2000,
           easing: Easing.ease,
           useNativeDriver: true,
         }),
-        Animated.spring(logoScale, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(snakeOpacity, {
+        Animated.timing(glowAnim, {
           toValue: 0,
-          duration: 500,
+          duration: 2000,
+          easing: Easing.ease,
           useNativeDriver: true,
         }),
-      ]).start(() => {
-        // L'image est maintenant visible, on note le moment
-        setImageVisible(true);
-        imageDisplayTimeRef.current = Date.now();
-        
-        // Vérifier si le serveur est déjà prêt
-        if (serverReady) {
-          checkAndRedirect();
-        }
-      });
-
-      // Effet de glow pulsant pour le logo final
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, {
-            toValue: 1,
-            duration: 2000,
-            easing: Easing.ease,
-            useNativeDriver: true,
-          }),
-          Animated.timing(glowAnim, {
-            toValue: 0,
-            duration: 2000,
-            easing: Easing.ease,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    });
+      ])
+    ).start();
   }, []);
 
   // Fonction pour vérifier si on peut rediriger
@@ -123,97 +113,6 @@ const Splash: React.FC<SplashProps> = ({ onReady }) => {
     checkBackendHealth();
   }, [imageVisible]);
 
-  // Composant du serpent SVG
-  const SnakePath = () => {
-    // Points de contrôle pour une spirale parfaite
-    const radius = 60;
-    const centerX = 90;
-    const centerY = 90;
-    
-    // Génération du chemin en spirale complet (une seule fois)
-    const getFullSpiralPath = () => {
-      const steps = 100;
-      const maxTurns = 3;
-      const points = [];
-      
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const angle = t * maxTurns * Math.PI * 2;
-        const currentRadius = radius * t;
-        const springEffect = Math.sin(t * Math.PI) * 0.2;
-        
-        const x = centerX + Math.cos(angle) * (currentRadius + springEffect * 20);
-        const y = centerY + Math.sin(angle) * (currentRadius + springEffect * 20);
-        
-        if (i === 0) {
-          points.push(`M${x.toFixed(2)},${y.toFixed(2)}`);
-        } else {
-          points.push(`L${x.toFixed(2)},${y.toFixed(2)}`);
-        }
-      }
-      
-      return points.join(' ');
-    };
-    
-    const fullPath = getFullSpiralPath();
-
-    return (
-      <Svg width={180} height={180} viewBox="0 0 180 180">
-        {/* Traînée lumineuse du serpent */}
-        <Circle
-          cx={90}
-          cy={90}
-          r={65}
-          fill="none"
-          stroke="rgba(220, 20, 60, 0.1)"
-          strokeWidth="2"
-        />
-        
-        {/* Le serpent principal - animé avec strokeDashoffset */}
-        <AnimatedPath
-          d={fullPath}
-          stroke="#DC143C"
-          strokeWidth={snakeProgress.interpolate({
-            inputRange: [0, 0.3, 0.7, 1],
-            outputRange: [2, 4, 6, 8],
-          })}
-          strokeLinecap="round"
-          fill="none"
-          opacity={snakeOpacity}
-          strokeDasharray={1000}
-          strokeDashoffset={snakeProgress.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1000, 0],
-          })}
-        />
-        
-        {/* Tête du serpent (un point plus lumineux) */}
-        <AnimatedCircle
-          cx={90 + radius * Math.cos(3 * 2 * Math.PI)}
-          cy={90 + radius * Math.sin(3 * 2 * Math.PI)}
-          r={snakeProgress.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [0, 6, 4],
-          })}
-          fill="#DC143C"
-          opacity={snakeOpacity}
-        />
-        
-        {/* Particules lumineuses qui suivent le serpent */}
-        {[0, 1, 2].map((i) => (
-          <Circle
-            key={`particle-${i}`}
-            cx={90 + radius * 0.8 * Math.cos((3 - i * 0.5) * 2 * Math.PI)}
-            cy={90 + radius * 0.8 * Math.sin((3 - i * 0.5) * 2 * Math.PI)}
-            r={2}
-            fill="#FF69B4"
-            opacity={0.6}
-          />
-        ))}
-      </Svg>
-    );
-  };
-
   // Typewriter effect pour la tagline
   useEffect(() => {
     let index = 0;
@@ -252,15 +151,7 @@ const Splash: React.FC<SplashProps> = ({ onReady }) => {
       style={styles.container}
     >
       <View style={styles.content}>
-        {/* Le serpent qui s'enroule */}
-        <Animated.View style={[
-          styles.snakeContainer,
-          { opacity: snakeOpacity }
-        ]}>
-          <SnakePath />
-        </Animated.View>
-
-        {/* Logo final qui apparaît après le serpent */}
+        {/* Logo uniquement - plus de serpent */}
         <Animated.View
           style={[
             styles.logoContainer,
@@ -295,10 +186,6 @@ const Splash: React.FC<SplashProps> = ({ onReady }) => {
   );
 };
 
-// Composants SVG animés
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -308,13 +195,6 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  snakeContainer: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   logoContainer: {
     width: 200,
@@ -329,7 +209,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     position: 'absolute',
-    bottom: -150,
+    bottom: -50,  // Réduit de -150 à -50 pour rapprocher du logo
     alignItems: 'center',
     width: width - 40,
   },

@@ -6,8 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   StatusBar,
-  ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -27,6 +25,7 @@ import viewService from '../services/viewService';
 import { formatRelativeTime } from '../utils/dateUtils';
 import usePagination from '../hooks/usePagination';
 import LoadingFooter from '../components/LoadingFooter';
+import LoadingScreen from '../components/LoadingScreen';
 
 const { width, height } = Dimensions.get('window');
 
@@ -49,6 +48,7 @@ function ReelScreen({ navigation }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [selectedReelForOptions, setSelectedReelForOptions] = useState(null);
+  const [likingReels, setLikingReels] = useState(new Set());
 
   // Pagination
   const fetchReels = async (skip, limit) => {
@@ -90,7 +90,22 @@ function ReelScreen({ navigation }) {
 
   useEffect(() => {
     loadCurrentUser();
+    loadMyLikedReels();
   }, []);
+
+  const loadMyLikedReels = async () => {
+    try {
+      const isAuth = await authService.isAuthenticated();
+      if (!isAuth) return;
+
+      const likedReelsData = await reelService.getMyLikedReels();
+      const likedIds = new Set(likedReelsData.map(like => like.content_id));
+      setLikedReels(likedIds);
+      console.log('✅ Reels likés chargés:', likedIds.size);
+    } catch (error) {
+      console.error('Erreur chargement likes:', error);
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -98,6 +113,9 @@ function ReelScreen({ navigation }) {
       if (reels.length === 0) {
         loadInitial();
       }
+      // Recharger les likes à chaque fois qu'on revient sur l'écran
+      loadMyLikedReels();
+      
       return () => {
         setPaused(true);
       };
@@ -119,10 +137,21 @@ function ReelScreen({ navigation }) {
   };
 
   const handleLike = async (reelId) => {
+    // Empêcher les clics multiples pendant le traitement
+    if (likingReels.has(reelId)) {
+      console.log('⚠️ Like déjà en cours de traitement pour ce reel');
+      return;
+    }
+
     try {
+      // Marquer ce reel comme étant en cours de traitement
+      setLikingReels(prev => new Set([...prev, reelId]));
+      
       const isLiked = likedReels.has(reelId);
+      console.log('❤️ Toggle like:', { reelId, isLiked });
       
       if (isLiked) {
+        // Unlike - Mise à jour optimiste de l'UI
         setLikedReels(prev => {
           const newSet = new Set(prev);
           newSet.delete(reelId);
@@ -135,8 +164,12 @@ function ReelScreen({ navigation }) {
             likes: Math.max(0, (prev[reelId]?.likes || 0) - 1)
           }
         }));
+        
+        // Appel API
         await reelService.unlikeReel(reelId);
+        console.log('✅ Unlike réussi');
       } else {
+        // Like - Mise à jour optimiste de l'UI
         setLikedReels(prev => new Set([...prev, reelId]));
         setReelStats(prev => ({
           ...prev,
@@ -145,15 +178,54 @@ function ReelScreen({ navigation }) {
             likes: (prev[reelId]?.likes || 0) + 1
           }
         }));
+        
+        // Appel API
         await reelService.likeReel(reelId);
+        console.log('✅ Like réussi');
       }
     } catch (err) {
-      console.error('Error liking reel:', err);
+      console.error('❌ Erreur lors du like:', err);
+      
+      // Rollback en cas d'erreur
+      const wasLiked = likedReels.has(reelId);
+      if (wasLiked) {
+        // On avait unlike, on remet le like
+        setLikedReels(prev => new Set([...prev, reelId]));
+        setReelStats(prev => ({
+          ...prev,
+          [reelId]: {
+            ...prev[reelId],
+            likes: (prev[reelId]?.likes || 0) + 1
+          }
+        }));
+      } else {
+        // On avait like, on enlève le like
+        setLikedReels(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(reelId);
+          return newSet;
+        });
+        setReelStats(prev => ({
+          ...prev,
+          [reelId]: {
+            ...prev[reelId],
+            likes: Math.max(0, (prev[reelId]?.likes || 0) - 1)
+          }
+        }));
+      }
+      
       if (err.message?.includes('auth') || err.requiresAuth) {
         Alert.alert('Connexion requise', 'Vous devez être connecté pour liker un reel');
       } else {
         Alert.alert('Erreur', 'Impossible de liker ce reel');
       }
+    } finally {
+      // Retirer ce reel de la liste des traitements en cours
+      setLikingReels(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reelId);
+        return newSet;
+      });
     }
   };
 
@@ -177,11 +249,20 @@ function ReelScreen({ navigation }) {
   };
 
   const submitComment = async () => {
-    if (!commentText.trim() || submittingComment) return;
+    if (!commentText.trim() || submittingComment) {
+      console.log('❌ Commentaire vide ou déjà en cours de soumission');
+      return;
+    }
+
+    console.log('📝 Tentative d\'ajout de commentaire:', {
+      reelId: selectedReelId,
+      text: commentText.trim()
+    });
 
     try {
       setSubmittingComment(true);
-      await reelService.createComment(selectedReelId, commentText.trim());
+      const result = await reelService.createComment(selectedReelId, commentText.trim());
+      console.log('✅ Commentaire créé avec succès:', result);
       
       setReelStats(prev => ({
         ...prev,
@@ -193,12 +274,16 @@ function ReelScreen({ navigation }) {
       
       await loadComments(selectedReelId);
       setCommentText('');
+      Alert.alert('Succès', 'Commentaire publié');
     } catch (err) {
-      console.error('Error submitting comment:', err);
+      console.error('❌ Erreur lors de l\'ajout du commentaire:', err);
+      console.error('Détails de l\'erreur:', JSON.stringify(err, null, 2));
+      
       if (err.message?.includes('auth') || err.requiresAuth) {
         Alert.alert('Connexion requise', 'Vous devez être connecté pour commenter');
       } else {
-        Alert.alert('Erreur', 'Impossible de publier le commentaire');
+        const errorMessage = err.detail || err.message || 'Impossible de publier le commentaire';
+        Alert.alert('Erreur', errorMessage);
       }
     } finally {
       setSubmittingComment(false);
@@ -388,14 +473,7 @@ function ReelScreen({ navigation }) {
   }, [navigation]);
 
   if (loading && reels.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={'#E23E3E'} />
-          <Text style={styles.loadingText}>Chargement des reels...</Text>
-        </View>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (error && reels.length === 0) {

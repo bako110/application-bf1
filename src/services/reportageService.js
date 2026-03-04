@@ -1,6 +1,6 @@
 import api from '../config/api';
 
-class ReplayService {
+class ReportageService {
   // Récupérer tous les reportages
   async getAllReportages(params = {}) {
     try {
@@ -95,4 +95,4 @@ class ReplayService {
   }
 }
 
-export default new ReplayService();
+export default new ReportageService();

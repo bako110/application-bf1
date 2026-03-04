@@ -11,6 +11,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
+import LoadingScreen from '../components/LoadingScreen';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
@@ -288,9 +289,7 @@ export default function MoviesScreen({ navigation }) {
 
       {/* Movies Display */}
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={'#E23E3E'} />
-        </View>
+        <LoadingScreen />
       ) : viewMode === 'row' ? (
         <ScrollView 
           horizontal

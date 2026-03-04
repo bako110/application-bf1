@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -13,7 +12,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import favoriteService from '../services/favoriteService';
 import { useAuth } from '../contexts/AuthContext';
-import { createFavoritesStyles } from '../styles/favoritesStyles'; // Import des styles séparés
+import { createFavoritesStyles } from '../styles/favoritesStyles';
+import LoadingScreen from '../components/LoadingScreen'; // Import du loader
 
 export default function FavoritesScreen({ navigation }) {
   const { user } = useAuth();
@@ -30,7 +30,8 @@ export default function FavoritesScreen({ navigation }) {
     reportage: 0, 
     divertissement: 0,
     archive: 0,
-    reel: 0
+    reel: 0,
+    emission_category: 0
   }); // Pour les compteurs
   const filterScrollViewRef = useRef(null); // Référence pour le défilement horizontal
 
@@ -68,6 +69,7 @@ export default function FavoritesScreen({ navigation }) {
         divertissement: allData.filter(f => f.content_type === 'divertissement').length,
         archive: allData.filter(f => f.content_type === 'archive').length,
         reel: allData.filter(f => f.content_type === 'reel').length,
+        emission_category: allData.filter(f => f.content_type === 'emission_category').length,
       };
       
       console.log('📈 Compteurs calculés:', newCounts);
@@ -137,7 +139,8 @@ export default function FavoritesScreen({ navigation }) {
       reportage: { label: 'Reportages', icon: 'play-circle' },
       divertissement: { label: 'Divertissements', icon: 'person' },
       archive: { label: 'Archives', icon: 'archive' },
-      reel: { label: 'Reels', icon: 'videocam' }
+      reel: { label: 'Reels', icon: 'videocam' },
+      emission_category: { label: 'Catégories', icon: 'grid' }
     };
     return types[contentType] || { label: contentType, icon: 'help-circle' };
   };
@@ -149,7 +152,7 @@ export default function FavoritesScreen({ navigation }) {
     setTimeout(() => {
       if (filterScrollViewRef.current) {
         // Trouver l'index du filtre sélectionné
-        const filterOrder = ['all', 'movie', 'show', 'breaking_news', 'trending_show', 'reportage', 'divertissement', 'archive', 'reel'];
+        const filterOrder = ['all', 'movie', 'show', 'breaking_news', 'trending_show', 'reportage', 'divertissement', 'archive', 'reel', 'emission_category'];
         const filterIndex = filterOrder.indexOf(newFilter);
         
         if (filterIndex !== -1) {
@@ -330,12 +333,22 @@ export default function FavoritesScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
         )}
+        
+        {counts.emission_category > 0 && (
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'emission_category' && styles.filterButtonActive]}
+            onPress={() => handleFilterChange('emission_category')}
+          >
+            <Ionicons name="grid-outline" size={16} color={filter === 'emission_category' ? colors.text : colors.textSecondary} />
+            <Text style={[styles.filterText, filter === 'emission_category' && styles.filterTextActive]}>
+              Catégories ({counts.emission_category})
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingScreen />
       ) : filteredFavorites.length > 0 ? (
         <ScrollView
           style={styles.favoritesContainer}
@@ -344,9 +357,54 @@ export default function FavoritesScreen({ navigation }) {
         >
           <View style={styles.favoritesGrid}>
             {filteredFavorites.map((favorite) => (
-              <View key={favorite.id} style={styles.favoriteCard}>
+              <View key={favorite.id || favorite._id || Math.random().toString()} style={styles.favoriteCard}>
                 <TouchableOpacity
-                  onPress={() => {}}
+                  onPress={() => {
+                    // Navigation selon le type de contenu
+                    switch (favorite.content_type) {
+                      case 'movie':
+                        navigation.navigate('Accueil', { 
+                          screen: 'MovieDetail', 
+                          params: { movieId: favorite.content_id } 
+                        });
+                        break;
+                      case 'show':
+                        navigation.navigate('Accueil', { 
+                          screen: 'ShowDetail', 
+                          params: { showId: favorite.content_id } 
+                        });
+                        break;
+                      case 'breaking_news':
+                        navigation.navigate('Accueil', { 
+                          screen: 'NewsDetail', 
+                          params: { newsId: favorite.content_id } 
+                        });
+                        break;
+                      case 'reportage':
+                        navigation.navigate('Accueil', { 
+                          screen: 'ShowDetail', 
+                          params: { showId: favorite.content_id, isReportage: true } 
+                        });
+                        break;
+                      case 'divertissement':
+                        navigation.navigate('Accueil', { 
+                          screen: 'ShowDetail', 
+                          params: { showId: favorite.content_id, isDivertissement: true } 
+                        });
+                        break;
+                      case 'emission_category':
+                        navigation.navigate('Accueil', { 
+                          screen: 'EmissionDetail', 
+                          params: { 
+                            emissionId: favorite.content_id,
+                            title: favorite.content_title 
+                          } 
+                        });
+                        break;
+                      default:
+                        console.warn('Type de contenu non géré:', favorite.content_type);
+                    }
+                  }}
                   style={styles.favoriteImageContainer}
                 >
                   <Image

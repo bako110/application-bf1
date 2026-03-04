@@ -6,11 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   RefreshControl,
   TextInput,
   Animated,
 } from 'react-native';
+import LoadingScreen from '../../components/LoadingScreen';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../contexts/ThemeContext';
 import supportService from '../../services/supportService';
@@ -211,12 +211,7 @@ export default function TicketDetailScreen({ navigation, route }) {
   const styles = createStyles(colors);
 
   if (loading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color="#E23E3E" />
-        <Text style={[styles.loadingText, { color: colors.text }]}>Chargement du ticket...</Text>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (!ticket) {

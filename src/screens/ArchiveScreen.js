@@ -20,7 +20,8 @@ import useAutoRefresh from '../hooks/useAutoRefresh';
 import usePagination from '../hooks/usePagination';
 import LoadingFooter from '../components/LoadingFooter';
 import { useFocusEffect } from '@react-navigation/native';
-import { createArchiveStyles } from '../styles/archiveStyles'; // Import des styles séparés
+import { createArchiveStyles } from '../styles/archiveStyles';
+import LoadingScreen from '../components/LoadingScreen'; // Import du loader
 
 export default function ArchiveScreen({ navigation }) {
   const { colors } = useTheme();
@@ -44,6 +45,7 @@ export default function ArchiveScreen({ navigation }) {
     loadMore,
     setData: setArchives,
   } = usePagination(fetchArchives, 20);
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -90,7 +92,7 @@ export default function ArchiveScreen({ navigation }) {
       // Si l'utilisateur n'est pas connecté, rediriger vers la connexion
       if (!isAuthenticated) {
         Alert.alert(
-          ' Connexion Requise',
+          '🔒 Connexion Requise',
           'Vous devez être connecté pour accéder aux archives premium.\n\nConnectez-vous pour découvrir nos offres d\'abonnement.',
           [
             { text: 'Plus tard', style: 'cancel' },
@@ -115,7 +117,7 @@ export default function ArchiveScreen({ navigation }) {
         : 'Abonnement premium requis';
       
       Alert.alert(
-        ' Vidéo Premium',
+        '🔒 Vidéo Premium',
         `Cette vidéo d'archive est réservée aux abonnés premium.\n\n${priceText}\n\nDécouvrez nos offres d'abonnement pour accéder à toutes les archives vidéo.`,
         [
           { text: 'Plus tard', style: 'cancel' },
@@ -133,7 +135,7 @@ export default function ArchiveScreen({ navigation }) {
 
     // Naviguer vers le lecteur vidéo
     navigation.navigate('ShowDetail', { 
-      showId: archive.id, 
+      showId: archiveId, 
       isArchive: true 
     });
   };
@@ -145,7 +147,7 @@ export default function ArchiveScreen({ navigation }) {
       // Mode Grille - Carte verticale
       return (
         <TouchableOpacity
-          key={item.id || index}
+          key={item.id || item._id || index}
           style={styles.archiveCard}
           onPress={() => handleArchivePress(item)}
           activeOpacity={0.9}
@@ -179,7 +181,7 @@ export default function ArchiveScreen({ navigation }) {
       // Mode Liste - Carte horizontale
       return (
         <TouchableOpacity
-          key={item.id || index}
+          key={item.id || item._id || index}
           style={styles.archiveCardList}
           onPress={() => handleArchivePress(item)}
           activeOpacity={0.9}
@@ -213,15 +215,9 @@ export default function ArchiveScreen({ navigation }) {
 
   const styles = createArchiveStyles(colors);
 
+  // Afficher le loader pendant le chargement initial
   if (loading && archives.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Chargement des archives...</Text>
-        </View>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (

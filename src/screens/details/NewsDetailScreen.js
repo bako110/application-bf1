@@ -6,12 +6,12 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  ActivityIndicator,
   Dimensions,
   Share,
   Linking,
   Alert,
 } from 'react-native';
+import LoadingScreen from '../../components/LoadingScreen';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { colors } from '../../contexts/ThemeContext';
@@ -37,29 +37,30 @@ export default function NewsDetailScreen({ route, navigation }) {
     return items.sort((a, b) => {
       const dateA = new Date(a.created_at || a.published_at || a.date || 0);
       const dateB = new Date(b.created_at || b.published_at || b.date || 0);
-      return dateB - dateA; // Plus récent d'abord
+      return dateB - dateA;
     });
   };
 
   const loadNews = async () => {
     try {
+      console.log('📰 Chargement news:', newsId);
       const data = await newsService.getNewsById(newsId);
       setNews(data);
       
-      // Charger toutes les actualités similaires (sans limite)
-      const allNews = await newsService.getAllNews({ limit: 50 }); // Augmenté la limite
+      // Charger toutes les news similaires
+      const allNews = await newsService.getAllNews({ limit: 50 });
       
-      // Filtrer pour exclure l'actualité courante
+      // Filtrer pour exclure la news courante
       const filtered = allNews
-        .filter(item => item.id !== newsId && item._id !== newsId);
+        .filter(item => (item.id || item._id) !== (newsId || data.id || data._id));
       
       // Trier du plus récent au plus ancien
       const sortedFiltered = sortByDate(filtered);
       
-      console.log(`📦 ${sortedFiltered.length} actualités similaires chargées et triées`);
+      console.log(`📦 ${sortedFiltered.length} news similaires chargées et triées`);
       setRelatedNews(sortedFiltered);
     } catch (error) {
-      console.error('❌ Erreur chargement actualité:', error);
+      console.error('❌ Erreur chargement news:', error);
     }
     setLoading(false);
   };
@@ -73,7 +74,7 @@ export default function NewsDetailScreen({ route, navigation }) {
   };
 
   const shareOnTwitter = () => {
-    const text = encodeURIComponent(news?.title || 'Actualité BF1');
+    const text = encodeURIComponent(news?.title || 'News BF1');
     const url = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent('https://bf1tv.com/news/' + newsId)}`;
     Linking.openURL(url).catch(() => {
       Alert.alert('Erreur', 'Impossible d\'ouvrir Twitter');
@@ -81,7 +82,7 @@ export default function NewsDetailScreen({ route, navigation }) {
   };
 
   const shareOnWhatsApp = () => {
-    const text = encodeURIComponent(`${news?.title || 'Actualité BF1'} - https://bf1tv.com/news/${newsId}`);
+    const text = encodeURIComponent(`${news?.title || 'News BF1'} - https://bf1tv.com/news/${newsId}`);
     const url = `whatsapp://send?text=${text}`;
     Linking.openURL(url).catch(() => {
       Alert.alert('Erreur', 'WhatsApp n\'est pas installé sur cet appareil');
@@ -91,8 +92,8 @@ export default function NewsDetailScreen({ route, navigation }) {
   const shareNative = async () => {
     try {
       await Share.share({
-        message: `${news?.title || 'Actualité BF1'} - https://bf1tv.com/news/${newsId}`,
-        title: news?.title || 'Actualité BF1',
+        message: `${news?.title || 'News BF1'} - https://bf1tv.com/news/${newsId}`,
+        title: news?.title || 'News BF1',
       });
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de partager');
@@ -100,17 +101,14 @@ export default function NewsDetailScreen({ route, navigation }) {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={'#E23E3E'} />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (!news) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Actualité introuvable</Text>
+        <Ionicons name="alert-circle-outline" size={60} color="#E23E3E" />
+        <Text style={styles.errorText}>News introuvable</Text>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
@@ -135,6 +133,12 @@ export default function NewsDetailScreen({ route, navigation }) {
             colors={['transparent', '#000000']}
             style={styles.gradient}
           />
+          
+          {/* Badge Flash Info (gardé pour l'UI) */}
+          <View style={styles.flashBadge}>
+            <Ionicons name="flash" size={14} color="#fff" />
+            <Text style={styles.flashBadgeText}>FLASH INFO</Text>
+          </View>
         </View>
       )}
 
@@ -168,13 +172,14 @@ export default function NewsDetailScreen({ route, navigation }) {
         {/* Actions (Like, Comment, Favorite) */}
         <ContentActions
           contentId={newsId}
-          contentType="breaking_news"
+          contentType="breaking_news" 
           navigation={navigation}
         />
 
         {/* Contenu de l'article */}
         {(news.content || news.description) && (
           <View style={styles.articleContent}>
+            <Text style={styles.contentLabel}>Contenu</Text>
             <ExpandableText
               text={news.content || news.description}
               numberOfLines={5}
@@ -194,7 +199,7 @@ export default function NewsDetailScreen({ route, navigation }) {
 
         {/* Partage */}
         <View style={styles.shareSection}>
-          <Text style={styles.shareSectionTitle}>Partager cet article</Text>
+          <Text style={styles.shareSectionTitle}>Partager ce flash info</Text>
           <View style={styles.shareButtons}>
             <TouchableOpacity style={styles.shareButton} onPress={shareOnFacebook}>
               <Ionicons name="logo-facebook" size={24} color="#1877F2" />
@@ -215,13 +220,13 @@ export default function NewsDetailScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Autres actualités - TOUTES les actualités sans limite */}
+        {/* Autres flash info (gardé pour l'UI) */}
         {relatedNews.length > 0 && (
           <View style={styles.relatedSection}>
             <View style={styles.relatedHeader}>
-              <Ionicons name="newspaper" size={20} color={'#E23E3E'} />
+              <Ionicons name="flash" size={20} color={'#E23E3E'} />
               <Text style={styles.relatedTitle}>
-                Autres actualités ({relatedNews.length})
+                Autres flash info ({relatedNews.length})
               </Text>
             </View>
             <View style={styles.relatedGrid}>
@@ -235,7 +240,9 @@ export default function NewsDetailScreen({ route, navigation }) {
                   <TouchableOpacity
                     key={item.id || item._id}
                     style={styles.relatedCard}
-                    onPress={() => navigation.push('NewsDetail', { newsId: item.id || item._id })}
+                    onPress={() => {
+                      navigation.push('NewsDetail', { newsId: item.id || item._id });
+                    }}
                   >
                     <Image
                       source={{ uri: item.image_url || item.image || item.thumbnail || 'https://via.placeholder.com/120x100' }}
@@ -253,6 +260,7 @@ export default function NewsDetailScreen({ route, navigation }) {
                       </View>
                       {item.category && (
                         <View style={styles.relatedCategoryBadge}>
+                          <Ionicons name="flash" size={8} color="#E23E3E" />
                           <Text style={styles.relatedCategoryText}>{item.category}</Text>
                         </View>
                       )}
@@ -280,7 +288,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
-    paddingBottom: 100, // Padding bottom ajouté ici
+    paddingBottom: 100,
   },
   errorContainer: {
     flex: 1,
@@ -288,12 +296,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#000000',
     padding: 20,
-    paddingBottom: 100, // Padding bottom ajouté
+    paddingBottom: 100,
+    gap: 16,
   },
   errorText: {
     fontSize: 18,
     color: '#FFFFFF',
-    marginBottom: 20,
+    marginBottom: 10,
+  },
+  backButton: {
+    backgroundColor: '#E23E3E',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   imageContainer: {
     width: width,
@@ -311,27 +331,23 @@ const styles = StyleSheet.create({
     right: 0,
     height: 100,
   },
-  backIconButton: {
+  flashBadge: {
     position: 'absolute',
     top: 50,
     left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  backButton: {
     backgroundColor: '#E23E3E',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+    zIndex: 10,
   },
-  backButtonText: {
+  flashBadgeText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   content: {
     padding: 16,
@@ -343,13 +359,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   categoryBadge: {
-    backgroundColor: '#E23E3E',
+    backgroundColor: '#E23E3E20',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   categoryText: {
-    color: '#fff',
+    color: '#E23E3E',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -378,6 +394,12 @@ const styles = StyleSheet.create({
   articleContent: {
     marginTop: 24,
     marginBottom: 24,
+  },
+  contentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
   },
   contentText: {
     fontSize: 16,
@@ -490,11 +512,14 @@ const styles = StyleSheet.create({
     color: '#B0B0B0',
   },
   relatedCategoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#E23E3E20',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
     alignSelf: 'flex-start',
+    gap: 4,
   },
   relatedCategoryText: {
     fontSize: 10,

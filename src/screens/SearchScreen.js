@@ -112,6 +112,9 @@ export default function SearchScreen({ navigation }) {
     
     // Navigation selon le type
     switch (item.type) {
+      case 'sport':
+        navigation.navigate('ShowDetail', { showId: item.id, isSport: true });
+        break;
       case 'emission':
         navigation.navigate('EmissionDetail', { emissionId: item.id });
         break;
@@ -129,6 +132,9 @@ export default function SearchScreen({ navigation }) {
         break;
       case 'news':
         navigation.navigate('NewsDetail', { newsId: item.id });
+        break;
+      case 'archive':
+        navigation.navigate('ShowDetail', { showId: item.id, isArchive: true });
         break;
       case 'program':
         navigation.navigate('ShowDetail', { showId: item.id, isProgram: true });
@@ -154,12 +160,14 @@ export default function SearchScreen({ navigation }) {
       >
         <View style={styles.resultBadge}>
           <Text style={styles.resultBadgeText}>
-            {item.type === 'emission' ? 'Émission' : 
+            {item.type === 'sport' ? 'Sport' :
+             item.type === 'emission' ? 'Émission' : 
              item.type === 'show' ? 'Programme' : 
              item.type === 'reportage' ? 'Reportage' :
              item.type === 'divertissement' ? 'Divertissement' :
              item.type === 'jtandmag' ? 'JT/Mag' :
              item.type === 'news' ? 'Actualité' : 
+             item.type === 'archive' ? 'Archive' :
              item.type === 'program' ? 'Programme TV' : 'Contenu'}
           </Text>
         </View>
@@ -208,24 +216,28 @@ export default function SearchScreen({ navigation }) {
           <View style={styles.sectionHeader}>
             <Ionicons 
               name={
+                category === 'sports' ? 'football' :
                 category === 'emissions' ? 'tv' :
                 category === 'shows' ? 'play-circle' :
                 category === 'reportages' ? 'film' :
                 category === 'divertissements' ? 'mic' :
                 category === 'jtandmag' ? 'newspaper' :
                 category === 'news' ? 'flash' :
+                category === 'archives' ? 'archive' :
                 category === 'programs' ? 'calendar' : 'help-circle'
               } 
               size={20} 
               color={colors.primary} 
             />
             <Text style={styles.sectionTitle}>
-              {category === 'emissions' ? 'Émissions' :
+              {category === 'sports' ? 'Sports' :
+               category === 'emissions' ? 'Émissions' :
                category === 'shows' ? 'Programmes' :
                category === 'reportages' ? 'Reportages' :
                category === 'divertissements' ? 'Divertissements' :
                category === 'jtandmag' ? 'JT et Mag' :
                category === 'news' ? 'Actualités' :
+               category === 'archives' ? 'Archives' :
                category === 'programs' ? 'Programmes TV' : category}
             </Text>
             <Text style={styles.sectionCount}>({items.length})</Text>

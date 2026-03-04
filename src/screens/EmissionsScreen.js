@@ -8,36 +8,40 @@ import {
   RefreshControl,
   ActivityIndicator,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import emissionsService from '../services/emissionsService';
-import { createEmissionsStyles } from '../styles/emissionsStyles';
+import EmissionCategoryService from '../services/emissionCategoryService';
+import { EmissionStyles } from '../styles/emissionStyles';
+import favoriteService from '../services/favoriteService';
+import authService from '../services/authService';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function EmissionsScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
-  const styles = createEmissionsStyles(colors);
-
-  const numColumns = width > 900 ? 4 : width > 600 ? 3 : 2;
+  const styles = EmissionStyles(colors);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [emissions, setEmissions] = useState([]);
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
-    loadEmissions();
+    loadCategories();
   }, []);
 
-  const loadEmissions = async () => {
+  const loadCategories = async () => {
     try {
-      const data = await emissionsService.getAllEmissions();
-      setEmissions(data || []);
+      setLoading(true);
+      const data = await EmissionCategoryService.getActiveCategories();
+      setCategories(data || []);
     } catch (error) {
-      setEmissions([]);
+      console.error('❌ Erreur chargement catégories:', error);
+      setCategories([]);
     } finally {
       setLoading(false);
     }
@@ -45,80 +49,146 @@ export default function EmissionsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadEmissions();
+    await loadCategories();
     setRefreshing(false);
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      style={[styles.card, { width: `${100 / numColumns - 3}%` }]}
-      onPress={() =>
-        navigation.navigate('ShowDetail', { 
-          showId: item.id,
-          isEmission: true
-        })
+  const handleAddToFavorites = async (category) => {
+    try {
+      // Vérifier si l'utilisateur est connecté
+      const isAuthenticated = await authService.isAuthenticated();
+      
+      if (!isAuthenticated) {
+        Alert.alert(
+          'Connexion requise',
+          'Vous devez être connecté pour ajouter des émissions à vos favoris.',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { 
+              text: 'Se connecter', 
+              onPress: () => navigation.navigate('Mon compte')
+            }
+          ]
+        );
+        return;
       }
-    >
-      <Image source={{ uri: item.image }} style={styles.image} />
+      
+      console.log('➕ Ajout aux favoris:', category.name);
+      
+      // Ajouter la catégorie aux favoris
+      await favoriteService.addFavorite(
+        category.id || category._id,
+        'emission_category' // Type de contenu pour les catégories d'émissions
+      );
+      
+      Alert.alert(
+        'Succès',
+        `"${category.name}" a été ajouté à vos favoris`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('❌ Erreur ajout favoris:', error);
+      
+      // Vérifier si c'est déjà dans les favoris
+      if (error.response?.status === 400) {
+        Alert.alert(
+          'Information',
+          `"${category.name}" est déjà dans vos favoris`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Erreur',
+          'Impossible d\'ajouter aux favoris. Veuillez réessayer.',
+          [{ text: 'OK' }]
+        );
+      }
+    }
+  };
 
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.85)']}
-        style={styles.gradient}
-      />
+  const renderCategoryCard = ({ item }) => {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={styles.categoryCard}
+        onPress={() => {
+          navigation.navigate('CategoryDetail', {
+            categoryId: item.id || item._id,
+            categoryName: item.name
+          });
+        }}
+      >
+        <Image 
+          source={{ uri: item.image_main || 'https://via.placeholder.com/400x560' }} 
+          style={styles.categoryImage}
+          resizeMode="cover"
+        />
 
-      {item.isNew && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>NOUVEAU</Text>
-        </View>
-      )}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.85)']}
+          style={styles.categoryGradient}
+        />
 
-      <View style={styles.footer}>
-        <Text style={styles.title} numberOfLines={2}>
-          {item.title}
-        </Text>
-        {item.views !== undefined && item.views !== null && (
-          <View style={styles.viewsContainer}>
-            <Ionicons name="eye-outline" size={14} color="#fff" />
-            <Text style={styles.viewsText}>
-              {item.views > 1000 ? `${(item.views / 1000).toFixed(1)}k` : item.views.toString()} vues
-            </Text>
+        {item.is_new && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>Nouveau</Text>
           </View>
         )}
-      </View>
-    </TouchableOpacity>
-  );
+
+        <View style={styles.categoryContent}>
+          {item.image_icon && (
+            <Image 
+              source={{ uri: item.image_icon }} 
+              style={styles.categoryIcon}
+            />
+          )}
+          <Text style={styles.categoryTitle} numberOfLines={2}>
+            {item.name}
+          </Text>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleAddToFavorites(item);
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="bookmark" size={20} color="#fff" />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#888" />
-        <Text style={styles.loading}>Chargement...</Text>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={emissions}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id?.toString()}
-        numColumns={numColumns}
-        key={numColumns}
-        contentContainerStyle={styles.listContainer}
-        columnWrapperStyle={{ justifyContent: 'space-between' }}
+        data={categories}
+        renderItem={renderCategoryCard}
+        keyExtractor={(item) => item.id || item._id}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
+        contentContainerStyle={styles.categoriesGrid}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
         ListEmptyComponent={
           <View style={styles.centered}>
-            <Ionicons name="tv-outline" size={60} color="#888" />
-            <Text style={styles.empty}>Aucune émission disponible</Text>
+            <Ionicons name="grid-outline" size={60} color={colors.textSecondary} />
+            <Text style={styles.empty}>Aucune catégorie disponible</Text>
+            <Text style={styles.emptySubtext}>
+              Les catégories d'émissions seront affichées ici
+            </Text>
           </View>
         }
       />

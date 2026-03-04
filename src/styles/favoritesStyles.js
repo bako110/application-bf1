@@ -166,6 +166,7 @@ export const createFavoritesStyles = (colors) => StyleSheet.create({
   },
   favoritesContent: {
     paddingVertical: 16,
+    paddingBottom: 100,
   },
   favoritesGrid: {
     gap: 12,

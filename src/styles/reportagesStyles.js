@@ -47,7 +47,7 @@ export const createReportagesStyles = (viewMode) => StyleSheet.create({
   },
   videoCard: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 16,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#1A0000',
@@ -59,11 +59,18 @@ export const createReportagesStyles = (viewMode) => StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#1A0000',
     flexDirection: 'row',
-    height: 120,
+    height: 110,
   },
   videoImage: {
     width: '100%',
-    height: 200,
+    height: 130,
+  },
+  imageGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 130,
   },
   videoImageList: {
     width: 120,

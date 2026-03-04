@@ -168,6 +168,7 @@ export default function VideoPlayer({ videoUrl, posterUrl, onPlayPress, isPremiu
           style={styles.video}
           resizeMode="cover"
           paused={!isPlaying}
+          poster={!isPlaying ? posterUrl : undefined}
           onProgress={handleProgress}
           onLoad={handleLoad}
           onEnd={() => {}}

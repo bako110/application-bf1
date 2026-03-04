@@ -26,7 +26,7 @@ export const createJTandMagStyles = (colors) => {
     },
     showCard: {
       width: (width - 36) / 2,
-      height: 300,
+      height: 240,
       marginBottom: 16,
       borderRadius: 12,
       overflow: 'hidden',
@@ -45,6 +45,13 @@ export const createJTandMagStyles = (colors) => {
       width: '100%',
       height: '100%',
       resizeMode: 'cover',
+    },
+    imageGradient: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
     },
     showImageList: {
       width: 120,

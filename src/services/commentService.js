@@ -10,18 +10,28 @@ class CommentService {
    * @returns {Promise<Object>} Commentaire créé
    */
   async createComment(contentId, contentType, text) {
+    console.log('🔍 CommentService.createComment appelé:', { contentId, contentType, text });
+    
     // Vérifier l'authentification
     const isAuth = await authService.isAuthenticated();
+    console.log('🔐 Authentification:', isAuth);
+    
     if (!isAuth) {
+      console.log('❌ Utilisateur non authentifié');
       throw { requiresAuth: true, message: 'Vous devez être connecté pour commenter' };
     }
 
     try {
-      const response = await api.post('/comments/', {
+      const payload = {
         content_id: contentId,
         content_type: contentType,
         text: text,
-      });
+      };
+      console.log('📤 Envoi de la requête POST /comments/ avec:', payload);
+      
+      const response = await api.post('/comments/', payload);
+      console.log('✅ Réponse du serveur:', response.data);
+      
       // Mapper _id vers id
       const comment = response.data;
       return {
@@ -29,6 +39,9 @@ class CommentService {
         id: comment._id || comment.id
       };
     } catch (error) {
+      console.error('❌ Erreur API lors de la création du commentaire:', error);
+      console.error('Réponse d\'erreur:', error.response?.data);
+      console.error('Status:', error.response?.status);
       throw error.response?.data || error.message;
     }
   }
@@ -64,6 +77,53 @@ class CommentService {
       return response.data.count;
     } catch (error) {
       return 0;
+    }
+  }
+
+  /**
+   * Modifier un commentaire
+   * @param {string} commentId - ID du commentaire
+   * @param {string} text - Nouveau texte du commentaire
+   * @returns {Promise<Object>} Commentaire modifié
+   */
+  async updateComment(commentId, text) {
+    // Vérifier l'authentification
+    const isAuth = await authService.isAuthenticated();
+    if (!isAuth) {
+      throw { requiresAuth: true, message: 'Vous devez être connecté pour modifier un commentaire' };
+    }
+
+    try {
+      const response = await api.put(`/comments/${commentId}`, {
+        text: text,
+      });
+      const comment = response.data;
+      return {
+        ...comment,
+        id: comment._id || comment.id
+      };
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
+
+  /**
+   * Supprimer un commentaire
+   * @param {string} commentId - ID du commentaire
+   * @returns {Promise<Object>} Résultat de la suppression
+   */
+  async deleteComment(commentId) {
+    // Vérifier l'authentification
+    const isAuth = await authService.isAuthenticated();
+    if (!isAuth) {
+      throw { requiresAuth: true, message: 'Vous devez être connecté pour supprimer un commentaire' };
+    }
+
+    try {
+      const response = await api.delete(`/comments/${commentId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
     }
   }
 }

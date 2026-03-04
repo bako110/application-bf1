@@ -63,6 +63,11 @@ export default function DrawerMenu({ visible, onClose }) {
       description: 'Contenus divertissants',
     },
     {
+      title: 'Sport',
+      screen: 'Sport',
+      description: 'Actualités et événements sportifs',
+    },
+    {
       title: 'Archives',
       screen: 'Archive',
       description: 'Contenu premium',
@@ -110,6 +115,7 @@ export default function DrawerMenu({ visible, onClose }) {
         case 'JTandMag':
         case 'Reportages':
         case 'Divertissement':
+        case 'Sport':
           // Autres écrans dans HomeStack
           navigation.navigate('Accueil', { screen: screen });
           break;

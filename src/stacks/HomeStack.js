@@ -11,13 +11,13 @@ import DivertissementScreen from '../screens/DivertissementScreen';
 import ArchiveScreen from '../screens/ArchiveScreen';
 import ProgramScreen from '../screens/ProgramScreen';
 import MoviesScreen from '../screens/MoviesScreen';
-import EmissionsScreen from '../screens/EmissionsScreen';
+import sportScreen from '../screens/sportScreen';
 import MovieDetailScreen from '../screens/details/MovieDetailScreen';
 import MoviePlayerScreen from '../screens/details/MoviePlayerScreen';
 import LiveShowFullScreen from '../screens/details/LiveShowFullScreen';
 import ShowDetailScreen from '../screens/details/ShowDetailScreen';
 import NewsDetailScreen from '../screens/details/NewsDetailScreen';
-import EmissionDetailScreen from '../screens/details/EmissionDetailScreen';
+// import EmissionDetailScreen from '../screens/details/EmissionDetailScreen';
 import UGCScreen from '../screens/UGCScreen';
 import AboutScreen from '../screens/AboutScreen';
 import SearchScreen from '../screens/SearchScreen';
@@ -312,20 +312,10 @@ export default function HomeStack() {
       
       {/* Émissions */}
       <Stack.Screen 
-        name="Emissions" 
-        component={EmissionsScreen}
+        name="Sport" 
+        component={sportScreen}
         options={({ navigation }) => ({
-          title: 'Émissions',
-          headerRight: createHeaderRight(navigation),
-        })}
-      />
-      
-      {/* Détails de l'émission */}
-      <Stack.Screen 
-        name="EmissionDetail" 
-        component={EmissionDetailScreen}
-        options={({ navigation }) => ({
-          title: "Détails de l'Émission",
+          title: 'Sports',
           headerRight: createHeaderRight(navigation),
         })}
       />

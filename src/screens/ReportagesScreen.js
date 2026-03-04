@@ -17,8 +17,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import NotificationHeader from '../components/NotificationHeader';
 import likeService from '../services/likeService';
-import reportageService from '../services/replayService';
+import reportageService from '../services/reportageService';
 import { createReportagesStyles } from '../styles/reportagesStyles';
+import LoadingScreen from '../components/LoadingScreen'; // Import du loader
 
 // Fonctions utilitaires
 const formatDuration = (duration) => {
@@ -206,7 +207,7 @@ function ReportagesScreen({ navigation }) {
             style={{ marginRight: 16, padding: 8 }}
           >
             <Ionicons 
-              name={viewMode === 'grid' ? 'list' : 'grid'} 
+              name={viewMode === 'grid' ? 'list-outline' : 'grid-outline'} 
               size={24} 
               color="#FFFFFF" 
             />
@@ -219,11 +220,16 @@ function ReportagesScreen({ navigation }) {
 
   const filteredVideos = videos;
 
+  // Afficher le loader pendant le chargement initial
+  if (loading && videos.length === 0) {
+    return <LoadingScreen />;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.content}
-        contentContainerStyle={{ paddingTop: 16 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 80 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#E23E3E'} />
@@ -248,9 +254,18 @@ function ReportagesScreen({ navigation }) {
                 key={video.id || video._id || index} 
                 style={viewMode === 'grid' ? styles.videoCard : styles.videoCardList}
                 activeOpacity={0.9}
-                onPress={() => navigation.navigate('ShowDetail', { showId: video.id || video._id, isReplay: true })}
+                onPress={() => navigation.navigate('ShowDetail', { showId: video.id || video._id, isReportage: true })}
               >
                 <Image source={{ uri: video.image_url || video.image || 'https://via.placeholder.com/400x250' }} style={viewMode === 'grid' ? styles.videoImage : styles.videoImageList} />
+                
+                {/* Gradient pour améliorer la lisibilité */}
+                {viewMode === 'grid' && (
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.6)', 'transparent', 'transparent', 'rgba(0,0,0,0.8)']}
+                    locations={[0, 0.3, 0.7, 1]}
+                    style={styles.imageGradient}
+                  />
+                )}
                 
                 {/* Conteneur pour durée et like en mode grille */}
                 {viewMode === 'grid' && (
@@ -285,10 +300,6 @@ function ReportagesScreen({ navigation }) {
                     <Text style={styles.durationText}>{formatDuration(video.duration || video.duration_minutes)}</Text>
                   </View>
                 )}
-                
-                <View style={styles.playButton}>
-                  <Ionicons name="play" size={30} color={'#E23E3E'} />
-                </View>
                 
                 {/* Like button en mode liste (ancienne position) */}
                 {viewMode === 'list' && (

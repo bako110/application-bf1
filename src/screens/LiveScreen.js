@@ -14,13 +14,15 @@ import Video from 'react-native-video';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import liveStreamService from '../services/liveStreamService';
-import emissionsService from '../services/emissionsService';
+import emissionsService from '../services/sportService';
 import jtandMagService from '../services/jtandMagService';
 import divertissementService from '../services/divertissementService';
+import reportageService from '../services/reportageService';
 import api from '../config/api';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import Orientation from 'react-native-orientation-locker';
+import LoadingScreen from '../components/LoadingScreen';
 
 const { width, height } = Dimensions.get('window');
 const VIDEO_HEIGHT = width * 9 / 16; // Format 16:9
@@ -35,6 +37,12 @@ function LiveScreen({ navigation }) {
   const [divertissement, setDivertissement] = useState([]);
   const [reportages, setReportages] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingSections, setLoadingSections] = useState({
+    emissions: true,
+    jtandMag: true,
+    divertissement: true,
+    reportages: true,
+  });
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
@@ -107,20 +115,8 @@ function LiveScreen({ navigation }) {
     }, [isFirstLoad])
   );
 
-  // Gestion de l'orientation : permettre la rotation seulement dans LiveScreen
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log('📱 [LiveScreen] Écran focus - permettre rotation');
-      // Permettre toutes les orientations quand LiveScreen est actif
-      Orientation.unlockAllOrientations();
-      
-      return () => {
-        console.log('📱 [LiveScreen] Écran unfocus - verrouiller en portrait');
-        // Revenir au portrait quand on quitte LiveScreen
-        Orientation.lockToPortrait();
-      };
-    }, [])
-  );
+  // L'orientation reste verrouillée en portrait
+  // La rotation sera permise uniquement dans LiveShowFullScreen
 
   const loadStream = async () => {
     try {
@@ -138,50 +134,57 @@ function LiveScreen({ navigation }) {
 
   const loadEmissions = async () => {
     try {
-      const data = await emissionsService.getAllEmissions({ page: 1, per_page: 20 });
+      setLoadingSections(prev => ({ ...prev, emissions: true }));
+      const data = await emissionsService.getAllSports();
       // Trier par date du plus récent au plus ancien
       const sortedData = sortByDate(data || []);
       setEmissions(sortedData);
     } catch (error) {
-      console.error('❌ [LiveScreen] Error loading emissions:', error);
+      console.error(' [LiveScreen] Error loading sports:', error);
+    } finally {
+      setLoadingSections(prev => ({ ...prev, emissions: false }));
     }
   };
 
   const loadJTandMag = async () => {
     try {
+      setLoadingSections(prev => ({ ...prev, jtandMag: true }));
       const data = await jtandMagService.getJTandMag({ limit: 10 });
       // Trier par date du plus récent au plus ancien
       const sortedData = sortByDate(data || []);
       setJtandMag(sortedData);
     } catch (error) {
-      console.error('❌ [LiveScreen] Error loading JT et Mag:', error);
+      console.error(' [LiveScreen] Error loading JT et Mag:', error);
+    } finally {
+      setLoadingSections(prev => ({ ...prev, jtandMag: false }));
     }
   };
 
   const loadDivertissement = async () => {
     try {
+      setLoadingSections(prev => ({ ...prev, divertissement: true }));
       const data = await divertissementService.getAllDivertissements({ limit: 10 });
       // Trier par date du plus récent au plus ancien
       const sortedData = sortByDate(data || []);
       setDivertissement(sortedData);
     } catch (error) {
-      console.error('❌ [LiveScreen] Error loading divertissement:', error);
+      console.error(' [LiveScreen] Error loading divertissement:', error);
+    } finally {
+      setLoadingSections(prev => ({ ...prev, divertissement: false }));
     }
   };
 
   const loadReportages = async () => {
     try {
-      const response = await api.get('/reportage', { params: { limit: 10 } });
-      const data = response.data.map(reportage => ({
-        ...reportage,
-        id: reportage._id || reportage.id,
-        image_url: reportage.thumbnail || reportage.image_url,
-      }));
+      setLoadingSections(prev => ({ ...prev, reportages: true }));
+      const data = await reportageService.getAllReportages();
       // Trier par date du plus récent au plus ancien
       const sortedData = sortByDate(data || []);
       setReportages(sortedData);
     } catch (error) {
       console.error('❌ [LiveScreen] Error loading reportages:', error);
+    } finally {
+      setLoadingSections(prev => ({ ...prev, reportages: false }));
     }
   };
 
@@ -290,12 +293,7 @@ function LiveScreen({ navigation }) {
   const styles = createStyles(colors);
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Chargement de BF1 TV...</Text>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (!stream || !stream.url) {
@@ -374,10 +372,10 @@ function LiveScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Section Émissions */}
+        {/* Section Sports */}
       <View style={styles.contentSection}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Émissions disponibles</Text>
+          <Text style={styles.sectionTitle}>Sports</Text>
           <TouchableOpacity 
             onPress={() => {
               // Naviguer vers le tab Émissions
@@ -389,7 +387,12 @@ function LiveScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {emissions.length > 0 ? (
+        {loadingSections.emissions ? (
+          <View style={styles.sectionLoading}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Chargement...</Text>
+          </View>
+        ) : emissions.length > 0 ? (
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -453,7 +456,12 @@ function LiveScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {jtandMag.length > 0 ? (
+        {loadingSections.jtandMag ? (
+          <View style={styles.sectionLoading}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Chargement...</Text>
+          </View>
+        ) : jtandMag.length > 0 ? (
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -515,7 +523,12 @@ function LiveScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {divertissement.length > 0 ? (
+        {loadingSections.divertissement ? (
+          <View style={styles.sectionLoading}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Chargement...</Text>
+          </View>
+        ) : divertissement.length > 0 ? (
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -577,7 +590,12 @@ function LiveScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {reportages.length > 0 ? (
+        {loadingSections.reportages ? (
+          <View style={styles.sectionLoading}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Chargement...</Text>
+          </View>
+        ) : reportages.length > 0 ? (
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -650,6 +668,13 @@ const createStyles = (colors) => StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     marginTop: 4,
+  },
+  sectionLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 30,
+    gap: 10,
   },
   videoContainer: {
     width: width,
@@ -811,42 +836,42 @@ const createStyles = (colors) => StyleSheet.create({
     paddingRight: 16,
   },
   emissionCard: {
-    width: 160,
-    marginRight: 12,
-    borderRadius: 12,
+    width: 100,
+    marginRight: 8,
+    borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: colors.card,
-    elevation: 3,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   emissionImage: {
     width: '100%',
-    height: 220,
+    height: 130,
   },
   emissionOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 12,
+    padding: 6,
   },
   emissionTitle: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   durationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   durationText: {
     color: '#FFF',
-    fontSize: 11,
+    fontSize: 9,
   },
   featuredBadge: {
     position: 'absolute',

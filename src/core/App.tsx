@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useContext } from 'react';
-import { StatusBar, useColorScheme, View, ActivityIndicator } from 'react-native';
+import { StatusBar, useColorScheme, View, ActivityIndicator, BackHandler, ToastAndroid, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import Orientation from 'react-native-orientation-locker';
@@ -39,6 +39,80 @@ function App() {
 function NavigationWrapperWithBackHandling() {
   const [currentTab, setCurrentTab] = React.useState('Accueil');
   const navigationRef = React.useRef<NavigationContainerRef<any>>(null);
+  const backPressCount = React.useRef(0);
+  const backPressTimer = React.useRef<any>(null);
+
+  React.useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      const navigation = navigationRef.current;
+      if (!navigation) return false;
+
+      const state = navigation.getState();
+      const currentRoute = state?.routes[state.index];
+      const currentRouteName = currentRoute?.name;
+
+      console.log('🔙 Back press - Tab actuel:', currentRouteName, 'Count:', backPressCount.current);
+
+      // Si on est sur l'onglet Accueil
+      if (currentRouteName === 'Accueil') {
+        const homeState = currentRoute?.state;
+        const homeIndex = homeState?.index ?? 0;
+        const homeRoute = homeState?.routes?.[homeIndex];
+        
+        // Si on est sur l'écran principal de l'accueil (Movies)
+        if (!homeState || homeRoute?.name === 'Movies') {
+          // Double back press pour quitter
+          backPressCount.current += 1;
+
+          if (backPressCount.current === 1) {
+            // Premier back press - afficher le toast
+            if (Platform.OS === 'android') {
+              ToastAndroid.show('Appuyez encore une fois pour quitter', ToastAndroid.SHORT);
+            }
+            
+            // Réinitialiser après 2 secondes
+            if (backPressTimer.current) clearTimeout(backPressTimer.current);
+            backPressTimer.current = setTimeout(() => {
+              backPressCount.current = 0;
+            }, 2000);
+            
+            return true; // Empêcher la sortie
+          } else {
+            // Deuxième back press - quitter l'app
+            BackHandler.exitApp();
+            return true;
+          }
+        } else {
+          // On est dans un sous-écran de l'accueil - retour normal
+          backPressCount.current = 0;
+          return false;
+        }
+      } else {
+        // On n'est pas sur l'onglet Accueil
+        const routeState = currentRoute?.state;
+        const routeIndex = routeState?.index ?? 0;
+        
+        // Si on a navigué dans plusieurs écrans dans cet onglet
+        if (routeState && routeIndex > 0) {
+          // Laisser le retour normal fonctionner
+          backPressCount.current = 0;
+          return false;
+        } else {
+          // On est sur l'écran principal d'un autre onglet
+          // Retourner directement à l'accueil
+          console.log('✅ Retour direct vers Accueil');
+          navigation.navigate('Accueil');
+          backPressCount.current = 0;
+          return true;
+        }
+      }
+    });
+
+    return () => {
+      backHandler.remove();
+      if (backPressTimer.current) clearTimeout(backPressTimer.current);
+    };
+  }, []);
 
   return (
     <NavigationContainer ref={navigationRef}>

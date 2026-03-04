@@ -55,10 +55,9 @@ export default function MovieDetailScreen({ route, navigation }) {
       await viewService.incrementView(movieId, 'movie');
       
       // Charger les films similaires
-      const allMovies = await movieService.getAllMovies({ limit: 20 });
+      const allMovies = await movieService.getAllMovies({ limit: 50 });
       const filtered = allMovies
-        .filter(item => (item.id || item._id) !== movieId)
-        .slice(0, 6);
+        .filter(item => (item.id || item._id) !== movieId);
       setRelatedMovies(filtered);
     } catch (error) {
       console.error('Erreur chargement film:', error);
@@ -97,7 +96,11 @@ export default function MovieDetailScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.scrollContent}
+    >
       {/* Lecteur vidéo en haut */}
       <View style={styles.videoHeader}>
         <UniversalVideoPlayer
@@ -254,6 +257,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  scrollContent: {
+    paddingBottom: 100,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -343,10 +349,10 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   infoRow: {
     flexDirection: 'row',
@@ -360,7 +366,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#B0B0B0',
   },
   playButton: {
@@ -375,22 +381,22 @@ const styles = StyleSheet.create({
   },
   playButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   section: {
     marginTop: 24,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   description: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#B0B0B0',
-    lineHeight: 24,
+    lineHeight: 20,
   },
   detailsGrid: {
     gap: 16,
@@ -403,13 +409,13 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1A0000',
   },
   detailLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#B0B0B0',
   },
   detailValue: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontWeight: '500',
     flex: 1,
     textAlign: 'right',
   },
@@ -426,8 +432,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   relatedTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   relatedGrid: {
@@ -453,10 +459,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   relatedCardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   relatedTime: {
     fontSize: 12,

@@ -22,13 +22,25 @@ import ContentActions from '../../components/contentActions';
 import ExpandableText from '../../components/ExpandableText';
 import PremiumModal from '../../components/premiumModal';
 import UniversalVideoPlayer from '../../components/UniversalVideoPlayer';
+import LoadingScreen from '../../components/LoadingScreen';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatLongDate, formatRelativeTime } from '../../utils/dateUtils';
 
 const { width } = Dimensions.get('window');
 
 export default function ShowDetailScreen({ route, navigation }) {
-  const { showId, isJTandMag = false, isEmission = false, isDivertissement = false, isReportage = false, isTrending, isPopularProgram, isReplay = false, isInterview = false, isArchive = false, isProgram = false, programData = null, isBreakingNews = false } = route.params || {};
+  const { 
+    showId, 
+    isJTandMag = false, 
+    isSport = false, 
+    isDivertissement = false, 
+    isReportage = false, 
+    isFlashInfo = false,
+    isArchive = false, 
+    isProgram = false, 
+    programData = null 
+  } = route.params || {};
+  
   const { isPremium } = useAuth();
   const [show, setShow] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,15 +49,12 @@ export default function ShowDetailScreen({ route, navigation }) {
   const [liveStreamUrl, setLiveStreamUrl] = useState(null);
   
   // Déterminer le contentType selon le type de contenu
-  const contentType = isBreakingNews ? 'breaking_news' : 
+  const contentType = isFlashInfo ? 'flash_info' : 
                      isArchive ? 'archive' : 
                      isReportage ? 'reportage' :
-                     isReplay ? 'reportage' : 
                      isDivertissement ? 'divertissement' : 
                      isJTandMag ? 'jtandmag' : 
-                     isTrending ? 'jtandmag' : 
-                     isEmission ? 'emission' : 
-                     isPopularProgram ? 'popular_program' : 'show';
+                     isSport ? 'sport' : 'show';
 
   useEffect(() => {
     loadShow();
@@ -54,9 +63,7 @@ export default function ShowDetailScreen({ route, navigation }) {
   // Pause vidéo quand l'utilisateur quitte l'écran
   useFocusEffect(
     React.useCallback(() => {
-      // L'écran est actif
       return () => {
-        // L'écran n'est plus actif - arrêter la vidéo
         console.log('⏸️ Pause vidéo - utilisateur a quitté ShowDetailScreen');
       };
     }, [])
@@ -64,26 +71,22 @@ export default function ShowDetailScreen({ route, navigation }) {
 
   const loadShow = async () => {
     try {
-      console.log('📺 ShowDetailScreen - Params:', { showId, isReplay, isTrending, isPopularProgram, isInterview, isArchive, isProgram, isBreakingNews });
+      console.log('📺 ShowDetailScreen - Params:', { showId, isFlashInfo, isJTandMag, isDivertissement, isSport, isReportage, isArchive, isProgram });
       
       let data;
       if (isProgram && programData) {
         console.log('✅ Utilisation des données du programme EPG passées en paramètre');
         data = programData;
-      } else if (isBreakingNews === true) {
-        console.log('✅ Chargement depuis breaking news:', showId);
+      } else if (isFlashInfo) {
+        console.log('✅ Chargement depuis flash info:', showId);
         const response = await api.get(`/breaking-news/${showId}`);
         data = response.data;
-      } else if (isArchive === true) {
-        console.log('✅ Chargement depuis /archives/', showId);
+      } else if (isArchive) {
+        console.log('✅ Chargement depuis archives:', showId);
         const response = await api.get(`/archives/${showId}`);
         data = response.data;
       } else if (isReportage) {
         console.log('✅ Chargement depuis reportage:', showId);
-        const response = await api.get(`/reportage/${showId}`);
-        data = response.data;
-      } else if (isReplay === true) {
-        console.log('✅ Chargement depuis /reportage/', showId);
         const response = await api.get(`/reportage/${showId}`);
         data = response.data;
       } else if (isDivertissement) {
@@ -91,34 +94,27 @@ export default function ShowDetailScreen({ route, navigation }) {
         const divertissementService = require('../../services/divertissementService').default;
         data = await divertissementService.getDivertissementById(showId);
       } else if (isJTandMag) {
-        console.log('✅ Chargement depuis JTandMag:', showId);
+        console.log('✅ Chargement depuis JT et Mag:', showId);
         const jtandMagService = require('../../services/jtandMagService').default;
         data = await jtandMagService.getJTandMagById(showId);
-      } else if (isTrending) {
-        console.log('✅ Chargement depuis trending shows');
-        const jtandMagService = require('../../services/jtandMagService').default;
-        data = await jtandMagService.getJTandMagById(showId);
-      } else if (isPopularProgram) {
-        console.log('✅ Chargement depuis popular programs');
-        const popularProgramService = require('../../services/popularProgramService').default;
-        data = await popularProgramService.getProgramById(showId);
-      } else if (isEmission) {
-        console.log('✅ Chargement depuis emission:', showId);
-        const emissionService = require('../../services/emissionsService').default;
-        data = await emissionService.getEmissionById(showId);
+      } else if (isSport) {
+        console.log('✅ Chargement depuis sport:', showId);
+        const sportService = require('../../services/sportService').default;
+        data = await sportService.getSportById(showId);
       } else {
         console.log('✅ Chargement depuis /shows/', showId);
         data = await showService.getShowById(showId);
       }
+      
       setShow(data);
       
-      // Incrémenter les vues (fonctionne pour tous les utilisateurs, même sans compte)
+      // Incrémenter les vues
       await viewService.incrementView(showId, contentType);
       
       // Charger les contenus similaires
       await loadRelatedContent();
     } catch (error) {
-      console.error('❌ Erreur chargement émission:', error);
+      console.error('❌ Erreur chargement contenu:', error);
     }
     setLoading(false);
   };
@@ -128,7 +124,7 @@ export default function ShowDetailScreen({ route, navigation }) {
     return items.sort((a, b) => {
       const dateA = new Date(a.created_at || a.published_at || a.date || a.aired_at || 0);
       const dateB = new Date(b.created_at || b.published_at || b.date || b.aired_at || 0);
-      return dateB - dateA; // Plus récent d'abord
+      return dateB - dateA;
     });
   };
 
@@ -136,21 +132,23 @@ export default function ShowDetailScreen({ route, navigation }) {
     try {
       let allContent = [];
       
-      // Pour les programmes EPG, ne pas charger de contenus similaires
+      // Pour les programmes EPG, pas de contenus similaires
       if (isProgram) {
         console.log('ℹ️ Programme EPG - Pas de contenus similaires');
         setRelatedContent([]);
         return;
       }
       
-      if (isArchive) {
+      if (isFlashInfo) {
+        console.log('✅ Chargement des flash info similaires');
+        const response = await api.get('/breaking-news');
+        allContent = response.data;
+      } else if (isArchive) {
+        console.log('✅ Chargement des archives similaires');
         const response = await api.get('/archives');
         allContent = response.data;
       } else if (isReportage) {
         console.log('✅ Chargement des reportages similaires');
-        const response = await api.get('/reportage');
-        allContent = response.data;
-      } else if (isReplay) {
         const response = await api.get('/reportage');
         allContent = response.data;
       } else if (isDivertissement) {
@@ -161,18 +159,12 @@ export default function ShowDetailScreen({ route, navigation }) {
         console.log('✅ Chargement des JT et Mag similaires');
         const jtandMagService = require('../../services/jtandMagService').default;
         allContent = await jtandMagService.getJTandMag();
-      } else if (isTrending) {
-        console.log('✅ Chargement des JT et Mag similaires (trending)');
-        const jtandMagService = require('../../services/jtandMagService').default;
-        allContent = await jtandMagService.getJTandMag();
-      } else if (isPopularProgram) {
-        const popularProgramService = require('../../services/popularProgramService').default;
-        allContent = await popularProgramService.getAllPrograms();
-      } else if (isEmission) {
-        const emissionService = require('../../services/emissionsService').default;
-        allContent = await emissionService.getAllEmissions({ limit: 50 }); // Augmenté la limite pour avoir plus de contenu
+      } else if (isSport) {
+        console.log('✅ Chargement des contenus sportifs similaires');
+        const sportService = require('../../services/sportService').default;
+        allContent = await sportService.getAllSports({ limit: 50 });
       } else {
-        allContent = await showService.getAllShows({ limit: 50 }); // Augmenté la limite pour avoir plus de contenu
+        allContent = await showService.getAllShows({ limit: 50 });
       }
       
       // Filtrer pour exclure l'élément courant ET trier du plus récent au plus ancien
@@ -197,8 +189,8 @@ export default function ShowDetailScreen({ route, navigation }) {
       return;
     }
     
-    // Vérifier si c'est un programme EPG (show avec start_time ou startTime)
-    if ((show?.start_time || show?.startTime || isProgram) && !isReplay && !isArchive && !isInterview) {
+    // Vérifier si c'est un programme EPG
+    if ((show?.start_time || show?.startTime || isProgram) && !isReportage && !isArchive && !isFlashInfo) {
       console.log('✅ C\'est un programme EPG');
       const now = new Date();
       const programStartTime = new Date(show.startTime || show.start_time);
@@ -230,23 +222,30 @@ export default function ShowDetailScreen({ route, navigation }) {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={'#E23E3E'} />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (!show) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Émission introuvable</Text>
+        <Text style={styles.errorText}>Contenu introuvable</Text>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
       </View>
     );
   }
+
+  // Déterminer le titre de la section similaire
+  const getRelatedTitle = () => {
+    if (isFlashInfo) return 'Autres flash info';
+    if (isArchive) return 'Autres archives';
+    if (isReportage) return 'Autres reportages';
+    if (isDivertissement) return 'Autres divertissements';
+    if (isJTandMag) return 'Autres JT et Magazines';
+    if (isSport) return 'Autres contenus sportifs';
+    return 'Contenus similaires';
+  };
 
   return (
     <ScrollView 
@@ -262,22 +261,30 @@ export default function ShowDetailScreen({ route, navigation }) {
           return (
             <UniversalVideoPlayer
               videoUrl={videoUrl}
-              posterUrl={show?.image_url || show?.thumbnail}
+              posterUrl={show?.image_url || show?.thumbnail || show?.image}
               onPlayPress={handlePlay}
               isPremium={show?.is_premium || false}
               userHasPremium={isPremium}
               onPremiumRequired={() => setShowPremiumModal(true)}
               style={styles.headerVideo}
-              showLiveBadge={show.is_live && !isReplay && !isArchive && !isInterview}
+              showLiveBadge={show.is_live && !isReportage && !isArchive && !isFlashInfo}
             />
           );
         })()}
         
         {/* Badge Live */}
-        {show.is_live && !isReplay && !isArchive && !isInterview && (
+        {show.is_live && !isReportage && !isArchive && !isFlashInfo && (
           <View style={styles.liveBadge}>
             <View style={styles.liveIndicator} />
             <Text style={styles.liveText}>EN DIRECT</Text>
+          </View>
+        )}
+        
+        {/* Badge Flash Info */}
+        {isFlashInfo && (
+          <View style={[styles.liveBadge, { backgroundColor: '#FFA500' }]}>
+            <Ionicons name="flash" size={10} color="#fff" />
+            <Text style={styles.liveText}>FLASH INFO</Text>
           </View>
         )}
       </View>
@@ -301,6 +308,14 @@ export default function ShowDetailScreen({ route, navigation }) {
               <Text style={styles.infoText}>{show.host}</Text>
             </View>
           )}
+          
+          {isSport && show.sport_type && (
+            <View style={styles.infoItem}>
+              <Ionicons name="basketball" size={14} color={'#B0B0B0'} />
+              <Text style={styles.infoText}>{show.sport_type}</Text>
+            </View>
+          )}
+          
           {(show.start_time || show.startTime) && (
             <View style={styles.infoItem}>
               <Ionicons name="time" size={14} color={'#B0B0B0'} />
@@ -312,6 +327,13 @@ export default function ShowDetailScreen({ route, navigation }) {
                   return `${hours}:${minutes}`;
                 })()}
               </Text>
+            </View>
+          )}
+          
+          {show.edition && (
+            <View style={styles.infoItem}>
+              <Ionicons name="newspaper" size={14} color={'#B0B0B0'} />
+              <Text style={styles.infoText}>{show.edition}</Text>
             </View>
           )}
         </View>
@@ -346,6 +368,20 @@ export default function ShowDetailScreen({ route, navigation }) {
                 <Text style={styles.detailValue}>{show.edition}</Text>
               </View>
             )}
+            
+            {isSport && show.match_date && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Date du match</Text>
+                <Text style={styles.detailValue}>
+                  {new Date(show.match_date).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </Text>
+              </View>
+            )}
+            
             {show.created_at && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Ajouté le</Text>
@@ -358,35 +394,40 @@ export default function ShowDetailScreen({ route, navigation }) {
                 </Text>
               </View>
             )}
-            {show.duration && (
+            
+            {show.duration_minutes && (
               <View style={styles.detailItem}>
                 <Text style={styles.detailLabel}>Durée</Text>
                 <Text style={styles.detailValue}>
-                  {show.duration} minutes
+                  {show.duration_minutes} minutes
+                </Text>
+              </View>
+            )}
+            
+            {isArchive && show.price > 0 && (
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Prix</Text>
+                <Text style={[styles.detailValue, { color: '#E23E3E', fontWeight: 'bold' }]}>
+                  {Math.round(show.price)} XOF
                 </Text>
               </View>
             )}
           </View>
         </View>
 
-        {/* Contenus similaires - TOUS les éléments sans limite */}
+        {/* Contenus similaires */}
         {relatedContent.length > 0 && (
           <View style={styles.relatedSection}>
             <View style={styles.relatedHeader}>
               <Ionicons name="play-circle" size={18} color={'#E23E3E'} />
               <Text style={styles.relatedTitle}>
-                {isInterview ? 'Autres divertissements' : 
-                 isReplay ? 'Autres reportages' : 
-                 isArchive ? 'Autres archives' : 
-                 isTrending ? 'Autres JT et Magazines' : 
-                 isPopularProgram ? 'Autres programmes populaires' : 
-                 'Autres contenus'} ({relatedContent.length})
+                {getRelatedTitle()} ({relatedContent.length})
               </Text>
             </View>
             <View style={styles.relatedGrid}>
               {relatedContent.map((item) => {
                 // Formater la date pour l'afficher
-                const itemDate = item.created_at || item.published_at || item.date || item.aired_at;
+                const itemDate = item.created_at || item.published_at || item.date || item.aired_at || item.match_date;
                 const formattedDate = itemDate ? 
                   new Date(itemDate).toLocaleDateString('fr-FR', {
                     day: 'numeric',
@@ -399,14 +440,12 @@ export default function ShowDetailScreen({ route, navigation }) {
                     style={styles.relatedCard}
                     onPress={() => navigation.push('ShowDetail', { 
                       showId: item.id || item._id,
-                      isReportage,
-                      isJTandMag,
-                      isDivertissement,
-                      isTrending,
-                      isPopularProgram,
-                      isReplay,
-                      isInterview,
-                      isArchive
+                      isFlashInfo: isFlashInfo,
+                      isJTandMag: isJTandMag,
+                      isDivertissement: isDivertissement,
+                      isSport: isSport,
+                      isReportage: isReportage,
+                      isArchive: isArchive
                     })}
                   >
                     <Image
@@ -421,13 +460,19 @@ export default function ShowDetailScreen({ route, navigation }) {
                         {item.host && (
                           <>
                             <Ionicons name="person" size={10} color="#B0B0B0" />
-                            <Text style={styles.relatedTime}>{item.host}</Text>
+                            <Text style={styles.relatedTime} numberOfLines={1}>{item.host}</Text>
                           </>
                         )}
                         {formattedDate && (
                           <>
                             <Ionicons name="time" size={10} color="#B0B0B0" />
                             <Text style={styles.relatedTime}>{formattedDate}</Text>
+                          </>
+                        )}
+                        {isSport && item.sport_type && (
+                          <>
+                            <Ionicons name="basketball" size={10} color="#B0B0B0" />
+                            <Text style={styles.relatedTime} numberOfLines={1}>{item.sport_type}</Text>
                           </>
                         )}
                       </View>
@@ -514,13 +559,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 16,
     zIndex: 10,
+    gap: 4,
   },
   liveIndicator: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#fff',
-    marginRight: 4,
   },
   liveText: {
     color: '#fff',

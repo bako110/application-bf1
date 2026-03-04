@@ -3,7 +3,7 @@ import { View, TouchableOpacity } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import NotificationHeader from '../components/NotificationHeader';
-import EmissionsScreen from '../screens/EmissionsScreen';
+import EmissionsScreen from '../screens/sportScreen';
 import EmissionDetailScreen from '../screens/details/EmissionDetailScreen';
 import ReportagesScreen from '../screens/ReportagesScreen';
 import ShowDetailScreen from '../screens/details/ShowDetailScreen';

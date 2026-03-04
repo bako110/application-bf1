@@ -18,6 +18,7 @@ import { createJTandMagStyles } from '../styles/jtandMagStyles';
 import jtandMagService from '../services/jtandMagService';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import NotificationHeader from '../components/NotificationHeader';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function JTandMagScreen({ navigation }) {
   const { colors } = useTheme();
@@ -133,14 +134,7 @@ export default function JTandMagScreen({ navigation }) {
   }, [navigation, viewMode]);
 
   if (loading && shows.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={'#E23E3E'} />
-          <Text style={styles.loadingText}>Chargement des émissions tendance...</Text>
-        </View>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (error && shows.length === 0) {
@@ -189,13 +183,22 @@ export default function JTandMagScreen({ navigation }) {
                   activeOpacity={0.9}
                   onPress={() => navigation.navigate('ShowDetail', { 
                     showId: show.id || show._id, 
-                    isTrending: true 
+                    isJTandMag: true 
                   })}
                 >
                   <Image 
                     source={{ uri: show.image_url || show.image }} 
                     style={viewMode === 'grid' ? styles.showImage : styles.showImageList}
                   />
+                  
+                  {/* Gradient pour améliorer la lisibilité en mode grille */}
+                  {viewMode === 'grid' && (
+                    <LinearGradient
+                      colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.95)']}
+                      locations={[0, 0.3, 1]}
+                      style={styles.imageGradient}
+                    />
+                  )}
                   
                   {viewMode === 'list' ? (
                     <View style={styles.listContentContainer}>

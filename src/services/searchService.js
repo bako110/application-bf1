@@ -9,8 +9,7 @@ class SearchService {
     try {
       const { 
         limit = 8,           // Limite par catégorie
-        minQueryLength = 2,   // Longueur minimale pour déclencher
-        categories = []       // Catégories spécifiques
+        minQueryLength = 2   // Longueur minimale pour déclencher
       } = params;
 
       // 1️⃣ Vérifier la longueur minimale
@@ -28,55 +27,23 @@ class SearchService {
 
       console.log(`🔍 Recherche dynamique: "${cleanQuery}"`);
 
-      // 2️⃣ Définir les catégories à chercher
-      const categoriesToSearch = categories.length > 0 ? categories : [
-        'emissions', 'shows', 'reportages', 'divertissements', 'jtandmag', 'news', 'programs'
-      ];
-
-      // 3️⃣ Lancer toutes les recherches en parallèle
-      const searchPromises = categoriesToSearch.map(category => 
-        this.searchCategory(category, cleanQuery, { limit })
-          .then(items => ({ category, items }))
-          .catch(error => {
-            console.error(`Erreur ${category}:`, error);
-            return { category, items: [] };
-          })
-      );
-
-      const results = await Promise.all(searchPromises);
-
-      // 4️⃣ Organiser les résultats
-      const categoryResults = {};
-      const allItems = [];
-
-      results.forEach(({ category, items }) => {
-        categoryResults[category] = items;
-        
-        // Ajouter chaque item avec son type
-        items.forEach(item => {
-          allItems.push({
-            ...item,
-            category,
-            type: this.mapCategoryToType(category),
-            searchScore: this.calculateRelevanceScore(item, cleanQuery)
-          });
-        });
+      // 2️⃣ Utiliser le nouvel endpoint centralisé /search
+      const response = await api.get('/search/', {
+        params: {
+          q: cleanQuery,
+          limit: limit
+        }
       });
 
-      // 5️⃣ Trier par pertinence
-      allItems.sort((a, b) => b.searchScore - a.searchScore);
+      console.log(`✅ Résultats de recherche reçus:`, response.data);
 
-      // 6️⃣ Générer des suggestions basées sur les titres
-      const suggestions = this.generateSuggestions(allItems, cleanQuery);
-
-      console.log(`✅ ${allItems.length} résultats trouvés`);
-
+      // 3️⃣ Retourner les résultats directement du backend
       return {
-        items: allItems.slice(0, limit * 3), // Limiter le nombre total
-        categoryResults,
-        suggestions,
-        totalFound: allItems.length,
-        hasMore: allItems.length > limit * 3,
+        items: response.data.items || [],
+        categoryResults: response.data.categoryResults || {},
+        suggestions: response.data.suggestions || [],
+        totalFound: response.data.totalFound || 0,
+        hasMore: response.data.hasMore || false,
         query: cleanQuery
       };
 
@@ -93,23 +60,45 @@ class SearchService {
     }
   }
 
-  // Recherche par catégorie individuelle
-  async searchCategory(category, query, { limit = 8 }) {
+  // Recherche globale (pour la page de résultats complets)
+  async searchAll(query, params = {}) {
     try {
-      const endpoint = this.getEndpointForCategory(category);
-      const params = this.getParamsForCategory(category, query, limit);
+      const { limit = 10, globalLimit = 50 } = params;
       
-      console.log(`🔗 Recherche ${category}: ${endpoint} avec params:`, params);
+      const results = await this.dynamicSearch(query, { limit });
       
-      const response = await api.get(endpoint, { params });
-      
-      // Transformer les données selon la catégorie
-      return this.transformResults(response.data, category);
+      return {
+        ...results,
+        items: results.items.slice(0, globalLimit)
+      };
       
     } catch (error) {
-      console.error(`❌ Erreur recherche ${category}:`, error);
-      return [];
+      console.error('❌ Erreur recherche globale:', error);
+      throw error;
     }
+  }
+
+  // Créer une fonction de recherche avec debounce
+  createDebouncedSearch(delay = 300) {
+    let timeoutId = null;
+    
+    return (query, params = {}) => {
+      return new Promise((resolve) => {
+        // Annuler la recherche précédente
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        timeoutId = setTimeout(async () => {
+          try {
+            const results = await this.dynamicSearch(query, params);
+            resolve(results);
+          } catch (error) {
+            resolve({ items: [], error: error.message });
+          }
+        }, delay);
+      });
+    };
   }
 
   // Endpoints pour chaque catégorie - CORRIGÉS
@@ -228,47 +217,6 @@ class SearchService {
       .slice(0, 5);
     
     return suggestions;
-  }
-
-  // Recherche globale (pour la page de résultats complets)
-  async searchAll(query, params = {}) {
-    try {
-      const { limit = 10, globalLimit = 50 } = params;
-      
-      const results = await this.dynamicSearch(query, { limit, categories: [] });
-      
-      return {
-        ...results,
-        items: results.items.slice(0, globalLimit)
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur recherche globale:', error);
-      throw error;
-    }
-  }
-
-  // Créer une fonction de recherche avec debounce
-  createDebouncedSearch(delay = 300) {
-    let timeoutId = null;
-    
-    return (query, params = {}) => {
-      return new Promise((resolve) => {
-        // Annuler la recherche précédente
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        
-        timeoutId = setTimeout(async () => {
-          try {
-            const results = await this.dynamicSearch(query, params);
-            resolve(results);
-          } catch (error) {
-            resolve({ items: [], error: error.message });
-          }
-        }, delay);
-      });
-    };
   }
 }
 

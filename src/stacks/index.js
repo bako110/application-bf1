@@ -6,4 +6,4 @@ export { default as NewsStack } from './NewsStack';
 export { default as ProfileStack } from './ProfileStack';
 export { default as ProgramStack } from './ProgramStack';
 export { default as ReportageStack } from './ReplayStack';
-export { default as EmissionsStack } from './ReplayStack';
+export { default as EmissionsStack } from './EmissionsStack';

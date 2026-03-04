@@ -8,17 +8,20 @@ import {
   Animated,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useTheme } from '../contexts/ThemeContext';
-import divertissementService from '../services/divertissementService';
 import { useFocusEffect } from '@react-navigation/native';
-import viewService from '../services/viewService';
-import useAutoRefresh from '../hooks/useAutoRefresh';
-import usePagination from '../hooks/usePagination';
-import LoadingFooter from '../components/LoadingFooter';
+import { useTheme } from '../contexts/ThemeContext';
 import { createDivertissementStyles } from '../styles/divertissementStyles';
+import divertissementService from '../services/divertissementService';
+import useAutoRefresh from '../hooks/useAutoRefresh';
+import NotificationHeader from '../components/NotificationHeader';
+import LoadingScreen from '../components/LoadingScreen';
+import LoadingFooter from '../components/LoadingFooter';
+import viewService from '../services/viewService';
+import usePagination from '../hooks/usePagination';
 
 export default function DivertissementScreen({ navigation }) {
   const { colors } = useTheme();
@@ -115,14 +118,7 @@ export default function DivertissementScreen({ navigation }) {
   }, [interviews.length, hasAnimated]);
 
   if (loading && interviews.length === 0) {
-    return (
-      <View style={baseStyles.container}>
-        <View style={baseStyles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={baseStyles.loadingText}>Chargement du divertissement...</Text>
-        </View>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { formatRelativeTime } from '../utils/dateUtils';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import NotificationHeader from '../components/NotificationHeader';
+import LoadingScreen from '../components/LoadingScreen';
 
 const { width } = Dimensions.get('window');
 
@@ -32,7 +33,7 @@ export default function BreakingNewsScreen({ navigation }) {
   const [categories, setCategories] = useState(['Tous']);
 
   const styles = createBreakingNewsStyles(colors);
-  const fadeAnim = new Animated.Value(1);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     loadNews();
@@ -70,29 +71,6 @@ export default function BreakingNewsScreen({ navigation }) {
   
   useAutoRefresh(loadNewsSilently, 10000, true);
 
-  const loadNews = async () => {
-    try {
-      setLoading(true);
-      const data = await newsService.getAllNews({ limit: 100 });
-      setNews(data || []);
-    } catch (error) {
-      console.error('❌ Error loading news:', error);
-      setNews([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredNews = selectedCategory === 'Tous'
-    ? news
-    : news.filter(item => (item.category || item.edition) === selectedCategory);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadNews();
-    setRefreshing(false);
-  };
-
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -112,6 +90,33 @@ export default function BreakingNewsScreen({ navigation }) {
       ),
     });
   }, [navigation, viewMode]);
+
+  const loadNews = async () => {
+    try {
+      setLoading(true);
+      const data = await newsService.getAllNews({ limit: 100 });
+      setNews(data || []);
+    } catch (error) {
+      console.error('❌ Error loading news:', error);
+      setNews([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredNews = selectedCategory === 'Tous'
+    ? news
+    : news.filter(item => (item.category || item.edition) === selectedCategory);
+
+  if (loading && news.length === 0) {
+    return <LoadingScreen />;
+  }
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadNews();
+    setRefreshing(false);
+  };
 
   return (
     <View style={styles.container}>
@@ -149,11 +154,7 @@ export default function BreakingNewsScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#E23E3E'} />
         }
       >
-        {loading && news.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Chargement des actualités...</Text>
-          </View>
-        ) : filteredNews.length === 0 ? (
+        {filteredNews.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="newspaper-outline" size={60} color={'#666'} />
             <Text style={styles.emptyText}>Aucune actualité disponible</Text>

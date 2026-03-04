@@ -5,21 +5,21 @@ import api from '../config/api';
  * Gère les appels API et les données des émissions
  */
 
-class EmissionsService {
+class SportService {
   /**
    * Récupère toutes les émissions
    * @param {Object} params - Paramètres de requête
    * @returns {Promise<Array>} Liste des émissions
    */
-  async getAllEmissions(params = {}) {
+  async getAllSports(params = {}) {
     try {
-      const response = await api.get('/emissions/', { params });
+      const response = await api.get('/sports/', { params });
       // Le backend retourne un objet EmissionList avec pagination
-      const emissions = response.data.emissions || [];
+      const sports = response.data.sports || [];
       // Mapper _id vers id pour chaque émission
-      return emissions.map(emission => ({
-        ...emission,
-        id: emission._id || emission.id
+      return sports.map(sport => ({
+        ...sport,
+        id: sport._id || sport.id
       }));
     } catch (error) {
       throw error.response?.data || error.message;
@@ -32,7 +32,7 @@ class EmissionsService {
    * @param {Object} options - Options supplémentaires (featured, is_new, page, per_page)
    * @returns {Promise<Array>} Liste des émissions
    */
-  async getEmissions(category = null, options = {}) {
+  async getAllSports(category = null, options = {}) {
     try {
       const params = { ...options };
       
@@ -40,13 +40,13 @@ class EmissionsService {
         params.category = category;
       }
       
-      const response = await api.get('/emissions/', { params });
+      const response = await api.get('/sports/', { params });
       // Le backend retourne un objet EmissionList avec pagination
-      const emissions = response.data.emissions || [];
+      const sports = response.data.sports || [];
       // Mapper _id vers id pour chaque émission
-      return emissions.map(emission => ({
-        ...emission,
-        id: emission._id || emission.id
+      return sports.map(sport => ({
+        ...sport,
+        id: sport._id || sport.id
       }));
     } catch (error) {
       throw error.response?.data || error.message;
@@ -58,9 +58,9 @@ class EmissionsService {
    * @param {string} id - ID de l'émission
    * @returns {Promise<Object>} Détails de l'émission
    */
-  async getEmissionById(id) {
+  async getSportById(id) {
     try {
-      const response = await api.get(`/emissions/${id}/`);
+      const response = await api.get(`/sports/${id}/`);
       // Mapper _id vers id
       const emission = response.data;
       return {
@@ -77,9 +77,9 @@ class EmissionsService {
    * @param {Object} params - Paramètres de requête
    * @returns {Promise<Array>} Liste des émissions featured
    */
-  async getFeaturedEmissions(params = {}) {
+  async getFeaturedSports(params = {}) {
     try {
-      const response = await api.get('/emissions/featured/', { params });
+      const response = await api.get('/sports/featured/', { params });
       // Mapper _id vers id pour chaque émission
       return response.data.map(emission => ({
         ...emission,
@@ -95,13 +95,13 @@ class EmissionsService {
    * @param {Object} params - Paramètres de requête
    * @returns {Promise<Array>} Liste des nouvelles émissions
    */
-  async getNewEmissions(params = {}) {
+  async getNewSports(params = {}) {
     try {
-      const response = await api.get('/emissions/new/', { params });
+      const response = await api.get('/sports/new/', { params });
       // Mapper _id vers id pour chaque émission
-      return response.data.map(emission => ({
-        ...emission,
-        id: emission._id || emission.id
+      return response.data.map(sport => ({
+        ...sport,
+        id: sport._id || sport.id
       }));
     } catch (error) {
       throw error.response?.data || error.message;
@@ -116,7 +116,7 @@ class EmissionsService {
    */
   async incrementViews(id, options = {}) {
     try {
-      const response = await api.post(`/emissions/${id}/views/`, options);
+      const response = await api.post(`/sports/${id}/views/`, options);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -125,4 +125,4 @@ class EmissionsService {
 
 }
 
-export default new EmissionsService();
+export default new SportService();
