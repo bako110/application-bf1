@@ -4,7 +4,7 @@ import useContentActions from '../hooks/useContentActions';
 import LoginRequiredModal from './loginRequiredModal';
 import CommentsModal from './commentsModal';
 
-const ContentActions = ({ contentId, contentType, navigation }) => {
+const ContentActions = ({ contentId, contentType, navigation, allowComments = true }) => {
   const {
     liked,
     likeCount,
@@ -18,7 +18,7 @@ const ContentActions = ({ contentId, contentType, navigation }) => {
     handleFavorite,
     handleComment,
     loadInitialState,
-  } = useContentActions(contentId, contentType);
+  } = useContentActions(contentId, contentType, allowComments);
 
   useEffect(() => {
     loadInitialState();
@@ -42,11 +42,13 @@ const ContentActions = ({ contentId, contentType, navigation }) => {
         <Text style={styles.count}>{likeCount}</Text>
       </TouchableOpacity>
 
-      {/* Bouton Commentaire */}
-      <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
-        <Text style={styles.icon}>💬</Text>
-        <Text style={styles.count}>{commentCount}</Text>
-      </TouchableOpacity>
+      {/* Bouton Commentaire - Affiché seulement si les commentaires sont autorisés */}
+      {allowComments && (
+        <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
+          <Text style={styles.icon}>💬</Text>
+          <Text style={styles.count}>{commentCount}</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Bouton Favori */}
       <TouchableOpacity 
@@ -81,6 +83,7 @@ const ContentActions = ({ contentId, contentType, navigation }) => {
           setShowLoginModal(true);
         }}
         onCommentChange={loadInitialState}
+        allowComments={allowComments}
       />
     </View>
   );

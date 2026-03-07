@@ -13,7 +13,7 @@ class SportService {
    */
   async getAllSports(params = {}) {
     try {
-      const response = await api.get('/sports/', { params });
+      const response = await api.get('/sports', { params });
       // Le backend retourne un objet EmissionList avec pagination
       const sports = response.data.sports || [];
       // Mapper _id vers id pour chaque émission
@@ -40,7 +40,7 @@ class SportService {
         params.category = category;
       }
       
-      const response = await api.get('/sports/', { params });
+      const response = await api.get('/sports', { params });
       // Le backend retourne un objet EmissionList avec pagination
       const sports = response.data.sports || [];
       // Mapper _id vers id pour chaque émission
@@ -60,7 +60,7 @@ class SportService {
    */
   async getSportById(id) {
     try {
-      const response = await api.get(`/sports/${id}/`);
+      const response = await api.get(`/sports/${id}`);
       // Mapper _id vers id
       const emission = response.data;
       return {
@@ -79,7 +79,7 @@ class SportService {
    */
   async getFeaturedSports(params = {}) {
     try {
-      const response = await api.get('/sports/featured/', { params });
+      const response = await api.get('/sports/featured', { params });
       // Mapper _id vers id pour chaque émission
       return response.data.map(emission => ({
         ...emission,
@@ -97,7 +97,7 @@ class SportService {
    */
   async getNewSports(params = {}) {
     try {
-      const response = await api.get('/sports/new/', { params });
+      const response = await api.get('/sports/new', { params });
       // Mapper _id vers id pour chaque émission
       return response.data.map(sport => ({
         ...sport,
@@ -116,10 +116,27 @@ class SportService {
    */
   async incrementViews(id, options = {}) {
     try {
-      const response = await api.post(`/sports/${id}/views/`, options);
+      const response = await api.post(`/sports/${id}/views`, options);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
+    }
+  }
+
+  /**
+   * Récupère tous les likes de l'utilisateur pour les sports
+   * @returns {Promise<Array>} Liste des sports likés
+   */
+  async getMyLikedSports() {
+    try {
+      const response = await api.get('/likes/my-likes', { 
+        params: { content_type: 'sport' } 
+      });
+      console.log('✅ getMyLikedSports - Réponse API:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ getMyLikedSports - Erreur:', error.response?.data || error.message);
+      return [];
     }
   }
 

@@ -96,7 +96,9 @@ const Splash: React.FC<SplashProps> = ({ onReady }) => {
           timeout: 5000,
         });
         
-        if (response.data && response.data.status === 'healthy') {
+        // Accepter toute réponse 200, peu importe le format
+        if (response.status === 200) {
+          console.log('✅ Backend health check OK');
           setServerReady(true);
           
           // Si l'image est déjà visible, vérifier le timing
@@ -105,8 +107,13 @@ const Splash: React.FC<SplashProps> = ({ onReady }) => {
           }
         }
       } catch (error) {
-        console.log('Backend health check failed (silent):', error);
-        // On ne fait rien, pas d'affichage d'erreur
+        console.log('⚠️ Backend health check failed (silent):', error);
+        // Continuer même en cas d'erreur pour ne pas bloquer l'app
+        setServerReady(true);
+        
+        if (imageVisible) {
+          checkAndRedirect();
+        }
       }
     };
 

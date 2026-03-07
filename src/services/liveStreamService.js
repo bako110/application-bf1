@@ -160,6 +160,44 @@ class LiveStreamService {
     this.updateCurrentProgram();
     console.log('✅ Données du flux BF1 rafraîchies');
   }
+
+  // Récupérer le statut du flux depuis l'API (avec viewers dynamique)
+  async getStreamStatusFromAPI() {
+    try {
+      console.log('📡 Récupération du statut du flux depuis l\'API...');
+      const response = await api.get('/livestream/status');
+      console.log('📺 Statut du flux reçu:', response.data);
+      
+      // Mettre à jour les données locales  
+      this.bf1Stream.viewers = response.data.viewers;
+      this.bf1Stream.name = response.data.name;
+      this.bf1Stream.url = response.data.url;
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erreur récupération statut flux:', error);
+      // Retourner les données locales par défaut
+      return this.bf1Stream;
+    }
+  }
+
+  // Récupérer uniquement le nombre de viewers depuis l'API  
+  async getViewersFromAPI() {
+    try {
+      console.log('👥 Récupération du nombre de spectateurs...');
+      const response = await api.get('/livestream/viewers');
+      console.log('👥 Spectateurs reçus:', response.data.viewers);
+      
+      // Mettre à jour le nombre local
+      this.bf1Stream.viewers = response.data.viewers;
+      
+      return response.data.viewers;
+    } catch (error) {
+      console.error('❌ Erreur récupération viewers:', error);
+      // Retourner le nombre local par défaut
+      return this.bf1Stream.viewers;
+    }
+  }
 }
 
 export default new LiveStreamService();

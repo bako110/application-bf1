@@ -19,6 +19,7 @@ import JTService from '../../services/jtandMagService';
 import DivertissementService from '../../services/divertissementService';
 import ReportageService from '../../services/reportageService';
 import { createEmissionDetailStyles } from '../../styles/emissionDetailStyles';
+import LoadingScreen from '../../components/LoadingScreen';
 
 /**
  * Écran de détail d'une émission
@@ -27,20 +28,21 @@ import { createEmissionDetailStyles } from '../../styles/emissionDetailStyles';
 export default function EmissionDetailScreen({ route, navigation }) {
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const { emissionId, contentType, title } = route.params;
+  const { emissionId, contentType: initialContentType, title } = route.params;
   
   const [emission, setEmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [relatedEmissions, setRelatedEmissions] = useState([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [contentType, setContentType] = useState(initialContentType);
   
   const styles = createEmissionDetailStyles(colors);
   const numColumns = width > 900 ? 4 : width > 600 ? 3 : 2;
 
   useEffect(() => {
     loadEmission();
-  }, [emissionId, contentType]);
+  }, [emissionId, initialContentType]);
 
   useEffect(() => {
     if (emission) {
@@ -53,9 +55,10 @@ export default function EmissionDetailScreen({ route, navigation }) {
       setLoading(true);
       
       let emissionData = null;
+      let foundContentType = initialContentType;
       
       // Charger selon le type de contenu
-      switch (contentType) {
+      switch (initialContentType) {
         case 'sports':
           emissionData = await SportService.getSportById(emissionId);
           break;
@@ -72,19 +75,19 @@ export default function EmissionDetailScreen({ route, navigation }) {
           // Essayer tous les services si le type n'est pas spécifié
           try {
             emissionData = await SportService.getSportById(emissionId);
-            if (emissionData) contentType = 'sports';
+            if (emissionData) foundContentType = 'sports';
           } catch (e) {
             try {
               emissionData = await JTService.getJTandMagById(emissionId);
-              if (emissionData) contentType = 'jtandmag';
+              if (emissionData) foundContentType = 'jtandmag';
             } catch (e) {
               try {
                 emissionData = await DivertissementService.getDivertissementById(emissionId);
-                if (emissionData) contentType = 'divertissement';
+                if (emissionData) foundContentType = 'divertissement';
               } catch (e) {
                 try {
                   emissionData = await ReportageService.getReportageById(emissionId);
-                  if (emissionData) contentType = 'reportages';
+                  if (emissionData) foundContentType = 'reportages';
                 } catch (e) {}
               }
             }
@@ -92,13 +95,14 @@ export default function EmissionDetailScreen({ route, navigation }) {
       }
       
       if (emissionData) {
+        setContentType(foundContentType);
         setEmission({
           ...emissionData,
-          contentType: contentType
+          contentType: foundContentType
         });
         
         // Incrémenter les vues selon le type
-        switch (contentType) {
+        switch (foundContentType) {
           case 'sports':
             await SportService.incrementViews(emissionId);
             break;
@@ -208,6 +212,18 @@ export default function EmissionDetailScreen({ route, navigation }) {
 
   const formatDuration = (seconds) => {
     if (!seconds) return 'N/A';
+    
+    // Si c'est en minutes (comme duration_minutes)
+    if (typeof seconds === 'number' && seconds < 1000) {
+      const hours = Math.floor(seconds / 60);
+      const mins = seconds % 60;
+      if (hours > 0) {
+        return `${hours}h ${mins}min`;
+      }
+      return `${seconds}min`;
+    }
+    
+    // Si c'est en secondes
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -219,12 +235,18 @@ export default function EmissionDetailScreen({ route, navigation }) {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
+    if (!dateString) return 'Date inconnue';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch (error) {
+      return 'Date inconnue';
+    }
   };
 
   const renderRelatedItem = ({ item }) => (
@@ -262,14 +284,7 @@ export default function EmissionDetailScreen({ route, navigation }) {
   );
 
   if (loading) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>
-          Chargement de l'émission...
-        </Text>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   if (!emission) {
@@ -294,7 +309,7 @@ export default function EmissionDetailScreen({ route, navigation }) {
       {/* Image en haut */}
       <View style={styles.header}>
         <Image 
-          source={{ uri: emission.image || emission.image_url || emission.thumbnail }} 
+          source={{ uri: emission.image || emission.image_url || emission.thumbnail || 'https://via.placeholder.com/800x400' }} 
           style={styles.emissionImage}
         />
         <LinearGradient
@@ -354,13 +369,13 @@ export default function EmissionDetailScreen({ route, navigation }) {
         <View style={styles.infoSection}>
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
-              <Ionicons name="time" size={16} color={colors.primary} />
+              <Ionicons name="time-outline" size={16} color={colors.primary} />
               <Text style={styles.infoText}>
-                {formatDuration(emission.duration || emission.duration_minutes * 60)}
+                {formatDuration(emission.duration || emission.duration_minutes)}
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Ionicons name="calendar" size={16} color={colors.primary} />
+              <Ionicons name="calendar-outline" size={16} color={colors.primary} />
               <Text style={styles.infoText}>
                 {formatDate(emission.date || emission.created_at)}
               </Text>
@@ -370,7 +385,7 @@ export default function EmissionDetailScreen({ route, navigation }) {
           {(emission.presenter || emission.host) && (
             <View style={styles.infoRow}>
               <View style={styles.infoItem}>
-                <Ionicons name="person" size={16} color={colors.primary} />
+                <Ionicons name="person-outline" size={16} color={colors.primary} />
                 <Text style={styles.infoText}>
                   {emission.presenter || emission.host}
                 </Text>
@@ -385,7 +400,7 @@ export default function EmissionDetailScreen({ route, navigation }) {
             Description
           </Text>
           <Text style={styles.description}>
-            {emission.description}
+            {emission.description || 'Aucune description disponible.'}
           </Text>
         </View>
 

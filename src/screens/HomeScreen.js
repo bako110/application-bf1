@@ -117,16 +117,53 @@ export default function HomeScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  
+  // Animation de scroll vertical pour effets parallax
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Animations des sections
+  // Animations des sections avec effets 3D
   const sectionAnimations = useRef({
-    live: new Animated.Value(0),
-    flashInfo: new Animated.Value(0),
-    jtMag: new Animated.Value(0),
-    divertissements: new Animated.Value(0),
-    sports: new Animated.Value(0),
-    reportages: new Animated.Value(0),
-    archives: new Animated.Value(0),
+    live: {
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(50),
+      scale: new Animated.Value(0.85),
+    },
+    flashInfo: {
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(50),
+      scale: new Animated.Value(0.85),
+      rotate: new Animated.Value(2),
+    },
+    jtMag: {
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(50),
+      scale: new Animated.Value(0.85),
+      rotate: new Animated.Value(-2),
+    },
+    divertissements: {
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(50),
+      scale: new Animated.Value(0.85),
+      rotate: new Animated.Value(2),
+    },
+    sports: {
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(50),
+      scale: new Animated.Value(0.85),
+      rotate: new Animated.Value(-2),
+    },
+    reportages: {
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(50),
+      scale: new Animated.Value(0.85),
+      rotate: new Animated.Value(2),
+    },
+    archives: {
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(50),
+      scale: new Animated.Value(0.85),
+      rotate: new Animated.Value(-2),
+    },
   }).current;
 
   const [itemAnimations, setItemAnimations] = useState({});
@@ -165,35 +202,68 @@ export default function HomeScreen({ navigation }) {
     }
   }, [bf1Stream]);
 
-  // Animation séquentielle des sections
+  // Animation séquentielle des sections avec effets modernes
   const startSequentialAnimation = useCallback(() => {
     const sections = [
       { key: 'live', delay: 0 },
-      { key: 'flashInfo', delay: 150 },
-      { key: 'jtMag', delay: 250 },
-      { key: 'divertissements', delay: 350 },
-      { key: 'sports', delay: 400 },
-      { key: 'reportages', delay: 450 },
-      { key: 'archives', delay: 550 },
+      { key: 'flashInfo', delay: 100 },
+      { key: 'jtMag', delay: 180 },
+      { key: 'divertissements', delay: 260 },
+      { key: 'sports', delay: 340 },
+      { key: 'reportages', delay: 420 },
+      { key: 'archives', delay: 500 },
     ];
 
     sections.forEach(section => {
-      Animated.timing(sectionAnimations[section.key], {
-        toValue: 1,
-        duration: 600,
-        delay: section.delay,
-        useNativeDriver: true,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      }).start();
+      const anims = sectionAnimations[section.key];
+      
+      // Animation parallèle avec spring et timing pour un effet plus dynamique
+      Animated.parallel([
+        // Opacity fade in
+        Animated.timing(anims.opacity, {
+          toValue: 1,
+          duration: 700,
+          delay: section.delay,
+          useNativeDriver: true,
+          easing: Easing.bezier(0.4, 0.0, 0.2, 1), // Material Design easing
+        }),
+        // TranslateY avec spring pour bounce naturel
+        Animated.spring(anims.translateY, {
+          toValue: 0,
+          delay: section.delay,
+          useNativeDriver: true,
+          tension: 50,
+          friction: 7,
+          velocity: 2,
+        }),
+        // Scale avec effet bounce
+        Animated.spring(anims.scale, {
+          toValue: 1,
+          delay: section.delay + 50,
+          useNativeDriver: true,
+          tension: 40,
+          friction: 6,
+        }),
+        // Rotation subtile pour effet 3D
+        ...(anims.rotate ? [
+          Animated.timing(anims.rotate, {
+            toValue: 0,
+            duration: 800,
+            delay: section.delay + 100,
+            useNativeDriver: true,
+            easing: Easing.bezier(0.34, 1.56, 0.64, 1), // Easing avec overshoot
+          })
+        ] : []),
+      ]).start();
     });
 
-    // Animation des items après les sections
+    // Animation des items après les sections avec délai optimisé
     setTimeout(() => {
       animateItemsSequentially();
-    }, 800);
+    }, 600);
   }, []);
 
-  // Animation des items individuels
+  // Animation des items individuels avec effets en cascade améliorés
   const animateItemsSequentially = useCallback(() => {
     const allItems = [];
     
@@ -231,20 +301,21 @@ export default function HomeScreen({ navigation }) {
 
     setItemAnimations(prev => ({ ...prev, ...newAnimations }));
 
-    // Animer chaque item avec délai progressif
+    // Animer chaque item avec effet cascade wave
     allItems.forEach(({ section, index, id }, itemIndex) => {
       const key = `${section}-${id || index}`;
       const animation = newAnimations[key] || itemAnimations[key];
       
       if (animation) {
         setTimeout(() => {
-          Animated.timing(animation, {
+          Animated.spring(animation, {
             toValue: 1,
-            duration: 400,
             useNativeDriver: true,
-            easing: Easing.out(Easing.cubic),
+            tension: 65,
+            friction: 8,
+            velocity: 1.5,
           }).start();
-        }, 50 + (itemIndex * 30));
+        }, itemIndex * 40); // Délai plus court pour cascade plus fluide
       }
     });
   }, [flashInfo, jtMag, divertissements, sports, reportages, archives, itemAnimations]);
@@ -396,9 +467,16 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
-  // Détection de fin de scroll
+  // Détection de fin de scroll avec animations dynamiques
   const handleScroll = (sectionName, navigationTarget, event) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    
+    // Animation dynamique basée sur la position de scroll
+    const scrollPercentage = contentOffset.x / (contentSize.width - layoutMeasurement.width);
+    
+    // Créer un effet de momentum visuel
+    const scrollVelocity = Math.abs(contentOffset.x - (contentOffset.lastX || 0));
+    contentOffset.lastX = contentOffset.x;
     
     const isAtEnd = contentOffset.x + layoutMeasurement.width >= contentSize.width - 50;
     
@@ -483,8 +561,24 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { 
+            useNativeDriver: true,
+            listener: (event) => {
+              // Animation dynamique basée sur la vitesse de scroll
+              const offsetY = event.nativeEvent.contentOffset.y;
+              
+              // Effets visuels selon la position du scroll
+              if (offsetY > 0) {
+                // L'utilisateur scrolle vers le bas
+              }
+            }
+          }
+        )}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -499,16 +593,10 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.contentContainer}>
           {/* SECTION LIVE BF1 */}
           <Animated.View style={{
-            opacity: sectionAnimations.live,
+            opacity: sectionAnimations.live.opacity,
             transform: [
-              { translateY: sectionAnimations.live.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30, 0]
-              })},
-              { scale: sectionAnimations.live.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.95, 1]
-              })}
+              { translateY: sectionAnimations.live.translateY },
+              { scale: sectionAnimations.live.scale }
             ]
           }}>
             <View style={styles.liveSection}>
@@ -620,12 +708,37 @@ export default function HomeScreen({ navigation }) {
 
           {/* SECTION FLASH INFO */}
           <Animated.View style={{
-            opacity: sectionAnimations.flashInfo,
+            opacity: sectionAnimations.flashInfo.opacity,
             transform: [
-              { translateY: sectionAnimations.flashInfo.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30, 0]
-              })}
+              { 
+                translateY: Animated.add(
+                  sectionAnimations.flashInfo.translateY,
+                  scrollY.interpolate({
+                    inputRange: [0, 300],
+                    outputRange: [0, -15],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                scale: Animated.multiply(
+                  sectionAnimations.flashInfo.scale,
+                  scrollY.interpolate({
+                    inputRange: [0, 300],
+                    outputRange: [1, 0.98],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                rotateZ: sectionAnimations.flashInfo.rotate.interpolate({
+                  inputRange: [-2, 0, 2],
+                  outputRange: ['-2deg', '0deg', '2deg']
+                })
+              },
+              {
+                perspective: 1000
+              }
             ]
           }}>
             <View style={styles.section}>
@@ -654,11 +767,25 @@ export default function HomeScreen({ navigation }) {
                         style={{
                           opacity: itemAnim,
                           transform: [
-                            { scale: itemAnim },
-                            { translateY: itemAnim.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [20, 0]
-                            })}
+                            { 
+                              scale: itemAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0.7, 1]
+                              })
+                            },
+                            { 
+                              translateY: itemAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [40, 0]
+                              })
+                            },
+                            {
+                              rotateY: itemAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: ['20deg', '0deg']
+                              })
+                            },
+                            { perspective: 1000 }
                           ]
                         }}
                       >
@@ -696,12 +823,35 @@ export default function HomeScreen({ navigation }) {
 
           {/* SECTION JT ET MAG */}
           <Animated.View style={{
-            opacity: sectionAnimations.jtMag,
+            opacity: sectionAnimations.jtMag.opacity,
             transform: [
-              { translateY: sectionAnimations.jtMag.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30, 0]
-              })}
+              { 
+                translateY: Animated.add(
+                  sectionAnimations.jtMag.translateY,
+                  scrollY.interpolate({
+                    inputRange: [0, 500],
+                    outputRange: [0, -20],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                scale: Animated.multiply(
+                  sectionAnimations.jtMag.scale,
+                  scrollY.interpolate({
+                    inputRange: [200, 600],
+                    outputRange: [1, 0.97],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                rotateZ: sectionAnimations.jtMag.rotate.interpolate({
+                  inputRange: [-2, 0, 2],
+                  outputRange: ['-2deg', '0deg', '2deg']
+                })
+              },
+              { perspective: 1000 }
             ]
           }}>
             <View style={styles.section}>
@@ -730,11 +880,25 @@ export default function HomeScreen({ navigation }) {
                         style={{
                           opacity: itemAnim,
                           transform: [
-                            { scale: itemAnim },
-                            { translateY: itemAnim.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [20, 0]
-                            })}
+                            { 
+                              scale: itemAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0.7, 1]
+                              })
+                            },
+                            { 
+                              translateY: itemAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [40, 0]
+                              })
+                            },
+                            {
+                              rotateY: itemAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: ['-20deg', '0deg']
+                              })
+                            },
+                            { perspective: 1000 }
                           ]
                         }}
                       >
@@ -773,12 +937,35 @@ export default function HomeScreen({ navigation }) {
 
           {/* SECTION DIVERTISSEMENT */}
           <Animated.View style={{
-            opacity: sectionAnimations.divertissements,
+            opacity: sectionAnimations.divertissements.opacity,
             transform: [
-              { translateY: sectionAnimations.divertissements.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30, 0]
-              })}
+              { 
+                translateY: Animated.add(
+                  sectionAnimations.divertissements.translateY,
+                  scrollY.interpolate({
+                    inputRange: [300, 800],
+                    outputRange: [0, -25],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                scale: Animated.multiply(
+                  sectionAnimations.divertissements.scale,
+                  scrollY.interpolate({
+                    inputRange: [400, 900],
+                    outputRange: [1, 0.96],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                rotateZ: sectionAnimations.divertissements.rotate.interpolate({
+                  inputRange: [-2, 0, 2],
+                  outputRange: ['-2deg', '0deg', '2deg']
+                })
+              },
+              { perspective: 1000 }
             ]
           }}>
             <View style={[styles.section, { marginBottom: 10 }]}>
@@ -847,12 +1034,35 @@ export default function HomeScreen({ navigation }) {
 
           {/* SECTION SPORT */}
           <Animated.View style={{
-            opacity: sectionAnimations.sports,
+            opacity: sectionAnimations.sports.opacity,
             transform: [
-              { translateY: sectionAnimations.sports.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30, 0]
-              })}
+              { 
+                translateY: Animated.add(
+                  sectionAnimations.sports.translateY,
+                  scrollY.interpolate({
+                    inputRange: [500, 1000],
+                    outputRange: [0, -30],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                scale: Animated.multiply(
+                  sectionAnimations.sports.scale,
+                  scrollY.interpolate({
+                    inputRange: [600, 1100],
+                    outputRange: [1, 0.95],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                rotateZ: sectionAnimations.sports.rotate.interpolate({
+                  inputRange: [-2, 0, 2],
+                  outputRange: ['-2deg', '0deg', '2deg']
+                })
+              },
+              { perspective: 1000 }
             ]
           }}>
             <View style={[styles.section, { marginBottom: 10 }]}>
@@ -932,12 +1142,35 @@ export default function HomeScreen({ navigation }) {
 
           {/* SECTION REPORTAGES */}
           <Animated.View style={{
-            opacity: sectionAnimations.reportages,
+            opacity: sectionAnimations.reportages.opacity,
             transform: [
-              { translateY: sectionAnimations.reportages.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30, 0]
-              })}
+              { 
+                translateY: Animated.add(
+                  sectionAnimations.reportages.translateY,
+                  scrollY.interpolate({
+                    inputRange: [700, 1200],
+                    outputRange: [0, -35],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                scale: Animated.multiply(
+                  sectionAnimations.reportages.scale,
+                  scrollY.interpolate({
+                    inputRange: [800, 1300],
+                    outputRange: [1, 0.94],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                rotateZ: sectionAnimations.reportages.rotate.interpolate({
+                  inputRange: [-2, 0, 2],
+                  outputRange: ['-2deg', '0deg', '2deg']
+                })
+              },
+              { perspective: 1000 }
             ]
           }}>
             <View style={styles.section}>
@@ -1009,12 +1242,35 @@ export default function HomeScreen({ navigation }) {
 
           {/* SECTION ARCHIVES */}
           <Animated.View style={{
-            opacity: sectionAnimations.archives,
+            opacity: sectionAnimations.archives.opacity,
             transform: [
-              { translateY: sectionAnimations.archives.interpolate({
-                inputRange: [0, 1],
-                outputRange: [30, 0]
-              })}
+              { 
+                translateY: Animated.add(
+                  sectionAnimations.archives.translateY,
+                  scrollY.interpolate({
+                    inputRange: [900, 1400],
+                    outputRange: [0, -40],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                scale: Animated.multiply(
+                  sectionAnimations.archives.scale,
+                  scrollY.interpolate({
+                    inputRange: [1000, 1500],
+                    outputRange: [1, 0.93],
+                    extrapolate: 'clamp'
+                  })
+                )
+              },
+              { 
+                rotateZ: sectionAnimations.archives.rotate.interpolate({
+                  inputRange: [-2, 0, 2],
+                  outputRange: ['-2deg', '0deg', '2deg']
+                })
+              },
+              { perspective: 1000 }
             ]
           }}>
             <View style={[styles.section, { marginBottom: 30 }]}>
@@ -1103,7 +1359,7 @@ export default function HomeScreen({ navigation }) {
             </View>
           </Animated.View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }

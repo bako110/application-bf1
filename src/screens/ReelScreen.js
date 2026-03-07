@@ -11,6 +11,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -25,7 +27,7 @@ import viewService from '../services/viewService';
 import { formatRelativeTime } from '../utils/dateUtils';
 import usePagination from '../hooks/usePagination';
 import LoadingFooter from '../components/LoadingFooter';
-import LoadingScreen from '../components/LoadingScreen';
+import SnakeLoader from '../components/LoadingScreen';
 
 const { width, height } = Dimensions.get('window');
 
@@ -39,6 +41,7 @@ function ReelScreen({ navigation }) {
   const [reelStats, setReelStats] = useState({});
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedReelId, setSelectedReelId] = useState(null);
+  const [selectedReel, setSelectedReel] = useState(null);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
@@ -93,17 +96,38 @@ function ReelScreen({ navigation }) {
     loadMyLikedReels();
   }, []);
 
+  // Initialiser les stats quand les reels sont chargés
+  useEffect(() => {
+    if (reels && reels.length > 0) {
+      const initialStats = {};
+      reels.forEach(reel => {
+        initialStats[reel.id] = {
+          likes: reel.likes || 0,
+          comments: reel.comments || 0,
+          shares: reel.shares || 0,
+          views: reel.views || 0,
+        };
+      });
+      setReelStats(prev => ({ ...prev, ...initialStats }));
+    }
+  }, [reels]);
+
   const loadMyLikedReels = async () => {
     try {
       const isAuth = await authService.isAuthenticated();
-      if (!isAuth) return;
+      if (!isAuth) {
+        console.log('⚠️ Utilisateur non connecté, likes non chargés');
+        return;
+      }
 
       const likedReelsData = await reelService.getMyLikedReels();
+      console.log('📥 Likes reçus du serveur:', likedReelsData);
+      
       const likedIds = new Set(likedReelsData.map(like => like.content_id));
       setLikedReels(likedIds);
-      console.log('✅ Reels likés chargés:', likedIds.size);
+      console.log('✅ Reels likés chargés:', likedIds.size, 'IDs:', Array.from(likedIds));
     } catch (error) {
-      console.error('Erreur chargement likes:', error);
+      console.error('❌ Erreur chargement likes:', error);
     }
   };
 
@@ -137,20 +161,36 @@ function ReelScreen({ navigation }) {
   };
 
   const handleLike = async (reelId) => {
+    // Vérifier l'authentification
+    const isAuth = await authService.isAuthenticated();
+    if (!isAuth) {
+      Alert.alert(
+        'Connexion requise',
+        'Vous devez être connecté pour liker un reel. Voulez-vous vous connecter ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Se connecter', onPress: () => navigation.navigate('Profile') }
+        ]
+      );
+      return;
+    }
+
     // Empêcher les clics multiples pendant le traitement
     if (likingReels.has(reelId)) {
       console.log('⚠️ Like déjà en cours de traitement pour ce reel');
       return;
     }
 
+    // Sauvegarder l'état avant pour le rollback
+    const wasLikedBefore = likedReels.has(reelId);
+
     try {
       // Marquer ce reel comme étant en cours de traitement
       setLikingReels(prev => new Set([...prev, reelId]));
       
-      const isLiked = likedReels.has(reelId);
-      console.log('❤️ Toggle like:', { reelId, isLiked });
+      console.log('❤️ Toggle like:', { reelId, wasLikedBefore });
       
-      if (isLiked) {
+      if (wasLikedBefore) {
         // Unlike - Mise à jour optimiste de l'UI
         setLikedReels(prev => {
           const newSet = new Set(prev);
@@ -187,9 +227,8 @@ function ReelScreen({ navigation }) {
       console.error('❌ Erreur lors du like:', err);
       
       // Rollback en cas d'erreur
-      const wasLiked = likedReels.has(reelId);
-      if (wasLiked) {
-        // On avait unlike, on remet le like
+      if (wasLikedBefore) {
+        // On avait essayé de unlike, on remet le like
         setLikedReels(prev => new Set([...prev, reelId]));
         setReelStats(prev => ({
           ...prev,
@@ -199,7 +238,7 @@ function ReelScreen({ navigation }) {
           }
         }));
       } else {
-        // On avait like, on enlève le like
+        // On avait essayé de like, on enlève le like
         setLikedReels(prev => {
           const newSet = new Set(prev);
           newSet.delete(reelId);
@@ -230,7 +269,34 @@ function ReelScreen({ navigation }) {
   };
 
   const handleComment = async (reelId) => {
+    // Trouver le reel complet pour accéder à allow_comments
+    const reel = reels.find(r => r.id === reelId);
+    
+    // Vérifier si les commentaires sont autorisés
+    if (reel && reel.allow_comments === false) {
+      Alert.alert(
+        'Commentaires désactivés',
+        'Les commentaires sont désactivés pour ce reel.'
+      );
+      return;
+    }
+    
+    // Vérifier l'authentification
+    const isAuth = await authService.isAuthenticated();
+    if (!isAuth) {
+      Alert.alert(
+        'Connexion requise',
+        'Vous devez être connecté pour commenter. Voulez-vous vous connecter ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Se connecter', onPress: () => navigation.navigate('Profile') }
+        ]
+      );
+      return;
+    }
+
     setSelectedReelId(reelId);
+    setSelectedReel(reel);
     setCommentModalVisible(true);
     await loadComments(reelId);
   };
@@ -280,6 +346,7 @@ function ReelScreen({ navigation }) {
       console.error('Détails de l\'erreur:', JSON.stringify(err, null, 2));
       
       if (err.message?.includes('auth') || err.requiresAuth) {
+        setSelectedReel(null);
         Alert.alert('Connexion requise', 'Vous devez être connecté pour commenter');
       } else {
         const errorMessage = err.detail || err.message || 'Impossible de publier le commentaire';
@@ -427,29 +494,39 @@ function ReelScreen({ navigation }) {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleLike(item.id)}
+            disabled={likingReels.has(item.id)}
           >
             <Ionicons 
               name={isLiked ? 'heart' : 'heart-outline'} 
               size={32} 
-              color={isLiked ? '#FF6B6B' : '#fff'} 
+              color={isLiked ? '#E23E3E' : '#fff'} 
             />
-            <Text style={styles.actionText}>{reelStats[item.id]?.likes || 0}</Text>
+            <Text style={styles.actionText}>
+              {reelStats[item.id]?.likes ?? item.likes ?? 0}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleComment(item.id)}
-          >
-            <Ionicons name="chatbubble-outline" size={30} color="#fff" />
-            <Text style={styles.actionText}>{reelStats[item.id]?.comments || 0}</Text>
-          </TouchableOpacity>
+          {/* Bouton Commentaire - Affiché seulement si les commentaires sont autorisés */}
+          {(item.allow_comments !== false) && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleComment(item.id)}
+            >
+              <Ionicons name="chatbubble-outline" size={30} color="#fff" />
+              <Text style={styles.actionText}>
+                {reelStats[item.id]?.comments ?? item.comments ?? 0}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleShare(item.id)}
           >
             <Ionicons name="arrow-redo-outline" size={30} color="#fff" />
-            <Text style={styles.actionText}>{reelStats[item.id]?.shares || 0}</Text>
+            <Text style={styles.actionText}>
+              {reelStats[item.id]?.shares ?? item.shares ?? 0}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -473,7 +550,11 @@ function ReelScreen({ navigation }) {
   }, [navigation]);
 
   if (loading && reels.length === 0) {
-    return <LoadingScreen />;
+    return (
+      <View style={styles.loadingContainer}>
+        <SnakeLoader />
+      </View>
+    );
   }
 
   if (error && reels.length === 0) {
@@ -611,31 +692,39 @@ function ReelScreen({ navigation }) {
               )}
             </ScrollView>
 
-            <View style={styles.commentInputContainer}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Ajouter un commentaire..."
-                placeholderTextColor={'#B0B0B0'}
-                value={commentText}
-                onChangeText={setCommentText}
-                multiline
-              />
-              <TouchableOpacity
-                style={[styles.sendButton, (!commentText.trim() || submittingComment) && styles.sendButtonDisabled]}
-                onPress={submitComment}
-                disabled={!commentText.trim() || submittingComment}
-              >
-                {submittingComment ? (
-                  <ActivityIndicator size="small" color={'#E23E3E'} />
-                ) : (
-                  <Ionicons
-                    name="send"
-                    size={20}
-                    color={commentText.trim() ? '#E23E3E' : '#B0B0B0'}
-                  />
-                )}
-              </TouchableOpacity>
-            </View>
+            {/* Zone de saisie - Affichée seulement si les commentaires sont autorisés */}
+            {selectedReel && selectedReel.allow_comments !== false ? (
+              <View style={styles.commentInputContainer}>
+                <TextInput
+                  style={styles.commentInput}
+                  placeholder="Ajouter un commentaire..."
+                  placeholderTextColor={'#B0B0B0'}
+                  value={commentText}
+                  onChangeText={setCommentText}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[styles.sendButton, (!commentText.trim() || submittingComment) && styles.sendButtonDisabled]}
+                  onPress={submitComment}
+                  disabled={!commentText.trim() || submittingComment}
+                >
+                  {submittingComment ? (
+                    <ActivityIndicator size="small" color={'#E23E3E'} />
+                  ) : (
+                    <Ionicons
+                      name="send"
+                      size={20}
+                      color={commentText.trim() ? '#E23E3E' : '#B0B0B0'}
+                    />
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={[styles.commentInputContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="lock-closed" size={24} color={'#B0B0B0'} />
+                <Text style={styles.emptyCommentsText}>Les commentaires sont désactivés</Text>
+              </View>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>

@@ -371,7 +371,11 @@ function ProgramScreen({ navigation }) {
   const styles = createProgramStyles(colors);
 
   if (loading) {
-    return <LoadingScreen />;
+    return (
+      <View style={styles.loadingContainer}>
+        <LoadingScreen />
+      </View>
+    );
   }
 
   return (

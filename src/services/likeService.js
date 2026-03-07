@@ -48,6 +48,28 @@ class LikeService {
       return 0;
     }
   }
+
+  // Récupérer tous les likes de l'utilisateur connecté
+  async getMyLikes(contentType = null) {
+    try {
+      const params = contentType ? { content_type: contentType } : {};
+      const response = await api.get('/likes/my-likes', { params });
+      return response.data;
+    } catch (error) {
+      console.error('❌ Erreur récupération my-likes:', error);
+      return [];
+    }
+  }
+
+  // Compter le nombre total de likes de l'utilisateur
+  async countMyLikes() {
+    try {
+      const likes = await this.getMyLikes();
+      return likes.length;
+    } catch (error) {
+      return 0;
+    }
+  }
 }
 
 export default new LikeService();

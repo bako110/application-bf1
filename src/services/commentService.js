@@ -29,7 +29,7 @@ class CommentService {
       };
       console.log('📤 Envoi de la requête POST /comments/ avec:', payload);
       
-      const response = await api.post('/comments/', payload);
+      const response = await api.post('/comments', payload);
       console.log('✅ Réponse du serveur:', response.data);
       
       // Mapper _id vers id
@@ -75,6 +75,38 @@ class CommentService {
     try {
       const response = await api.get(`/comments/content/${contentType}/${contentId}/count`);
       return response.data.count;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  /**
+   * Récupérer tous les commentaires d'un utilisateur
+   * @param {string} userId - ID de l'utilisateur
+   * @returns {Promise<Array>} Liste des commentaires
+   */
+  async getUserComments(userId) {
+    try {
+      const response = await api.get(`/comments/user/${userId}`);
+      return response.data.map(comment => ({
+        ...comment,
+        id: comment._id || comment.id
+      }));
+    } catch (error) {
+      console.error('❌ Erreur récupération commentaires utilisateur:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Compter le nombre total de commentaires d'un utilisateur
+   * @param {string} userId - ID de l'utilisateur
+   * @returns {Promise<number>} Nombre de commentaires
+   */
+  async countUserComments(userId) {
+    try {
+      const comments = await this.getUserComments(userId);
+      return comments.length;
     } catch (error) {
       return 0;
     }

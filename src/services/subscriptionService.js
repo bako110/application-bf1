@@ -37,7 +37,7 @@ class SubscriptionService {
       // Générer un ID de transaction unique
       const transactionId = `${paymentMethod.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      const response = await api.post('/subscriptions/', {
+      const response = await api.post('/subscriptions', {
         user_id: user.id,
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
@@ -102,7 +102,7 @@ class SubscriptionService {
   // Récupérer les plans disponibles depuis le backend
   async getAvailablePlans() {
     try {
-      const response = await api.get('/subscription-plans/', {
+      const response = await api.get('/subscription-plans', {
         params: { active_only: true }
       });
       

@@ -343,6 +343,7 @@ export default function ShowDetailScreen({ route, navigation }) {
           contentId={showId}
           contentType={contentType}
           navigation={navigation}
+          allowComments={show?.allow_comments !== false}
         />
 
         {/* Description */}

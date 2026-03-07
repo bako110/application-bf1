@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { colors } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import authService from '../services/authService';
 
 export default function ForgotPasswordScreen({ navigation }) {
+  const { isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  // Rediriger si l'utilisateur est déjà connecté
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('✅ Utilisateur déjà connecté, redirection vers le profil...');
+      navigation.replace('ProfileMain');
+    }
+  }, [isAuthenticated, user, navigation]);
 
   const handleForgotPassword = async () => {
     setLoading(true);

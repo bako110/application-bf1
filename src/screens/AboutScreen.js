@@ -12,6 +12,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { colors } from '../contexts/ThemeContext';
 import aboutService from '../services/aboutService';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function AboutScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
@@ -46,11 +47,7 @@ export default function AboutScreen({ navigation }) {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={'#E23E3E'} />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (

@@ -8,18 +8,22 @@ class ViewService {
    */
   async incrementView(contentId, contentType) {
     try {
-      console.log(`📊 Incrémentation des vues pour ${contentType} ID: ${contentId}`);
+      // Pour les reels, utiliser l'endpoint optimisé avec algorithme de recommandation
+      if (contentType === 'reel') {
+        const response = await api.post(`/reels/${contentId}/view`);
+        return response.data;
+      }
       
+      // Pour les autres types de contenu, utiliser l'endpoint général
       const response = await api.post('/views/increment', {
         content_id: contentId,
         content_type: contentType
       });
       
-      console.log(`✅ Vues incrémentées: ${response.data.views}`);
       return response.data;
     } catch (error) {
-      console.error('❌ Erreur incrémentation vues:', error);
-      // Ne pas bloquer l'application si l'incrémentation échoue
+      // Échouer silencieusement pour ne pas perturber l'UX
+      // L'utilisateur n'a pas besoin de savoir que le tracking a échoué
       return null;
     }
   }

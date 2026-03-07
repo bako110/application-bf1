@@ -174,6 +174,7 @@ export const createMoviesStyles = (colors, screenWidth) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000000',
   },
   moviesContainer: {
     flex: 1,

@@ -104,7 +104,7 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     marginBottom: 20,
   },
   liveCardFull: {
-    height: height * 0.5,
+    height: height * 0.3,
     marginHorizontal: 16,
     overflow: 'hidden',
     backgroundColor: colors.card,

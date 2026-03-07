@@ -174,6 +174,7 @@ export default function NewsDetailScreen({ route, navigation }) {
           contentId={newsId}
           contentType="breaking_news" 
           navigation={navigation}
+          allowComments={news?.allow_comments !== false}
         />
 
         {/* Contenu de l'article */}

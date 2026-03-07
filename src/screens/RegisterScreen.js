@@ -8,7 +8,7 @@ import { createRegisterStyles } from '../styles/registerStyles'; // Import des s
 
 export default function RegisterScreen({ navigation }) {
   const { colors } = useTheme();
-  const { register, login } = useAuth();
+  const { register, login, isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -17,6 +17,14 @@ export default function RegisterScreen({ navigation }) {
   const [suggestedUsername, setSuggestedUsername] = useState('');
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(null);
+
+  // Rediriger si l'utilisateur est déjà connecté
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('✅ Utilisateur déjà connecté, redirection vers le profil...');
+      navigation.replace('ProfileMain');
+    }
+  }, [isAuthenticated, user, navigation]);
 
   // Suggérer un username quand l'email change
   useEffect(() => {

@@ -14,7 +14,8 @@ class ReelService {
         description: reel.description || 'Description du reel',
         likes: reel.likes || 0,
         comments: reel.comments || 0,
-        shares: reel.shares || 0
+        shares: reel.shares || 0,
+        allow_comments: reel.allow_comments !== undefined ? reel.allow_comments : true
       }));
     } catch (error) {
       throw error.response?.data || error.message;
@@ -34,7 +35,8 @@ class ReelService {
         description: reel.description || 'Description du reel',
         likes: reel.likes || 0,
         comments: reel.comments || 0,
-        shares: reel.shares || 0
+        shares: reel.shares || 0,
+        allow_comments: reel.allow_comments !== undefined ? reel.allow_comments : true
       };
     } catch (error) {
       throw error.response?.data || error.message;
@@ -148,8 +150,10 @@ class ReelService {
       const response = await api.get('/likes/my-likes', { 
         params: { content_type: 'reel' } 
       });
+      console.log('✅ getMyLikedReels - Réponse API:', response.data);
       return response.data;
     } catch (error) {
+      console.error('❌ getMyLikedReels - Erreur:', error.response?.data || error.message);
       return [];
     }
   }
@@ -168,6 +172,18 @@ class ReelService {
         shares: 0,
         views: 0
       };
+    }
+  }
+
+  // Tracker la vue d'un reel (pour l'algorithme de recommandation)
+  async trackView(reelId) {
+    try {
+      const response = await api.post(`/reels/${reelId}/view`);
+      return response.data;
+    } catch (error) {
+      console.error('Erreur tracking vue:', error);
+      // Échouer silencieusement pour ne pas perturber l'UX
+      return { success: false };
     }
   }
 }

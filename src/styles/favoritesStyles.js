@@ -83,6 +83,7 @@ export const createFavoritesStyles = (colors) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000000',
   },
   emptyContainer: {
     flex: 1,

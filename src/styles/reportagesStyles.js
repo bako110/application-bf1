@@ -8,6 +8,12 @@ export const createReportagesStyles = (viewMode) => StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

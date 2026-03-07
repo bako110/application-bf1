@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Animated,
   RefreshControl,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -18,7 +17,7 @@ import { createJTandMagStyles } from '../styles/jtandMagStyles';
 import jtandMagService from '../services/jtandMagService';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import NotificationHeader from '../components/NotificationHeader';
-import LoadingScreen from '../components/LoadingScreen';
+import SnakeLoader from '../components/LoadingScreen';
 
 export default function JTandMagScreen({ navigation }) {
   const { colors } = useTheme();
@@ -134,7 +133,11 @@ export default function JTandMagScreen({ navigation }) {
   }, [navigation, viewMode]);
 
   if (loading && shows.length === 0) {
-    return <LoadingScreen />;
+    return (
+      <View style={styles.container}>
+        <SnakeLoader />
+      </View>
+    );
   }
 
   if (error && shows.length === 0) {

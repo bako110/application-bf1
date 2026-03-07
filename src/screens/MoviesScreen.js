@@ -5,19 +5,18 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
   TextInput,
   Dimensions,
   Modal,
   Pressable,
 } from 'react-native';
-import LoadingScreen from '../components/LoadingScreen';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import movieService from '../services/movieService';
 import likeService from '../services/likeService';
 import usePagination from '../hooks/usePagination';
+import SnakeLoader from '../components/LoadingScreen';
 import LoadingFooter from '../components/LoadingFooter';
 import { createMoviesStyles } from '../styles/moviesStyles'; // Import des styles séparés
 
@@ -289,7 +288,9 @@ export default function MoviesScreen({ navigation }) {
 
       {/* Movies Display */}
       {loading ? (
-        <LoadingScreen />
+        <View style={styles.loadingContainer}>
+          <SnakeLoader />
+        </View>
       ) : viewMode === 'row' ? (
         <ScrollView 
           horizontal

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   Dimensions,
   Text,
@@ -14,7 +13,7 @@ import Video from 'react-native-video';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import liveStreamService from '../services/liveStreamService';
-import emissionsService from '../services/sportService';
+import sportService from '../services/sportService';
 import jtandMagService from '../services/jtandMagService';
 import divertissementService from '../services/divertissementService';
 import reportageService from '../services/reportageService';
@@ -23,22 +22,26 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import Orientation from 'react-native-orientation-locker';
 import LoadingScreen from '../components/LoadingScreen';
+import SnakeLoader from '../components/LoadingScreen';
+import ContentActions from '../components/contentActions';
+import websocketService from '../services/websocketService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
-const VIDEO_HEIGHT = width * 9 / 16; // Format 16:9
+const VIDEO_HEIGHT = width * 0.75; // Augmenté à 75% de la largeur pour plus d'espace 
 
 function LiveScreen({ navigation }) {
   const { colors } = useTheme();
   const [stream, setStream] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [emissions, setEmissions] = useState([]);
+  const [sports, setSports] = useState([]);
   const [jtandMag, setJtandMag] = useState([]);
   const [divertissement, setDivertissement] = useState([]);
   const [reportages, setReportages] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingSections, setLoadingSections] = useState({
-    emissions: true,
+    sports: true,
     jtandMag: true,
     divertissement: true,
     reportages: true,
@@ -47,17 +50,20 @@ function LiveScreen({ navigation }) {
   const [videoProgress, setVideoProgress] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [liveStreamRefreshKey, setLiveStreamRefreshKey] = useState(0);
+  const [dynamicViewers, setDynamicViewers] = useState(0);
+  const [isConnectedToLive, setIsConnectedToLive] = useState(false);
   
   // États pour suivre la fin des sections horizontales et la redirection
   const [horizontalScrollEnd, setHorizontalScrollEnd] = useState({
-    emissions: false,
+    sports: false,
     jtandMag: false,
     divertissement: false,
     reportages: false,
   });
   
   const [redirectLock, setRedirectLock] = useState({
-    emissions: false,
+    sports: false,
     jtandMag: false,
     divertissement: false,
     reportages: false,
@@ -81,16 +87,40 @@ function LiveScreen({ navigation }) {
 
   const loadAllContent = async () => {
     await Promise.all([
-      loadEmissions(),
+      loadSports(),
       loadJTandMag(),
       loadDivertissement(),
       loadReportages(),
     ]);
   };
 
-  // Rafraîchir le flux quand l'écran devient actif (seulement au premier chargement)
+  // Rafraîchir le flux quand l'écran devient actif + WebSocket tracking
   useFocusEffect(
     React.useCallback(() => {
+      // Connexion WebSocket et tracking du livestream
+      const connectAndJoinLive = async () => {
+        try {
+          // Obtenir l'ID utilisateur si disponible
+          const userData = await AsyncStorage.getItem('user');
+          const userId = userData ? JSON.parse(userData).id : null;
+          
+          // Tracking silencieux
+          
+          // Se connecter au WebSocket si pas déjà connecté
+          if (!websocketService.getConnectionStatus().isConnected) {
+            await websocketService.connect();
+          }
+          
+          // Rejoindre le livestream (tracker l'utilisateur)
+          websocketService.joinLivestream(userId);
+          setIsConnectedToLive(true);
+          
+        } catch (error) {
+          console.error('❌ Erreur connexion WebSocket:', error);
+          // Ce n'est pas critique, continuer sans WebSocket
+        }
+      };
+      
       // Charger seulement au premier focus
       if (isFirstLoad) {
         loadStream();
@@ -98,33 +128,105 @@ function LiveScreen({ navigation }) {
         setIsFirstLoad(false);
       }
       
+      // Démarrer le tracking WebSocket
+      connectAndJoinLive();
+      
       // Jouer la vidéo quand l'écran est actif
       setIsPlaying(true);
       
       return () => {
+        // Quitter le livestream tracking quand on sort de l'écran
+        if (isConnectedToLive) {
+          // Déconnexion silencieuse
+          websocketService.leaveLivestream();
+          setIsConnectedToLive(false);
+        }
+        
         // Pause la vidéo quand on quitte l'écran
         setIsPlaying(false);
         // Réinitialiser les locks quand l'écran est focus
         setRedirectLock({
-          emissions: false,
+          sports: false,
           jtandMag: false,
           divertissement: false,
           reportages: false,
         });
       };
-    }, [isFirstLoad])
+    }, [isFirstLoad, isConnectedToLive])
   );
 
   // L'orientation reste verrouillée en portrait
   // La rotation sera permise uniquement dans LiveShowFullScreen
 
+  // Mise à jour en temps réel des likes/commentaires du livestream
+  useEffect(() => {
+    if (!stream || !stream.id) return;
+    
+    // Fonction de polling pour mettre à jour les compteurs
+    const pollLiveStreamData = () => {
+      // Incrémenter la clé pour forcer le rechargement des données
+      setLiveStreamRefreshKey(prev => prev + 1);
+    };
+    
+    // Démarrer le polling toutes les 5 secondes
+    const pollInterval = setInterval(pollLiveStreamData, 5000);
+    
+    // Cleanup: arrêter le polling quand le composant se démonte
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [stream?.id]);
+
+  // Mise à jour dynamique du nombre de spectateurs RÉELS
+  useEffect(() => {
+    if (!stream) return;
+    
+    // Fonction pour récupérer le nombre de spectateurs RÉELS
+    const updateViewers = async () => {
+      try {
+        const viewersData = await liveStreamService.getViewersFromAPI();
+        const realViewers = viewersData.viewers || viewersData;
+        setDynamicViewers(realViewers);
+        // Mise à jour silencieuse
+      } catch (error) {
+        // Erreur silencieuse - connexion en arrière-plan
+      }
+    };
+    
+    // Première mise à jour immédiate
+    updateViewers();
+    
+    // Puis mise à jour toutes les 10 secondes
+    const viewersInterval = setInterval(updateViewers, 10000);
+    
+    // ========================================
+    // NOUVEAU: Écouter les mises à jour WebSocket en temps réel
+    // ========================================
+    const handleViewerUpdate = (data) => {
+      if (data.type === 'viewer_joined' || data.type === 'viewer_left') {
+        // Mise à jour silencieuse en temps réel
+        setDynamicViewers(data.total_viewers);
+      }
+    };
+    
+    // S'inscrire aux messages WebSocket
+    const unsubscribe = websocketService.on('message', handleViewerUpdate);
+    
+    // Cleanup
+    return () => {
+      clearInterval(viewersInterval);
+      unsubscribe(); // Se désinscrire des messages WebSocket
+    };
+  }, [stream?.id]);
+
   const loadStream = async () => {
     try {
       console.log('📺 [LiveScreen] Chargement du flux BF1...');
-      const bf1Stream = await liveStreamService.getBF1Stream();
+      const bf1Stream = await liveStreamService.getStreamStatusFromAPI();
       console.log('📺 [LiveScreen] Flux BF1 chargé:', bf1Stream);
       console.log('📺 [LiveScreen] URL du flux:', bf1Stream?.url);
       setStream(bf1Stream);
+      setDynamicViewers(bf1Stream?.viewers || 0);
     } catch (error) {
       console.error('❌ [LiveScreen] Error loading stream:', error);
     } finally {
@@ -132,17 +234,17 @@ function LiveScreen({ navigation }) {
     }
   };
 
-  const loadEmissions = async () => {
+  const loadSports = async () => {
     try {
-      setLoadingSections(prev => ({ ...prev, emissions: true }));
-      const data = await emissionsService.getAllSports();
+      setLoadingSections(prev => ({ ...prev, sports: true }));
+      const data = await sportService.getAllSports();
       // Trier par date du plus récent au plus ancien
       const sortedData = sortByDate(data || []);
-      setEmissions(sortedData);
+      setSports(sortedData);
     } catch (error) {
-      console.error(' [LiveScreen] Error loading sports:', error);
+      console.error('❌ [LiveScreen] Error loading sports:', error);
     } finally {
-      setLoadingSections(prev => ({ ...prev, emissions: false }));
+      setLoadingSections(prev => ({ ...prev, sports: false }));
     }
   };
 
@@ -194,6 +296,15 @@ function LiveScreen({ navigation }) {
       loadStream(), 
       loadAllContent()
     ]);
+    
+    // Aussi mettre à jour les spectateurs
+    try {
+      const viewers = await liveStreamService.getViewersFromAPI();
+      setDynamicViewers(viewers);
+    } catch (error) {
+      console.error('❌ Erreur refresh spectateurs:', error);
+    }
+    
     setRefreshing(false);
   };
 
@@ -209,8 +320,8 @@ function LiveScreen({ navigation }) {
       setRedirectLock(prev => ({ ...prev, [sectionName]: true }));
       
       // Rediriger selon la section
-      if (sectionName === 'emissions') {
-        navigation.getParent()?.navigate('Émissions');
+      if (sectionName === 'sports') {
+        navigation.getParent()?.navigate('Accueil', { screen: 'Sport' });
       } else {
         navigation.getParent()?.navigate('Accueil', { screen: navigationTarget });
       }
@@ -357,12 +468,36 @@ function LiveScreen({ navigation }) {
                   style={styles.fullscreenButton}
                   onPress={handleFullscreen}
                 >
-                  <Ionicons name="expand" size={24} color="#FFF" />
+                  <Ionicons name="expand" size={20} color="#FFF" />
                 </TouchableOpacity>
               </View>
             </View>
           )}
         </TouchableOpacity>
+      </View>
+
+      {/* Actions: Like, Commentaire, Favori */}
+      <View style={styles.actionsContainer}>
+        <View style={styles.liveInfo}>
+          <View style={styles.liveBadge}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>EN DIRECT</Text>
+          </View>
+          <View style={styles.viewerContainer}>
+            <Ionicons name="eye" size={12} color={colors.textSecondary} />
+            <Text style={styles.viewerText}>{dynamicViewers || stream.viewers || 0} spectateurs</Text>
+          </View>
+        </View>
+        
+        <ContentActions
+          key={`livestream-${liveStreamRefreshKey}`}
+          contentId={stream.id || 'bf1'}
+          contentType="livestream"
+          navigation={navigation}
+          allowComments={true}
+        />
+        
+        <View style={styles.separator} />
       </View>
 
       {/* Contenu scrollable */}
@@ -378,40 +513,43 @@ function LiveScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Sports</Text>
           <TouchableOpacity 
             onPress={() => {
-              // Naviguer vers le tab Émissions
-              navigation.getParent()?.navigate('Émissions');
+              // Naviguer vers l'écran Sport dans HomeStack
+              navigation.getParent()?.navigate('Accueil', { screen: 'Sport' });
             }}
             style={styles.seeAllButton}
           >
-            <Ionicons name="arrow-forward-circle" size={28} color={colors.primary} />
+            <Ionicons name="arrow-forward-circle" size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
-        {loadingSections.emissions ? (
+        {loadingSections.sports ? (
           <View style={styles.sectionLoading}>
-            <ActivityIndicator size="small" color={colors.primary} />
+            <SnakeLoader />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Chargement...</Text>
           </View>
-        ) : emissions.length > 0 ? (
+        ) : sports.length > 0 ? (
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.emissionsScroll}
-            onScroll={(event) => handleHorizontalScroll('emissions', event)}
-            onScrollBeginDrag={(event) => handleScrollBeginDrag('emissions', event)}
-            onScrollEndDrag={(event) => handleScrollEndDrag('emissions', 'Émissions', event)}
-            onMomentumScrollEnd={(event) => handleMomentumScrollEnd('emissions', 'Émissions', event)}
+            onScroll={(event) => handleHorizontalScroll('sports', event)}
+            onScrollBeginDrag={(event) => handleScrollBeginDrag('sports', event)}
+            onScrollEndDrag={(event) => handleScrollEndDrag('sports', 'Sport', event)}
+            onMomentumScrollEnd={(event) => handleMomentumScrollEnd('sports', 'Sport', event)}
             scrollEventThrottle={16}
             decelerationRate="normal"
           >
-            {emissions.map((emission) => (
+            {sports.map((sport) => (
               <TouchableOpacity
-                key={emission.id}
+                key={sport.id}
                 style={styles.emissionCard}
-                onPress={() => navigation.navigate('EmissionDetail', { emissionId: emission.id })}
+                onPress={() => navigation.navigate('ShowDetail', { 
+                  showId: sport.id,
+                  isSport: true
+                })}
               >
                 <Image
-                  source={{ uri: emission.thumbnail || emission.image || 'https://via.placeholder.com/300x400' }}
+                  source={{ uri: sport.thumbnail || sport.image || 'https://via.placeholder.com/300x400' }}
                   style={styles.emissionImage}
                 />
                 <LinearGradient
@@ -419,16 +557,16 @@ function LiveScreen({ navigation }) {
                   style={styles.emissionOverlay}
                 >
                   <Text style={styles.emissionTitle} numberOfLines={2}>
-                    {emission.title}
+                    {sport.title}
                   </Text>
-                  {emission.duration && (
+                  {sport.duration && (
                     <View style={styles.durationBadge}>
                       <Ionicons name="time-outline" size={12} color="#FFF" />
-                      <Text style={styles.durationText}>{emission.duration} min</Text>
+                      <Text style={styles.durationText}>{sport.duration} min</Text>
                     </View>
                   )}
                 </LinearGradient>
-                {emission.featured && (
+                {sport.featured && (
                   <View style={styles.featuredBadge}>
                     <Ionicons name="star" size={12} color="#FFD700" />
                   </View>
@@ -437,7 +575,7 @@ function LiveScreen({ navigation }) {
             ))}
           </ScrollView>
         ) : (
-          <Text style={styles.noEmissionsText}>Aucune émission disponible</Text>
+          <Text style={styles.noEmissionsText}>Aucun sport disponible</Text>
         )}
       </View>
 
@@ -452,13 +590,13 @@ function LiveScreen({ navigation }) {
             }}
             style={styles.seeAllButton}
           >
-            <Ionicons name="arrow-forward-circle" size={28} color={colors.primary} />
+            <Ionicons name="arrow-forward-circle" size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
         {loadingSections.jtandMag ? (
           <View style={styles.sectionLoading}>
-            <ActivityIndicator size="small" color={colors.primary} />
+            <SnakeLoader />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Chargement...</Text>
           </View>
         ) : jtandMag.length > 0 ? (
@@ -479,7 +617,7 @@ function LiveScreen({ navigation }) {
                 style={styles.emissionCard}
                 onPress={() => navigation.navigate('ShowDetail', { 
                   showId: item.id,
-                  isJTandMag: true 
+                  isJTandMag: true
                 })}
               >
                 <Image
@@ -519,13 +657,13 @@ function LiveScreen({ navigation }) {
             }}
             style={styles.seeAllButton}
           >
-            <Ionicons name="arrow-forward-circle" size={28} color={colors.primary} />
+            <Ionicons name="arrow-forward-circle" size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
         {loadingSections.divertissement ? (
           <View style={styles.sectionLoading}>
-            <ActivityIndicator size="small" color={colors.primary} />
+            <SnakeLoader />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Chargement...</Text>
           </View>
         ) : divertissement.length > 0 ? (
@@ -546,7 +684,7 @@ function LiveScreen({ navigation }) {
                 style={styles.emissionCard}
                 onPress={() => navigation.navigate('ShowDetail', { 
                   showId: item.id,
-                  isDivertissement: true 
+                  isDivertissement: true
                 })}
               >
                 <Image
@@ -586,13 +724,13 @@ function LiveScreen({ navigation }) {
             }}
             style={styles.seeAllButton}
           >
-            <Ionicons name="arrow-forward-circle" size={28} color={colors.primary} />
+            <Ionicons name="arrow-forward-circle" size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
         {loadingSections.reportages ? (
           <View style={styles.sectionLoading}>
-            <ActivityIndicator size="small" color={colors.primary} />
+            <SnakeLoader />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Chargement...</Text>
           </View>
         ) : reportages.length > 0 ? (
@@ -613,7 +751,7 @@ function LiveScreen({ navigation }) {
                 style={styles.emissionCard}
                 onPress={() => navigation.navigate('ShowDetail', { 
                   showId: item.id,
-                  isReportage: true 
+                  isReportage: true
                 })}
               >
                 <Image
@@ -678,19 +816,20 @@ const createStyles = (colors) => StyleSheet.create({
   },
   videoContainer: {
     width: width,
-    height: VIDEO_HEIGHT, // Format 16:9
+    height: VIDEO_HEIGHT,
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    paddingTop: 20, // Padding top ajouté
   },
   videoWrapper: {
-    width: '100%',
+    width: '100%', // Toute la largeur
     height: '100%',
     position: 'relative',
   },
   video: {
-    width: '100%',
+    width: '100%', // Toute la largeur disponible
     height: '100%',
   },
   customControls: {
@@ -699,21 +838,21 @@ const createStyles = (colors) => StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   controlsBottom: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   progressContainer: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   progressBar: {
-    height: 4,
+    height: 3,
     backgroundColor: 'rgba(255,255,255,0.3)',
     borderRadius: 2,
     overflow: 'hidden',
@@ -723,7 +862,32 @@ const createStyles = (colors) => StyleSheet.create({
     borderRadius: 2,
   },
   fullscreenButton: {
-    padding: 8,
+    padding: 4,
+  },
+  actionsContainer: {
+    backgroundColor: colors.card,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  liveInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E23E3E',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 3,
+    gap: 4,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: colors.border || 'rgba(255,255,255,0.1)',
+    marginTop: 4,
   },
   topBar: {
     flexDirection: 'row',
@@ -743,15 +907,15 @@ const createStyles = (colors) => StyleSheet.create({
     marginRight: 12,
   },
   liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#FFF',
-    marginRight: 4,
+    marginRight: 3,
   },
   liveText: {
     color: '#FFF',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   streamName: {
@@ -800,45 +964,45 @@ const createStyles = (colors) => StyleSheet.create({
   viewerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   viewerText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 11,
   },
   contentSection: {
-    padding: 16,
-    paddingBottom: 8,
+    padding: 12,
+    paddingBottom: 6,
   },
   lastSection: {
-    padding: 16,
-    paddingBottom: 100,
+    padding: 12,
+    paddingBottom: 80,
   },
   emissionsSection: {
-    padding: 16,
-    paddingBottom: 80,
+    padding: 12,
+    paddingBottom: 60,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   sectionTitle: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   seeAllButton: {
-    padding: 4,
+    padding: 2,
   },
   emissionsScroll: {
-    paddingRight: 16,
+    paddingRight: 12,
   },
   emissionCard: {
-    width: 100,
-    marginRight: 8,
-    borderRadius: 8,
+    width: 80,
+    marginRight: 6,
+    borderRadius: 6,
     overflow: 'hidden',
     backgroundColor: colors.card,
     elevation: 2,
@@ -849,43 +1013,43 @@ const createStyles = (colors) => StyleSheet.create({
   },
   emissionImage: {
     width: '100%',
-    height: 130,
+    height: 100,
   },
   emissionOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 6,
+    padding: 4,
   },
   emissionTitle: {
     color: '#FFF',
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: 'bold',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   durationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 1,
   },
   durationText: {
     color: '#FFF',
-    fontSize: 9,
+    fontSize: 8,
   },
   featuredBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 4,
+    right: 4,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: 8,
+    padding: 2,
   },
   noEmissionsText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 12,
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 15,
   },
 });
 

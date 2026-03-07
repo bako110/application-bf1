@@ -19,7 +19,7 @@ import NotificationHeader from '../components/NotificationHeader';
 import likeService from '../services/likeService';
 import reportageService from '../services/reportageService';
 import { createReportagesStyles } from '../styles/reportagesStyles';
-import LoadingScreen from '../components/LoadingScreen'; // Import du loader
+import SnakeLoader  from '../components/LoadingScreen'; // Import du loader
 
 // Fonctions utilitaires
 const formatDuration = (duration) => {
@@ -222,7 +222,11 @@ function ReportagesScreen({ navigation }) {
 
   // Afficher le loader pendant le chargement initial
   if (loading && videos.length === 0) {
-    return <LoadingScreen />;
+    return (
+      <View style={styles.loadingContainer}>
+        <SnakeLoader />
+      </View>
+    );
   }
 
   return (

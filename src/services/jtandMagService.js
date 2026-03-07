@@ -8,7 +8,8 @@ class JTandMagService {
       return response.data.map(item => ({
         ...item,
         id: item._id || item.id,
-        image_url: item.image || item.image_url
+        image_url: item.image || item.image_url,
+        allow_comments: item.allow_comments !== undefined ? item.allow_comments : true
       }));
     } catch (error) {
       throw error.response?.data || error.message;
@@ -23,7 +24,8 @@ class JTandMagService {
       return {
         ...show,
         id: show._id || show.id,
-        image_url: show.image || show.image_url
+        image_url: show.image || show.image_url,
+        allow_comments: show.allow_comments !== undefined ? show.allow_comments : true
       };
     } catch (error) {
       throw error.response?.data || error.message;

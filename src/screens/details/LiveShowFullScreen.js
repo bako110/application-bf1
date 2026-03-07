@@ -242,6 +242,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 20, // Padding top ajouté pour l'espace en haut
   },
   touchableVideo: {
     position: 'absolute',
@@ -273,8 +274,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   videoPlayer: {
-    width: '100%',
-    height: '100%',
+    width: '100%', // Toute la largeur
+    height: '100%', // Toute la hauteur disponible
   },
   topGradient: {
     position: 'absolute',

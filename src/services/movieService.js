@@ -25,7 +25,8 @@ class MovieService {
       const movie = response.data;
       return {
         ...movie,
-        id: movie._id || movie.id
+        id: movie._id || movie.id,
+        allow_comments: movie.allow_comments !== undefined ? movie.allow_comments : true
       };
     } catch (error) {
       throw error.response?.data || error.message;

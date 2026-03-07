@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { colors } from '../contexts/ThemeContext';
 
 export default function LoginScreen({ navigation, route }) {
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,6 +12,14 @@ export default function LoginScreen({ navigation, route }) {
   
   // Récupérer le paramètre pour savoir si on doit revenir au modal de souscription
   const returnToSubscription = route?.params?.returnToSubscription;
+
+  // Rediriger si l'utilisateur est déjà connecté
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('✅ Utilisateur déjà connecté, redirection vers le profil...');
+      navigation.replace('ProfileMain');
+    }
+  }, [isAuthenticated, user, navigation]);
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password.trim()) {

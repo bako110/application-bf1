@@ -19,7 +19,7 @@ import commentService from '../services/commentService';
 import authService from '../services/authService';
 import { formatRelativeTime } from '../utils/dateUtils';
 
-const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequired, onCommentChange }) => {
+const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequired, onCommentChange, allowComments = true }) => {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -259,41 +259,48 @@ const CommentsModal = ({ visible, onClose, contentId, contentType, onLoginRequir
             )}
           </ScrollView>
 
-          {/* Input commentaire */}
-          <View style={styles.commentInputContainer}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
-              placeholderTextColor="#B0B0B0"
-              value={commentText}
-              onChangeText={setCommentText}
-              multiline
-              maxLength={500}
-              editable={!!currentUser}
-              onFocus={async () => {
-                const isAuth = await authService.isAuthenticated();
-                if (!isAuth) {
-                  onClose();
-                  if (onLoginRequired) onLoginRequired();
-                }
-              }}
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, (!commentText.trim() || submitting) && styles.sendButtonDisabled]}
-              onPress={handleSubmitComment}
-              disabled={!commentText.trim() || submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color={'#E23E3E'} />
-              ) : (
-                <Ionicons
-                  name="send"
-                  size={20}
-                  color={commentText.trim() ? '#E23E3E' : '#B0B0B0'}
-                />
-              )}
-            </TouchableOpacity>
-          </View>
+          {/* Input commentaire - Affiché seulement si les commentaires sont autorisés */}
+          {allowComments ? (
+            <View style={styles.commentInputContainer}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder={currentUser ? "Ajouter un commentaire..." : "Connectez-vous pour commenter"}
+                placeholderTextColor="#B0B0B0"
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+                maxLength={500}
+                editable={!!currentUser}
+                onFocus={async () => {
+                  const isAuth = await authService.isAuthenticated();
+                  if (!isAuth) {
+                    onClose();
+                    if (onLoginRequired) onLoginRequired();
+                  }
+                }}
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, (!commentText.trim() || submitting) && styles.sendButtonDisabled]}
+                onPress={handleSubmitComment}
+                disabled={!commentText.trim() || submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color={'#E23E3E'} />
+                ) : (
+                  <Ionicons
+                    name="send"
+                    size={20}
+                    color={commentText.trim() ? '#E23E3E' : '#B0B0B0'}
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={[styles.commentInputContainer, { justifyContent: 'center', alignItems: 'center', paddingVertical: 20 }]}>
+              <Ionicons name="lock-closed" size={24} color="#B0B0B0" />
+              <Text style={styles.emptyCommentsText}>Les commentaires sont désactivés</Text>
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>

@@ -34,6 +34,23 @@ class EmissionCategoryService {
       throw error;
     }
   }
+
+  /**
+   * Récupère tous les likes de l'utilisateur pour les catégories d'émissions
+   * @returns {Promise<Array>} Liste des catégories likées
+   */
+  async getMyLikedCategories() {
+    try {
+      const response = await api.get('/likes/my-likes', { 
+        params: { content_type: 'emission_category' } 
+      });
+      console.log('✅ getMyLikedCategories - Réponse API:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ getMyLikedCategories - Erreur:', error.response?.data || error.message);
+      return [];
+    }
+  }
 }
 
 export default new EmissionCategoryService();

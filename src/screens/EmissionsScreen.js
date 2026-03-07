@@ -18,6 +18,7 @@ import EmissionCategoryService from '../services/emissionCategoryService';
 import { EmissionStyles } from '../styles/emissionStyles';
 import favoriteService from '../services/favoriteService';
 import authService from '../services/authService';
+import likeService from '../services/likeService';
 import LoadingScreen from '../components/LoadingScreen';
 
 export default function EmissionsScreen() {
@@ -29,9 +30,12 @@ export default function EmissionsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [likedCategories, setLikedCategories] = useState(new Set());
+  const [likesData, setLikesData] = useState({});
 
   useEffect(() => {
     loadCategories();
+    loadMyLikedCategories();
   }, []);
 
   const loadCategories = async () => {
@@ -50,7 +54,95 @@ export default function EmissionsScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadCategories();
+    await loadMyLikedCategories();
     setRefreshing(false);
+  };
+
+  // Charger les catégories likées par l'utilisateur
+  const loadMyLikedCategories = async () => {
+    try {
+      const isAuth = await authService.isAuthenticated();
+      if (!isAuth) {
+        console.log('⚠️ Utilisateur non connecté, likes non chargés');
+        return;
+      }
+
+      const likedData = await EmissionCategoryService.getMyLikedCategories();
+      console.log('📥 Likes catégories reçus du serveur:', likedData);
+      
+      const likedIds = new Set(likedData.map(like => like.content_id));
+      setLikedCategories(likedIds);
+      
+      // Créer le mapping pour likesData
+      const likesMap = {};
+      categories.forEach(item => {
+        const itemId = item.id || item._id;
+        likesMap[itemId] = {
+          liked: likedIds.has(itemId),
+          count: item.likes || 0
+        };
+      });
+      
+      setLikesData(likesMap);
+      console.log('✅ Catégories likées chargées:', likedIds.size, 'IDs:', Array.from(likedIds));
+    } catch (error) {
+      console.error('❌ Erreur chargement likes:', error);
+    }
+  };
+
+  // Toggle like/unlike
+  const toggleLike = async (itemId) => {
+    const isAuth = await authService.isAuthenticated();
+    if (!isAuth) {
+      Alert.alert(
+        'Connexion requise',
+        'Vous devez être connecté pour liker une émission. Voulez-vous vous connecter ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Se connecter', onPress: () => navigation.navigate('Mon compte') }
+        ]
+      );
+      return;
+    }
+
+    try {
+      const wasLikedBefore = likedCategories.has(itemId);
+      const currentLikeData = likesData[itemId] || { liked: false, count: 0 };
+
+      // Optimistic update
+      if (wasLikedBefore) {
+        // Unlike
+        setLikedCategories(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          return newSet;
+        });
+        setLikesData(prev => ({
+          ...prev,
+          [itemId]: {
+            liked: false,
+            count: Math.max(0, currentLikeData.count - 1)
+          }
+        }));
+      } else {
+        // Like
+        setLikedCategories(prev => new Set([...prev, itemId]));
+        setLikesData(prev => ({
+          ...prev,
+          [itemId]: {
+            liked: true,
+            count: currentLikeData.count + 1
+          }
+        }));
+      }
+
+      await likeService.toggleLike(itemId, 'emission_category');
+      console.log(`✅ Like toggled pour catégorie ${itemId}`);
+    } catch (error) {
+      console.error('❌ Erreur toggle like:', error);
+      // Rollback en rechargeant les likes
+      await loadMyLikedCategories();
+    }
   };
 
   const handleAddToFavorites = async (category) => {
@@ -107,13 +199,17 @@ export default function EmissionsScreen() {
   };
 
   const renderCategoryCard = ({ item }) => {
+    const itemId = item.id || item._id;
+    const isLiked = likedCategories.has(itemId);
+    const likeData = likesData[itemId] || { liked: false, count: 0 };
+
     return (
       <TouchableOpacity
         activeOpacity={0.85}
         style={styles.categoryCard}
         onPress={() => {
           navigation.navigate('CategoryDetail', {
-            categoryId: item.id || item._id,
+            categoryId: itemId,
             categoryName: item.name
           });
         }}
@@ -147,6 +243,28 @@ export default function EmissionsScreen() {
           </Text>
         </View>
 
+        {/* Bouton Like */}
+        <TouchableOpacity 
+          style={[styles.addButton, { top: 10, right: 50 }]}
+          onPress={(e) => {
+            e.stopPropagation();
+            toggleLike(itemId);
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons 
+            name={isLiked ? 'heart' : 'heart-outline'} 
+            size={20} 
+            color={isLiked ? '#E23E3E' : '#fff'} 
+          />
+          {likeData.count > 0 && (
+            <Text style={{ color: '#fff', fontSize: 10, marginTop: 2, fontWeight: '600' }}>
+              {likeData.count}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Bouton Favoris */}
         <TouchableOpacity 
           style={styles.addButton}
           onPress={(e) => {

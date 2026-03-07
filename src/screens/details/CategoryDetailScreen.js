@@ -19,6 +19,7 @@ import JTService from '../../services/jtandMagService';
 import DivertissementService from '../../services/divertissementService';
 import ReportageService from '../../services/reportageService';
 import { CategoryDetailStyles } from '../../styles/categoryDetailStyles';
+import LoadingScreen from '../../components/LoadingScreen';
 
 const { width, height } = Dimensions.get('window');
 
@@ -171,12 +172,7 @@ export default function CategoryDetailScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loading}>Chargement...</Text>
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return (

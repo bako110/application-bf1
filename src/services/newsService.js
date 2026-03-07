@@ -10,7 +10,8 @@ class NewsService {
       return response.data.map(news => ({
         ...news,
         id: news._id || news.id,
-        image_url: news.image || news.image_url
+        image_url: news.image || news.image_url,
+        allow_comments: news.allow_comments !== undefined ? news.allow_comments : true
       }));
     } catch (error) {
       throw error.response?.data || error.message;
@@ -26,7 +27,8 @@ class NewsService {
       return {
         ...news,
         id: news._id || news.id,
-        image_url: news.image || news.image_url
+        image_url: news.image || news.image_url,
+        allow_comments: news.allow_comments !== undefined ? news.allow_comments : true
       };
     } catch (error) {
       throw error.response?.data || error.message;

@@ -70,49 +70,31 @@ export default function ProfileScreen({ navigation }) {
 
   const loadUserStats = async () => {
     try {
-      console.log('🔍 Début chargement stats user...');
-      console.log('📋 Favoris disponibles:', favorites.length);
-      console.log('📋 Contenu des favoris:', JSON.stringify(favorites.slice(0, 2), null, 2));
+      console.log('🔍 Début chargement stats utilisateur...');
       
-      let totalLikes = 0;
-      let totalComments = 0;
-
-      // Charger les vraies statistiques pour chaque favori
-      for (const fav of favorites) {
-        try {
-          console.log(`🔍 Traitement favori:`, fav);
-          
-          const contentId = fav.content_id || fav.id || fav._id;
-          const contentType = fav.content_type || 'replay'; // Default à replay si non spécifié
-          
-          console.log(`📍 ID: ${contentId}, Type: ${contentType}`);
-          
-          // Récupérer le nombre de likes via API
-          console.log(`❤️ Chargement likes pour ${contentType} ${contentId}...`);
-          const likesCount = await likeService.countLikes(contentId, contentType);
-          console.log(`❤️ Likes récupérés: ${likesCount}`);
-          totalLikes += likesCount;
-
-          // Récupérer le nombre de commentaires via API
-          console.log(`💬 Chargement commentaires pour ${contentType} ${contentId}...`);
-          const commentsCount = await commentService.countComments(contentId, contentType);
-          console.log(`💬 Commentaires récupérés: ${commentsCount}`);
-          totalComments += commentsCount;
-
-          console.log(`📊 Stats pour ${contentType} ${contentId}: ${likesCount} likes, ${commentsCount} comments`);
-        } catch (error) {
-          console.error(`❌ Erreur stats pour favori ${fav.id}:`, error);
-        }
+      if (!user?.id) {
+        console.log('⚠️ Pas d\'utilisateur connecté');
+        return;
       }
+
+      // Charger le nombre total de likes donnés par l'utilisateur
+      console.log('❤️ Chargement du nombre de likes de l\'utilisateur...');
+      const totalLikes = await likeService.countMyLikes();
+      console.log(`✅ Likes de l'utilisateur: ${totalLikes}`);
+
+      // Charger le nombre total de commentaires postés par l'utilisateur
+      console.log('💬 Chargement du nombre de commentaires de l\'utilisateur...');
+      const totalComments = await commentService.countUserComments(user.id);
+      console.log(`✅ Commentaires de l'utilisateur: ${totalComments}`);
       
-      console.log(`📈 Total stats finaux: ${totalLikes} likes, ${totalComments} comments`);
+      console.log(`📈 Stats finales: ${totalLikes} likes, ${totalComments} commentaires`);
       
       setStats({
         comments: totalComments,
         likes: totalLikes
       });
     } catch (error) {
-      console.error('❌ Error loading user stats:', error);
+      console.error('❌ Erreur chargement stats utilisateur:', error);
     }
   };
 

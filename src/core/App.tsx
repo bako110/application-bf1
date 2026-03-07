@@ -17,17 +17,42 @@ import reminderNotificationService from '../services/reminderNotificationService
 import notificationService from '../services/notificationService';
 import websocketService from '../services/websocketService';
 import pushNotificationService from '../services/pushNotificationService';
+import connectionService from '../services/connectionService';
 
 // Components
 import Splash from '../components/Splash';
 import FloatingMenuButton from '../components/FloatingMenuButton';
 import { NavigationWrapper } from '../components/navigation/AppNavigation';
+import ConnectionIndicator from '../components/ConnectionIndicator';
 
 // ===== Main App Component =====
 function App() {
   const [isReady, setIsReady] = useState(false);
 
-  // Afficher le splash screen jusqu'à ce que le backend soit prêt
+  // Démarrer la vérification de connexion automatique en arrière-plan
+  React.useEffect(() => {
+    console.log('🚀 Démarrage de l\'app BF1 - Connexion automatique...');
+    
+    // Démarrer immédiatement la vérification de connexion
+    connectionService.startAutoConnection();
+    
+    // Écouter les changements de statut de connexion
+    const unsubscribe = connectionService.addListener((status, isConnected) => {
+      if (status === 'connected') {
+        console.log('🎯 Backend accessible - App prête !');
+        // Ne pas bloquer l'interface, juste loguer
+      }
+      // Plus de log pour disconnected - connexion silencieuse
+    });
+    
+    return () => {
+      unsubscribe();
+      connectionService.stopAutoConnection();
+    };
+  }, []);
+
+  // Afficher directement l'app sans attendre le backend
+  // La connexion se fait en arrière-plan de façon transparente
   if (!isReady) {
     return <Splash onReady={() => setIsReady(true)} />;
   }
@@ -170,6 +195,7 @@ function AppContent() {
       <ThemeProvider>
         <AuthProvider>
           <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+          <ConnectionIndicator />
           <NavigationWrapperWithBackHandling />
         </AuthProvider>
       </ThemeProvider>

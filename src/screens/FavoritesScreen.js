@@ -13,7 +13,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import favoriteService from '../services/favoriteService';
 import { useAuth } from '../contexts/AuthContext';
 import { createFavoritesStyles } from '../styles/favoritesStyles';
-import LoadingScreen from '../components/LoadingScreen'; // Import du loader
+import SnakeLoader from '../components/LoadingScreen'; // Import du loader
 
 export default function FavoritesScreen({ navigation }) {
   const { user } = useAuth();
@@ -348,7 +348,9 @@ export default function FavoritesScreen({ navigation }) {
       </ScrollView>
 
       {loading ? (
-        <LoadingScreen />
+        <View style={styles.loadingContainer}>
+          <SnakeLoader />
+        </View>
       ) : filteredFavorites.length > 0 ? (
         <ScrollView
           style={styles.favoritesContainer}

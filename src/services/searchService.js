@@ -28,7 +28,7 @@ class SearchService {
       console.log(`🔍 Recherche dynamique: "${cleanQuery}"`);
 
       // 2️⃣ Utiliser le nouvel endpoint centralisé /search
-      const response = await api.get('/search/', {
+      const response = await api.get('/search', {
         params: {
           q: cleanQuery,
           limit: limit

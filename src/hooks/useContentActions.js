@@ -7,7 +7,7 @@ import authService from '../services/authService';
 /**
  * Hook personnalisé pour gérer les actions sur le contenu (like, favorite, comment)
  */
-const useContentActions = (contentId, contentType) => {
+const useContentActions = (contentId, contentType, allowComments = true) => {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [favorited, setFavorited] = useState(false);
@@ -112,6 +112,7 @@ const useContentActions = (contentId, contentType) => {
     handleFavorite,
     handleComment,
     loadInitialState,
+    allowComments,
   };
 };
 

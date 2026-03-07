@@ -11,7 +11,7 @@ class FavoriteService {
     }
 
     try {
-      const response = await api.post('/favorites/', {
+      const response = await api.post('/favorites', {
         content_id: contentId,
         content_type: contentType,
       });

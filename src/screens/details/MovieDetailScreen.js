@@ -163,6 +163,7 @@ export default function MovieDetailScreen({ route, navigation }) {
           contentId={movieId}
           contentType="movie"
           navigation={navigation}
+          allowComments={movie?.allow_comments !== false}
         />
 
         {/* Description */}

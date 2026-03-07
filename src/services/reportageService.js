@@ -7,7 +7,9 @@ class ReportageService {
       const response = await api.get('/reportage', { params });
       return response.data.map(reportage => ({
         ...reportage,
-        id: reportage._id || reportage.id
+        id: reportage._id || reportage.id,
+        image_url: reportage.thumbnail || reportage.image_url || reportage.image,
+        allow_comments: reportage.allow_comments !== undefined ? reportage.allow_comments : true
       }));
     } catch (error) {
       throw error.response?.data || error.message;
@@ -21,7 +23,8 @@ class ReportageService {
       const replay = response.data;
       return {
         ...replay,
-        id: replay._id || replay.id
+        id: replay._id || replay.id,
+        allow_comments: replay.allow_comments !== undefined ? replay.allow_comments : true
       };
     } catch (error) {
       throw error.response?.data || error.message;

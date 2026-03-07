@@ -48,6 +48,7 @@ export default function SportScreen({ navigation }) {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [likesData, setLikesData] = useState({});
+  const [likedSports, setLikedSports] = useState(new Set()); // Set des IDs likés
   const [viewMode, setViewMode] = useState('grid');
   const [selectedSportType, setSelectedSportType] = useState('all');
   const [sportTypes, setSportTypes] = useState([]);
@@ -167,36 +168,32 @@ export default function SportScreen({ navigation }) {
   };
 
   const loadLikesData = async (sportsList) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      console.log('⚠️ Utilisateur non connecté, likes non chargés');
+      return;
+    }
     
     try {
-      const likesPromises = sportsList.map(async (sport) => {
-        try {
-          const likeData = await likeService.getLikesForContent(sport.id || sport._id, 'sport');
-          return {
-            sportId: sport.id || sport._id,
-            liked: likeData.liked || false,
-            count: likeData.count || 0
-          };
-        } catch (error) {
-          return {
-            sportId: sport.id || sport._id,
-            liked: false,
-            count: 0
-          };
-        }
-      });
-
-      const likesResults = await Promise.all(likesPromises);
+      // Charger tous les likes de l'utilisateur en une seule requête
+      const likedSportsData = await sportService.getMyLikedSports();
+      console.log('📥 Likes sports reçus du serveur:', likedSportsData);
+      
+      // Créer un Set des IDs likés
+      const likedIds = new Set(likedSportsData.map(like => like.content_id));
+      setLikedSports(likedIds);
+      
+      // Créer le mapping pour likesData (compatibilité avec le code existant)
       const likesMap = {};
-      likesResults.forEach(result => {
-        likesMap[result.sportId] = {
-          liked: result.liked,
-          count: result.count
+      sportsList.forEach(sport => {
+        const sportId = sport.id || sport._id;
+        likesMap[sportId] = {
+          liked: likedIds.has(sportId),
+          count: sport.likes || 0
         };
       });
-
+      
       setLikesData(likesMap);
+      console.log('✅ Sports likés chargés:', likedIds.size, 'IDs:', Array.from(likedIds));
     } catch (error) {
       console.error('Erreur chargement likes:', error);
     }
@@ -221,21 +218,41 @@ export default function SportScreen({ navigation }) {
     }
 
     try {
+      const wasLikedBefore = likedSports.has(sportId);
       const currentLikeData = likesData[sportId] || { liked: false, count: 0 };
-      const newLikedState = !currentLikeData.liked;
 
-      // Optimistic update
-      setLikesData(prev => ({
-        ...prev,
-        [sportId]: {
-          liked: newLikedState,
-          count: currentLikeData.count + (newLikedState ? 1 : -1)
-        }
-      }));
+      // Optimistic update - Mettre à jour le Set et likesData
+      if (wasLikedBefore) {
+        // Unlike
+        setLikedSports(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(sportId);
+          return newSet;
+        });
+        setLikesData(prev => ({
+          ...prev,
+          [sportId]: {
+            liked: false,
+            count: Math.max(0, currentLikeData.count - 1)
+          }
+        }));
+      } else {
+        // Like
+        setLikedSports(prev => new Set([...prev, sportId]));
+        setLikesData(prev => ({
+          ...prev,
+          [sportId]: {
+            liked: true,
+            count: currentLikeData.count + 1
+          }
+        }));
+      }
 
       await likeService.toggleLike(sportId, 'sport');
+      console.log(`✅ Like toggled pour sport ${sportId}`);
     } catch (error) {
-      console.error('Erreur toggle like:', error);
+      console.error('❌ Erreur toggle like:', error);
+      // Rollback en rechargeant les likes
       await loadLikesData(sports);
     }
   };
@@ -252,6 +269,7 @@ export default function SportScreen({ navigation }) {
   const renderItem = ({ item, index }) => {
     const sportId = item.id || item._id;
     const likeData = likesData[sportId] || { liked: false, count: 0 };
+    const isLiked = likedSports.has(sportId); // Utiliser le Set pour vérifier le like
     const sportIcon = getSportIcon(item.sport_type);
 
     return (
@@ -292,9 +310,9 @@ export default function SportScreen({ navigation }) {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons
-              name={likeData.liked ? 'heart' : 'heart-outline'}
+              name={isLiked ? 'heart' : 'heart-outline'}
               size={22}
-              color={likeData.liked ? '#FF6B6B' : '#fff'}
+              color={isLiked ? '#E23E3E' : '#fff'}
             />
             {likeData.count > 0 && (
               <Text style={styles.likeCount}>{likeData.count}</Text>
