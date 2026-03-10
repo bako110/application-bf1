@@ -52,6 +52,7 @@ function ReelScreen({ navigation }) {
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [selectedReelForOptions, setSelectedReelForOptions] = useState(null);
   const [likingReels, setLikingReels] = useState(new Set());
+  const [expandedDescriptions, setExpandedDescriptions] = useState(new Set());
 
   // Pagination
   const fetchReels = async (skip, limit) => {
@@ -169,7 +170,7 @@ function ReelScreen({ navigation }) {
         'Vous devez être connecté pour liker un reel. Voulez-vous vous connecter ?',
         [
           { text: 'Annuler', style: 'cancel' },
-          { text: 'Se connecter', onPress: () => navigation.navigate('Profile') }
+          { text: 'Se connecter', onPress: () => navigation.navigate('Mon compte') }
         ]
       );
       return;
@@ -289,7 +290,7 @@ function ReelScreen({ navigation }) {
         'Vous devez être connecté pour commenter. Voulez-vous vous connecter ?',
         [
           { text: 'Annuler', style: 'cancel' },
-          { text: 'Se connecter', onPress: () => navigation.navigate('Profile') }
+          { text: 'Se connecter', onPress: () => navigation.navigate('Mon compte') }
         ]
       );
       return;
@@ -453,6 +454,7 @@ function ReelScreen({ navigation }) {
   const renderReel = ({ item, index }) => {
     const isActive = index === currentIndex;
     const isLiked = likedReels.has(item.id);
+    const isExpanded = expandedDescriptions.has(item.id);
 
     return (
       <View style={styles.reelContainer}>
@@ -465,16 +467,38 @@ function ReelScreen({ navigation }) {
         />
 
         <LinearGradient
-          colors={['rgba(0,0,0,0.8)', 'transparent']}
-          style={styles.topGradient}
+          colors={['transparent', 'rgba(0,0,0,0.9)']}
+          style={styles.bottomGradient}
         >
-          <View style={styles.topContentContainer}>
+          <View style={styles.bottomContentContainer}>
             <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
               {item.title || 'Titre du reel'}
             </Text>
-            <Text style={styles.description} numberOfLines={2} ellipsizeMode="tail">
-              {item.description || 'Description du reel'}
-            </Text>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                setExpandedDescriptions(prev => {
+                  const newSet = new Set(prev);
+                  if (isExpanded) {
+                    newSet.delete(item.id);
+                  } else {
+                    newSet.add(item.id);
+                  }
+                  return newSet;
+                });
+              }}
+            >
+              <Text 
+                style={styles.description} 
+                numberOfLines={isExpanded ? undefined : 2} 
+                ellipsizeMode="tail"
+              >
+                {item.description || 'Description du reel'}
+                {!isExpanded && item.description && item.description.length > 80 && (
+                  <Text style={styles.seeMoreText}> ...plus</Text>
+                )}
+              </Text>
+            </TouchableOpacity>
           </View>
         </LinearGradient>
 

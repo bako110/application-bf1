@@ -109,7 +109,7 @@ export default function DivertissementScreen({ navigation }) {
         'Vous devez être connecté pour liker un divertissement. Voulez-vous vous connecter ?',
         [
           { text: 'Annuler', style: 'cancel' },
-          { text: 'Se connecter', onPress: () => navigation.navigate('Profile') }
+          { text: 'Se connecter', onPress: () => navigation.navigate('Mon compte') }
         ]
       );
       return;

@@ -31,7 +31,7 @@ const NotificationBadge = ({ count, colors }) => {
 };
 
 // Modal des notifications
-const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMarkAllAsRead, onMarkAsRead, colors }) => {
+const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMarkAllAsRead, onMarkAsRead, onDeleteNotification, onDeleteAll, colors }) => {
   const styles = createStyles(colors);
   
   return (
@@ -47,9 +47,21 @@ const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMa
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Notifications</Text>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <Ionicons name="close" size={24} color="#E23E3E" />
-                </TouchableOpacity>
+                <View style={styles.headerActions}>
+                  {notifications.length > 0 && (
+                    <>
+                      <TouchableOpacity onPress={onMarkAllAsRead} style={styles.headerButton}>
+                        <Ionicons name="checkmark-done" size={20} color="#4CAF50" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={onDeleteAll} style={styles.headerButton}>
+                        <Ionicons name="trash" size={20} color="#FF3B30" />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                  <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                    <Ionicons name="close" size={24} color="#E23E3E" />
+                  </TouchableOpacity>
+                </View>
               </View>
               
               <ScrollView style={styles.notificationsList}>
@@ -57,34 +69,44 @@ const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMa
                   notifications.map((notification, index) => {
                     const notifId = notification.id || notification._id;
                     return (
-                      <TouchableOpacity 
-                        key={notifId || `notification-${index}`} 
+                      <View
+                        key={notifId || `notification-${index}`}
                         style={[
                           styles.notificationItem,
                           !notification.is_read && styles.unreadNotification
                         ]}
-                        onPress={() => onMarkAsRead(notification)}
                       >
-                        <View style={styles.notificationIcon}>
-                          <Ionicons name="notifications" size={20} color="#E23E3E" />
-                        </View>
-                        <View style={styles.notificationContent}>
-                          <Text style={styles.notificationMessage}>
-                            {notification.message}
-                          </Text>
-                          <Text style={styles.notificationTime}>
-                            {new Date(notification.created_at).toLocaleDateString('fr-FR', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </Text>
-                        </View>
-                        {!notification.is_read && (
-                          <View style={styles.unreadDot} />
-                        )}
-                      </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.notificationMainContent}
+                          onPress={() => onMarkAsRead(notification)}
+                        >
+                          <View style={styles.notificationIcon}>
+                            <Ionicons name="notifications" size={20} color="#E23E3E" />
+                          </View>
+                          <View style={styles.notificationContent}>
+                            <Text style={styles.notificationMessage}>
+                              {notification.message}
+                            </Text>
+                            <Text style={styles.notificationTime}>
+                              {new Date(notification.created_at).toLocaleDateString('fr-FR', {
+                                day: 'numeric',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </Text>
+                          </View>
+                          {!notification.is_read && (
+                            <View style={styles.unreadDot} />
+                          )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => onDeleteNotification(notifId)}
+                          style={styles.deleteButton}
+                        >
+                          <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                        </TouchableOpacity>
+                      </View>
                     );
                   })
                 ) : (
@@ -94,12 +116,6 @@ const NotificationsModal = ({ visible, onClose, notifications, unreadCount, onMa
                   </View>
                 )}
               </ScrollView>
-              
-              {notifications.length > 0 && unreadCount > 0 && (
-                <TouchableOpacity style={styles.markAllReadButton} onPress={onMarkAllAsRead}>
-                  <Text style={styles.markAllReadText}>Tout marquer comme lu</Text>
-                </TouchableOpacity>
-              )}
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -120,7 +136,21 @@ export default function NotificationHeader() {
 
   useEffect(() => {
     checkAuthAndLoadNotifications();
+    
+    // Rafraîchir les notifications toutes les 30 secondes
+    const interval = setInterval(() => {
+      checkAuthAndLoadNotifications();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
+
+  // Recharger quand le modal s'ouvre
+  useEffect(() => {
+    if (modalVisible && isAuthenticated) {
+      loadNotifications();
+    }
+  }, [modalVisible]);
 
   const checkAuthAndLoadNotifications = async () => {
     const isAuth = await authService.isAuthenticated();
@@ -134,6 +164,7 @@ export default function NotificationHeader() {
     try {
       const data = await notificationService.getMyNotifications();
       setNotifications(data);
+      // L'endpoint /me retourne uniquement les notifications non lues
       setUnreadCount(data.length);
     } catch (error) {
       console.error('Error loading notifications:', error);
@@ -181,10 +212,8 @@ export default function NotificationHeader() {
       if (!notification.is_read) {
         const notifId = notification.id || notification._id;
         await notificationService.markAsRead(notifId);
-        setNotifications(notifications.map(n =>
-          (n.id || n._id) === notifId ? { ...n, is_read: true } : n
-        ));
-        // Mettre à jour le compteur
+        // Retirer la notification de la liste car elle est maintenant lue
+        setNotifications(notifications.filter(n => (n.id || n._id) !== notifId));
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
     } catch (error) {
@@ -195,12 +224,46 @@ export default function NotificationHeader() {
   const handleMarkAllAsRead = async () => {
     try {
       await notificationService.markAllAsRead();
-      // Mettre à jour toutes les notifications comme lues
-      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
-      setUnreadCount(0);
+      // Recharger les notifications (l'endpoint /me ne retournera plus rien car toutes sont lues)
+      loadNotifications();
     } catch (error) {
       console.error('Erreur marquage notifications:', error);
     }
+  };
+
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      await notificationService.deleteNotification(notificationId);
+      setNotifications(notifications.filter(n => (n.id || n._id) !== notificationId));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      Alert.alert('Erreur', 'Impossible de supprimer la notification');
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    Alert.alert(
+      'Supprimer toutes les notifications',
+      'Êtes-vous sûr de vouloir supprimer toutes les notifications ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await notificationService.deleteAllNotifications();
+              setNotifications([]);
+              setUnreadCount(0);
+            } catch (error) {
+              console.error('Error deleting all notifications:', error);
+              Alert.alert('Erreur', 'Impossible de supprimer toutes les notifications');
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -226,6 +289,8 @@ export default function NotificationHeader() {
           unreadCount={unreadCount}
           onMarkAllAsRead={handleMarkAllAsRead}
           onMarkAsRead={handleMarkAsRead}
+          onDeleteNotification={handleDeleteNotification}
+          onDeleteAll={handleDeleteAll}
           colors={colors}
         />
       )}
@@ -280,6 +345,14 @@ const createStyles = (colors) => StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerButton: {
+    padding: 8,
+  },
   closeButton: {
     padding: 4,
   },
@@ -293,6 +366,15 @@ const createStyles = (colors) => StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  notificationMainContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   unreadNotification: {
     backgroundColor: 'rgba(226, 62, 62, 0.1)',
@@ -333,17 +415,5 @@ const createStyles = (colors) => StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     marginTop: 16,
-  },
-  markAllReadButton: {
-    margin: 16,
-    padding: 12,
-    backgroundColor: '#E23E3E',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  markAllReadText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

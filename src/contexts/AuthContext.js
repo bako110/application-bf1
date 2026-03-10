@@ -93,6 +93,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     isAuthenticated,
     isPremium: user?.is_premium || false,
+    subscriptionCategory: user?.subscription_category || null,
     login,
     register,
     logout,

@@ -18,6 +18,8 @@ const useContentActions = (contentId, contentType, allowComments = true) => {
   // Charger les états initiaux
   const loadInitialState = async () => {
     try {
+      console.log('🔄 Chargement état initial pour:', { contentId, contentType });
+      
       const isAuth = await authService.isAuthenticated();
       
       if (isAuth) {
@@ -26,14 +28,21 @@ const useContentActions = (contentId, contentType, allowComments = true) => {
           favoriteService.getMyFavorites(),
         ]);
         
+        console.log('✅ État likes:', likedStatus);
+        console.log('📋 Tous mes favoris:', favorites.length);
+        
         setLiked(likedStatus);
         
         // Vérifier si le contenu est dans les favoris
         const isFavorited = favorites.some(fav => {
           if (contentType === 'show') return fav.show_id === contentId;
           if (contentType === 'movie') return fav.movie_id === contentId;
+          if (contentType === 'series') return fav.series_id === contentId;
+          if (contentType === 'archive') return fav.archive_id === contentId;
           return false;
         });
+        
+        console.log('⭐ Est favori?', isFavorited, 'pour', contentType, contentId);
         setFavorited(isFavorited);
       }
       
@@ -43,22 +52,30 @@ const useContentActions = (contentId, contentType, allowComments = true) => {
         commentService.countComments(contentId, contentType),
       ]);
       
+      console.log('📊 Compteurs - Likes:', likes, 'Comments:', comments);
+      
       setLikeCount(likes);
       setCommentCount(comments);
     } catch (error) {
-      console.error('Erreur chargement état:', error);
+      console.error('❌ Erreur chargement état:', error);
     }
   };
 
   // Toggle like
   const handleLike = async () => {
+    console.log('❤️ Toggle like pour:', { contentId, contentType, currentLiked: liked });
+    
     try {
       await likeService.toggleLike(contentId, contentType);
-      setLiked(!liked);
+      const newLiked = !liked;
+      setLiked(newLiked);
       setLikeCount(liked ? likeCount - 1 : likeCount + 1);
+      console.log('✅ Like toggled:', newLiked ? 'Liké' : 'Unliké');
     } catch (error) {
+      console.error('❌ Erreur toggle like:', error);
       // Si erreur d'authentification, afficher modal de connexion
       if (error.requiresAuth) {
+        console.log('🔐 Authentification requise pour liker');
         setShowLoginModal(true);
       } else {
         console.error('Erreur toggle like:', error);
@@ -96,6 +113,7 @@ const useContentActions = (contentId, contentType, allowComments = true) => {
 
   // Ouvrir les commentaires
   const handleComment = () => {
+    console.log('💬 Ouverture modal commentaires pour:', { contentId, contentType, allowComments });
     setShowCommentsModal(true);
   };
 

@@ -26,19 +26,20 @@ export const createReelStyles = (colors) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  topGradient: {
+  bottomGradient: {
     position: 'absolute',
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
-    height: 140,
-    paddingTop: 45,
-    paddingHorizontal: 16,
-    justifyContent: 'flex-start',
-    zIndex: 10,
+    height: 180,
+    paddingBottom: 70,
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    justifyContent: 'flex-end',
+    zIndex: 5,
   },
-  topContentContainer: {
-    maxHeight: 90,
+  bottomContentContainer: {
+    marginBottom: 10,
   },
   title: {
     color: '#fff',
@@ -52,7 +53,19 @@ export const createReelStyles = (colors) => StyleSheet.create({
   description: {
     color: '#fff',
     fontSize: 13,
-    lineHeight: 16,
+    lineHeight: 18,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  seeMoreBtn: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  seeMoreText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,

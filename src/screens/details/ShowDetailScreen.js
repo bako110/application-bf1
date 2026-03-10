@@ -25,6 +25,7 @@ import UniversalVideoPlayer from '../../components/UniversalVideoPlayer';
 import LoadingScreen from '../../components/LoadingScreen';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatLongDate, formatRelativeTime } from '../../utils/dateUtils';
+import { canUserAccessContent, getSubscriptionBadge, getUserSubscriptionCategory } from '../../utils/subscriptionUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -41,10 +42,11 @@ export default function ShowDetailScreen({ route, navigation }) {
     programData = null 
   } = route.params || {};
   
-  const { isPremium } = useAuth();
+  const { user, isPremium, isAuthenticated } = useAuth();
   const [show, setShow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [requiredCategory, setRequiredCategory] = useState(null);
   const [relatedContent, setRelatedContent] = useState([]);
   const [liveStreamUrl, setLiveStreamUrl] = useState(null);
   
@@ -115,6 +117,49 @@ export default function ShowDetailScreen({ route, navigation }) {
       await loadRelatedContent();
     } catch (error) {
       console.error('❌ Erreur chargement contenu:', error);
+      
+      // Afficher un message clair à l'utilisateur
+      const errorMessage = error?.message || error?.toString() || 'Erreur inconnue';
+      
+      if (errorMessage.includes('Token') || errorMessage.includes('token') || errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+        Alert.alert(
+          '🔒 Session expirée',
+          'Votre session a expiré. Veuillez vous reconnecter pour accéder à ce contenu.',
+          [
+            { text: 'Retour', style: 'cancel', onPress: () => navigation.goBack() },
+            { 
+              text: 'Se connecter', 
+              onPress: () => {
+                navigation.goBack();
+                navigation.getParent()?.navigate('Mon compte', { screen: 'Login' });
+              }
+            }
+          ]
+        );
+      } else if (errorMessage.includes('premium') || errorMessage.includes('Premium')) {
+        Alert.alert(
+          '🔒 Contenu Premium',
+          'Ce contenu est réservé aux abonnés premium.',
+          [
+            { text: 'Retour', style: 'cancel', onPress: () => navigation.goBack() },
+            { 
+              text: 'Voir les offres', 
+              onPress: () => {
+                // Afficher le modal Premium
+                setShowPremiumModal(true);
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          '❌ Erreur',
+          `Impossible de charger ce contenu.\n\n${errorMessage}`,
+          [
+            { text: 'Retour', onPress: () => navigation.goBack() }
+          ]
+        );
+      }
     }
     setLoading(false);
   };
@@ -183,10 +228,63 @@ export default function ShowDetailScreen({ route, navigation }) {
 
   const handlePlay = async () => {
     console.log('🎬 handlePlay appelé');
+    console.log('👤 User:', user);
+    console.log('🔑 isAuthenticated:', isAuthenticated);
+    console.log('💎 isPremium:', isPremium);
+    console.log('📦 show.required_subscription_category:', show?.required_subscription_category);
     
-    if (show?.is_premium && !isPremium) {
-      setShowPremiumModal(true);
-      return;
+    // Vérifier si le contenu nécessite un abonnement
+    if (show?.required_subscription_category) {
+      if (!isAuthenticated) {
+        const badge = getSubscriptionBadge(show.required_subscription_category);
+        Alert.alert(
+          '🔒 Connexion Requise',
+          `Ce contenu nécessite un abonnement ${badge.label} pour être visionné.`,
+          [
+            { text: 'Plus tard', style: 'cancel' },
+            { 
+              text: 'Se connecter', 
+              onPress: () => navigation.navigate('Mon compte', { screen: 'Login' })
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Vérifier l'accès selon la hiérarchie
+      const userCategory = getUserSubscriptionCategory(user);
+      console.log('🏷️ userCategory:', userCategory);
+      
+      const hasAccess = canUserAccessContent(userCategory, show.required_subscription_category);
+      console.log('✅ hasAccess:', hasAccess);
+      
+      if (!hasAccess) {
+        const badge = getSubscriptionBadge(show.required_subscription_category);
+        let message = `Ce contenu nécessite un abonnement ${badge.label}.`;
+        
+        if (userCategory) {
+          const userBadge = getSubscriptionBadge(userCategory);
+          message += `\n\nVotre abonnement actuel : ${userBadge.label}\nAbonnement requis : ${badge.label}`;
+        }
+        
+        message += `\n\nDécouvrez nos offres d'abonnement pour accéder à tous les contenus.`;
+        
+        Alert.alert(
+          '🔒 Abonnement Requis',
+          message,
+          [
+            { text: 'Plus tard', style: 'cancel' },
+            { 
+              text: 'Voir les offres', 
+              onPress: () => {
+                setRequiredCategory(show.required_subscription_category);
+                setShowPremiumModal(true);
+              }
+            }
+          ]
+        );
+        return;
+      }
     }
     
     // Vérifier si c'est un programme EPG
@@ -261,7 +359,7 @@ export default function ShowDetailScreen({ route, navigation }) {
           return (
             <UniversalVideoPlayer
               videoUrl={videoUrl}
-              posterUrl={show?.image_url || show?.thumbnail || show?.image}
+              posterUrl={show?.thumbnail || show?.image_url || show?.image}
               onPlayPress={handlePlay}
               isPremium={show?.is_premium || false}
               userHasPremium={isPremium}
@@ -291,14 +389,25 @@ export default function ShowDetailScreen({ route, navigation }) {
 
       {/* Contenu */}
       <View style={styles.content}>
-        {/* Titre et catégorie */}
+        {/* Titre */}
         <Text style={styles.title}>{show.title}</Text>
         
-        {show.category && (
-          <View style={styles.categoryContainer}>
-            <Text style={styles.category}>{show.category}</Text>
-          </View>
-        )}
+        {/* Catégorie et Actions sur la même ligne */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          {show.category && (
+            <View style={styles.categoryContainer}>
+              <Text style={styles.category}>{show.category}</Text>
+            </View>
+          )}
+          
+          {/* Actions (Like, Comment, Favorite) à droite */}
+          <ContentActions
+            contentId={showId}
+            contentType={contentType}
+            navigation={navigation}
+            allowComments={show?.allow_comments !== false}
+          />
+        </View>
 
         {/* Informations */}
         <View style={styles.infoRow}>
@@ -338,14 +447,6 @@ export default function ShowDetailScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Actions (Like, Comment, Favorite) */}
-        <ContentActions
-          contentId={showId}
-          contentType={contentType}
-          navigation={navigation}
-          allowComments={show?.allow_comments !== false}
-        />
-
         {/* Description */}
         {show.description && (
           <View style={styles.section}>
@@ -358,63 +459,6 @@ export default function ShowDetailScreen({ route, navigation }) {
             />
           </View>
         )}
-
-        {/* Détails supplémentaires */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Détails</Text>
-          <View style={styles.detailsGrid}>
-            {show.edition && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Édition</Text>
-                <Text style={styles.detailValue}>{show.edition}</Text>
-              </View>
-            )}
-            
-            {isSport && show.match_date && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Date du match</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(show.match_date).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </Text>
-              </View>
-            )}
-            
-            {show.created_at && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Ajouté le</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(show.created_at).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </Text>
-              </View>
-            )}
-            
-            {show.duration_minutes && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Durée</Text>
-                <Text style={styles.detailValue}>
-                  {show.duration_minutes} minutes
-                </Text>
-              </View>
-            )}
-            
-            {isArchive && show.price > 0 && (
-              <View style={styles.detailItem}>
-                <Text style={styles.detailLabel}>Prix</Text>
-                <Text style={[styles.detailValue, { color: '#E23E3E', fontWeight: 'bold' }]}>
-                  {Math.round(show.price)} XOF
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
 
         {/* Contenus similaires */}
         {relatedContent.length > 0 && (
@@ -450,7 +494,7 @@ export default function ShowDetailScreen({ route, navigation }) {
                     })}
                   >
                     <Image
-                      source={{ uri: item.image_url || item.image || item.thumbnail || 'https://via.placeholder.com/100x85' }}
+                      source={{ uri: item.thumbnail || item.image_url || item.image || 'https://via.placeholder.com/100x85' }}
                       style={styles.relatedImage}
                     />
                     <View style={styles.relatedContent}>
@@ -489,10 +533,15 @@ export default function ShowDetailScreen({ route, navigation }) {
       {/* Modal Premium */}
       <PremiumModal
         visible={showPremiumModal}
-        onClose={() => setShowPremiumModal(false)}
+        onClose={() => {
+          setShowPremiumModal(false);
+          setRequiredCategory(null);
+        }}
+        requiredCategory={requiredCategory}
         onSubscribe={(plan) => {
           console.log('Plan sélectionné:', plan);
           setShowPremiumModal(false);
+          setRequiredCategory(null);
         }}
         navigation={navigation}
       />

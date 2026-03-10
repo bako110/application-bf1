@@ -13,6 +13,7 @@ import {
   SafeAreaView,
   Platform,
   Easing,
+  Alert,
 } from 'react-native';
 import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
@@ -22,12 +23,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { createHomeStyles } from '../styles/homeStyles';
 import LoadingScreen from '../components/LoadingScreen';
+import PremiumModal from '../components/premiumModal';
 import newsService from '../services/newsService';
 import jtandMagService from '../services/jtandMagService';
 import divertissementService from '../services/divertissementService';
 import sportService from '../services/sportService';
 import reportageService from '../services/reportageService'
 import archiveService from '../services/archiveService';
+import seriesService from '../services/seriesService';
 import liveStreamService from '../services/liveStreamService';
 import { formatRelativeTime } from '../utils/dateUtils';
 
@@ -76,8 +79,21 @@ const { width, height } = Dimensions.get('window');
 const INITIAL_DISPLAY_COUNT = 10;
 
 export default function HomeScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, isPremium, isAuthenticated } = useAuth();
   const { colors, isDarkMode } = useTheme();
+  
+  // État pour le modal premium
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [requiredCategory, setRequiredCategory] = useState(null);
+  
+  // Fonction helper pour obtenir le badge de catégorie
+  const getSubscriptionBadge = (category) => {
+    if (!category) return { label: 'Gratuit', color: '#4CAF50', icon: 'checkmark-circle' };
+    if (category === 'basic') return { label: 'Basic', color: '#2196F3', icon: 'shield' };
+    if (category === 'standard') return { label: 'Standard', color: '#9C27B0', icon: 'shield-checkmark' };
+    if (category === 'premium') return { label: 'Premium', color: '#FF6F00', icon: 'star' };
+    return { label: 'Gratuit', color: '#4CAF50', icon: 'checkmark-circle' };
+  };
   
   // États pour les différentes sections
   const [flashInfo, setFlashInfo] = useState([]);
@@ -86,6 +102,7 @@ export default function HomeScreen({ navigation }) {
   const [sports, setSports] = useState([]);
   const [reportages, setReportages] = useState([]);
   const [archives, setArchives] = useState([]);
+  const [series, setSeries] = useState([]);
   
   // États pour le live BF1
   const [bf1Stream, setBf1Stream] = useState(null);
@@ -110,6 +127,7 @@ export default function HomeScreen({ navigation }) {
     sports: false,
     reportages: false,
     archives: false,
+    series: false,
   });
 
   // Animations
@@ -164,6 +182,12 @@ export default function HomeScreen({ navigation }) {
       scale: new Animated.Value(0.85),
       rotate: new Animated.Value(-2),
     },
+    series: {
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(50),
+      scale: new Animated.Value(0.85),
+      rotate: new Animated.Value(2),
+    },
   }).current;
 
   const [itemAnimations, setItemAnimations] = useState({});
@@ -178,6 +202,7 @@ export default function HomeScreen({ navigation }) {
     sports: useRef(null),
     reportages: useRef(null),
     archives: useRef(null),
+    series: useRef(null),
   };
 
   const styles = createHomeStyles(colors);
@@ -212,6 +237,7 @@ export default function HomeScreen({ navigation }) {
       { key: 'sports', delay: 340 },
       { key: 'reportages', delay: 420 },
       { key: 'archives', delay: 500 },
+      { key: 'series', delay: 580 },
     ];
 
     sections.forEach(section => {
@@ -274,6 +300,7 @@ export default function HomeScreen({ navigation }) {
       { name: 'sports', data: sports },
       { name: 'reportages', data: reportages },
       { name: 'archives', data: archives },
+      { name: 'series', data: series },
     ];
 
     sections.forEach(section => {
@@ -318,7 +345,7 @@ export default function HomeScreen({ navigation }) {
         }, itemIndex * 40); // Délai plus court pour cascade plus fluide
       }
     });
-  }, [flashInfo, jtMag, divertissements, sports, reportages, archives, itemAnimations]);
+  }, [flashInfo, jtMag, divertissements, sports, reportages, archives, series, itemAnimations]);
 
   // Chargement initial
   useEffect(() => {
@@ -344,6 +371,7 @@ export default function HomeScreen({ navigation }) {
         sports: false,
         reportages: false,
         archives: false,
+        series: false,
       });
     }, [])
   );
@@ -376,13 +404,14 @@ export default function HomeScreen({ navigation }) {
     try {
       console.log('📺 Chargement silencieux des données...');
 
-      const [news, jtMagData, divertissementsData, sportsData, reportagesData, archivesData] = await Promise.all([
+      const [news, jtMagData, divertissementsData, sportsData, reportagesData, archivesData, seriesData] = await Promise.all([
         newsService.getAllNews({ limit: 20 }).catch(() => []),
         jtandMagService.getJTandMag({ limit: 20 }).catch(() => []),
         divertissementService.getAllDivertissements({ limit: 20 }).catch(() => []),
         sportService.getAllSports({ limit: 20 }).catch(() => []),
         reportageService.getAllReportages({ limit: 20 }).catch(() => []),
         archiveService.getAllArchives({ limit: 20 }).catch(() => []),
+        seriesService.getAllSeries({ limit: 20 }).catch(() => []),
       ]);
 
       const stream = await liveStreamService.getBF1Stream().catch(() => null);
@@ -396,6 +425,12 @@ export default function HomeScreen({ navigation }) {
       setSports(sortByDate(sportsData));
       setReportages(sortByDate(reportagesData));
       setArchives(sortByDate(archivesData));
+      
+      console.log('📺 [DEBUG] Séries reçues (silently):', seriesData.length);
+      if (seriesData.length > 0) {
+        console.log('📺 [DEBUG] Première série (silently):', JSON.stringify(seriesData[0], null, 2));
+      }
+      setSeries(sortByDate(seriesData));
 
       setBf1Stream(stream);
       setBf1Program(program);
@@ -415,8 +450,14 @@ export default function HomeScreen({ navigation }) {
       // Réinitialiser les animations
       animatedItemsRef.current.clear();
       setItemAnimations({});
-      Object.keys(sectionAnimations).forEach(key => {
-        sectionAnimations[key].setValue(0);
+      
+      // Réinitialiser chaque animation de section correctement
+      Object.keys(sectionAnimations).forEach(sectionKey => {
+        const section = sectionAnimations[sectionKey];
+        if (section.opacity) section.opacity.setValue(0);
+        if (section.translateY) section.translateY.setValue(50);
+        if (section.scale) section.scale.setValue(0.85);
+        if (section.rotate) section.rotate.setValue(sectionKey === 'flashInfo' || sectionKey === 'divertissements' || sectionKey === 'reportages' || sectionKey === 'series' ? 2 : -2);
       });
       
       await loadContentSilently();
@@ -437,13 +478,14 @@ export default function HomeScreen({ navigation }) {
     try {
       setLoading(true);
 
-      const [news, jtMagData, divertissementsData, sportsData, reportagesData, archivesData] = await Promise.all([
+      const [news, jtMagData, divertissementsData, sportsData, reportagesData, archivesData, seriesData] = await Promise.all([
         newsService.getAllNews({ limit: 20 }).catch(() => []),
         jtandMagService.getJTandMag({ limit: 20 }).catch(() => []),
         divertissementService.getAllDivertissements({ limit: 20 }).catch(() => []),
         sportService.getAllSports({ limit: 20 }).catch(() => []),
         reportageService.getAllReportages({ limit: 20 }).catch(() => []),
         archiveService.getAllArchives({ limit: 20 }).catch(() => []),
+        seriesService.getAllSeries({ limit: 20 }).catch(() => []),
       ]);
 
       const stream = await liveStreamService.getBF1Stream().catch(() => null);
@@ -456,6 +498,12 @@ export default function HomeScreen({ navigation }) {
       setSports(sortByDate(sportsData));
       setReportages(sortByDate(reportagesData));
       setArchives(sortByDate(archivesData));
+      
+      console.log('📺 [DEBUG] Séries reçues:', seriesData.length);
+      if (seriesData.length > 0) {
+        console.log('📺 [DEBUG] Première série:', JSON.stringify(seriesData[0], null, 2));
+      }
+      setSeries(sortByDate(seriesData));
 
       setBf1Stream(stream);
       setBf1Program(program);
@@ -542,6 +590,81 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  // Gestion des archives avec vérification premium
+  const handleArchivePress = async (archive) => {
+    const archiveId = archive.id || archive._id;
+    
+    // Vérifier si une catégorie d'abonnement est requise
+    if (archive.required_subscription_category) {
+      // Si l'utilisateur n'est pas connecté, rediriger vers la connexion
+      if (!isAuthenticated) {
+        const badge = getSubscriptionBadge(archive.required_subscription_category);
+        Alert.alert(
+          '🔒 Connexion Requise',
+          `Cette archive nécessite un abonnement ${badge.label}.\n\nConnectez-vous pour découvrir nos offres d'abonnement.`,
+          [
+            { text: 'Plus tard', style: 'cancel' },
+            { 
+              text: 'Se connecter', 
+              onPress: () => {
+                // Naviguer vers l'écran de connexion dans le stack Profil
+                navigation.getParent()?.navigate('Mon compte', {
+                  screen: 'Login',
+                  params: { returnToSubscription: true }
+                });
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Si connecté, vérifier l'accès via l'API pour respecter la hiérarchie
+      try {
+        const accessInfo = await archiveService.checkArchiveAccess(archiveId);
+        
+        if (!accessInfo.has_access) {
+          const badge = getSubscriptionBadge(archive.required_subscription_category);
+          
+          // Message adapté selon la situation
+          let message = `Cette archive nécessite un abonnement ${badge.label}.`;
+          
+          if (accessInfo.user_category) {
+            const userBadge = getSubscriptionBadge(accessInfo.user_category);
+            message += `\n\nVotre abonnement actuel : ${userBadge.label}\nAbonnement requis : ${badge.label}`;
+          }
+          
+          message += `\n\nDécouvrez nos offres d'abonnement pour accéder à toutes les archives.`;
+          
+          Alert.alert(
+            '🔒 Abonnement Requis',
+            message,
+            [
+              { text: 'Plus tard', style: 'cancel' },
+              { 
+                text: 'Voir les offres', 
+                onPress: () => {
+                  setRequiredCategory(archive.required_subscription_category);
+                  setShowPremiumModal(true);
+                }
+              }
+            ]
+          );
+          return;
+        }
+      } catch (error) {
+        console.error('Erreur vérification accès archive:', error);
+        // En cas d'erreur, continuer vers le lecteur (comportement permissif)
+      }
+    }
+
+    // Naviguer vers le lecteur vidéo
+    navigation.navigate('ShowDetail', { 
+      showId: archiveId, 
+      isArchive: true 
+    });
+  };
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -563,6 +686,7 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { 
@@ -710,35 +834,8 @@ export default function HomeScreen({ navigation }) {
           <Animated.View style={{
             opacity: sectionAnimations.flashInfo.opacity,
             transform: [
-              { 
-                translateY: Animated.add(
-                  sectionAnimations.flashInfo.translateY,
-                  scrollY.interpolate({
-                    inputRange: [0, 300],
-                    outputRange: [0, -15],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                scale: Animated.multiply(
-                  sectionAnimations.flashInfo.scale,
-                  scrollY.interpolate({
-                    inputRange: [0, 300],
-                    outputRange: [1, 0.98],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                rotateZ: sectionAnimations.flashInfo.rotate.interpolate({
-                  inputRange: [-2, 0, 2],
-                  outputRange: ['-2deg', '0deg', '2deg']
-                })
-              },
-              {
-                perspective: 1000
-              }
+              { translateY: sectionAnimations.flashInfo.translateY },
+              { scale: sectionAnimations.flashInfo.scale }
             ]
           }}>
             <View style={styles.section}>
@@ -825,33 +922,8 @@ export default function HomeScreen({ navigation }) {
           <Animated.View style={{
             opacity: sectionAnimations.jtMag.opacity,
             transform: [
-              { 
-                translateY: Animated.add(
-                  sectionAnimations.jtMag.translateY,
-                  scrollY.interpolate({
-                    inputRange: [0, 500],
-                    outputRange: [0, -20],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                scale: Animated.multiply(
-                  sectionAnimations.jtMag.scale,
-                  scrollY.interpolate({
-                    inputRange: [200, 600],
-                    outputRange: [1, 0.97],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                rotateZ: sectionAnimations.jtMag.rotate.interpolate({
-                  inputRange: [-2, 0, 2],
-                  outputRange: ['-2deg', '0deg', '2deg']
-                })
-              },
-              { perspective: 1000 }
+              { translateY: sectionAnimations.jtMag.translateY },
+              { scale: sectionAnimations.jtMag.scale }
             ]
           }}>
             <View style={styles.section}>
@@ -939,33 +1011,8 @@ export default function HomeScreen({ navigation }) {
           <Animated.View style={{
             opacity: sectionAnimations.divertissements.opacity,
             transform: [
-              { 
-                translateY: Animated.add(
-                  sectionAnimations.divertissements.translateY,
-                  scrollY.interpolate({
-                    inputRange: [300, 800],
-                    outputRange: [0, -25],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                scale: Animated.multiply(
-                  sectionAnimations.divertissements.scale,
-                  scrollY.interpolate({
-                    inputRange: [400, 900],
-                    outputRange: [1, 0.96],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                rotateZ: sectionAnimations.divertissements.rotate.interpolate({
-                  inputRange: [-2, 0, 2],
-                  outputRange: ['-2deg', '0deg', '2deg']
-                })
-              },
-              { perspective: 1000 }
+              { translateY: sectionAnimations.divertissements.translateY },
+              { scale: sectionAnimations.divertissements.scale }
             ]
           }}>
             <View style={[styles.section, { marginBottom: 10 }]}>
@@ -1036,33 +1083,8 @@ export default function HomeScreen({ navigation }) {
           <Animated.View style={{
             opacity: sectionAnimations.sports.opacity,
             transform: [
-              { 
-                translateY: Animated.add(
-                  sectionAnimations.sports.translateY,
-                  scrollY.interpolate({
-                    inputRange: [500, 1000],
-                    outputRange: [0, -30],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                scale: Animated.multiply(
-                  sectionAnimations.sports.scale,
-                  scrollY.interpolate({
-                    inputRange: [600, 1100],
-                    outputRange: [1, 0.95],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                rotateZ: sectionAnimations.sports.rotate.interpolate({
-                  inputRange: [-2, 0, 2],
-                  outputRange: ['-2deg', '0deg', '2deg']
-                })
-              },
-              { perspective: 1000 }
+              { translateY: sectionAnimations.sports.translateY },
+              { scale: sectionAnimations.sports.scale }
             ]
           }}>
             <View style={[styles.section, { marginBottom: 10 }]}>
@@ -1144,33 +1166,8 @@ export default function HomeScreen({ navigation }) {
           <Animated.View style={{
             opacity: sectionAnimations.reportages.opacity,
             transform: [
-              { 
-                translateY: Animated.add(
-                  sectionAnimations.reportages.translateY,
-                  scrollY.interpolate({
-                    inputRange: [700, 1200],
-                    outputRange: [0, -35],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                scale: Animated.multiply(
-                  sectionAnimations.reportages.scale,
-                  scrollY.interpolate({
-                    inputRange: [800, 1300],
-                    outputRange: [1, 0.94],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                rotateZ: sectionAnimations.reportages.rotate.interpolate({
-                  inputRange: [-2, 0, 2],
-                  outputRange: ['-2deg', '0deg', '2deg']
-                })
-              },
-              { perspective: 1000 }
+              { translateY: sectionAnimations.reportages.translateY },
+              { scale: sectionAnimations.reportages.scale }
             ]
           }}>
             <View style={styles.section}>
@@ -1244,33 +1241,8 @@ export default function HomeScreen({ navigation }) {
           <Animated.View style={{
             opacity: sectionAnimations.archives.opacity,
             transform: [
-              { 
-                translateY: Animated.add(
-                  sectionAnimations.archives.translateY,
-                  scrollY.interpolate({
-                    inputRange: [900, 1400],
-                    outputRange: [0, -40],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                scale: Animated.multiply(
-                  sectionAnimations.archives.scale,
-                  scrollY.interpolate({
-                    inputRange: [1000, 1500],
-                    outputRange: [1, 0.93],
-                    extrapolate: 'clamp'
-                  })
-                )
-              },
-              { 
-                rotateZ: sectionAnimations.archives.rotate.interpolate({
-                  inputRange: [-2, 0, 2],
-                  outputRange: ['-2deg', '0deg', '2deg']
-                })
-              },
-              { perspective: 1000 }
+              { translateY: sectionAnimations.archives.translateY },
+              { scale: sectionAnimations.archives.scale }
             ]
           }}>
             <View style={[styles.section, { marginBottom: 30 }]}>
@@ -1317,15 +1289,16 @@ export default function HomeScreen({ navigation }) {
                             { backgroundColor: colors.card },
                             isLastItem && { borderRightWidth: 3, borderRightColor: colors.primary }
                           ]}
-                          onPress={() => navigation.navigate('ArchiveDetail', { archiveId: item.id || item._id })}
+                          onPress={() => handleArchivePress(item)}
                         >
-                          <Image source={{ uri: item.image || item.thumbnail || 'https://via.placeholder.com/300x200' }} style={styles.archiveImage} />
+                          <Image source={{ uri: item.thumbnail || item.image || 'https://via.placeholder.com/300x200' }} style={styles.archiveImage} />
                           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.95)']} style={styles.archiveOverlay}>
-                            <View style={styles.archivePremiumBadge}>
-                              <Ionicons name="lock-closed" size={12} color={colors.primary} />
-                              <Text style={styles.archivePremiumText}>Premium</Text>
-                              {item.price > 0 && <Text style={styles.archivePriceText}> • {Math.round(item.price)} XOF</Text>}
-                            </View>
+                            {item.required_subscription_category && (
+                              <View style={[styles.archivePremiumBadge, { backgroundColor: getSubscriptionBadge(item.required_subscription_category).color }]}>
+                                <Ionicons name={getSubscriptionBadge(item.required_subscription_category).icon} size={12} color="#FFF" />
+                                <Text style={styles.archivePremiumText}>{getSubscriptionBadge(item.required_subscription_category).label}</Text>
+                              </View>
+                            )}
                             <Text style={styles.archiveTitle} numberOfLines={2}>{item.title}</Text>
                             <View style={styles.archiveMeta}>
                               <Ionicons name="videocam" size={12} color={colors.primary} />
@@ -1358,8 +1331,116 @@ export default function HomeScreen({ navigation }) {
               </Animated.View>
             </View>
           </Animated.View>
+
+          {/* SECTION SÉRIES TV */}
+          <Animated.View style={{
+            opacity: sectionAnimations.series.opacity,
+            transform: [
+              { translateY: sectionAnimations.series.translateY },
+              { scale: sectionAnimations.series.scale }
+            ]
+          }}>
+            <View style={[styles.section, { marginBottom: 30 }]}>
+              <View style={styles.sectionHeaderWithButton}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Séries TV</Text>
+                </View>
+                <ModernSeeMoreButton onPress={() => navigation.navigate('Series')} />
+              </View>
+              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+                <ScrollView 
+                  ref={scrollViewRefs.series}
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={(event) => handleScroll('series', 'Series', event)}
+                  scrollEventThrottle={16}
+                  decelerationRate="normal"
+                >
+                  {series.length > 0 ? series.slice(0, INITIAL_DISPLAY_COUNT).map((item, index) => {
+                    const itemAnim = getItemAnimation('series', item, index);
+                    const isLastItem = index === INITIAL_DISPLAY_COUNT - 1;
+                    
+                    return (
+                      <Animated.View
+                        key={item.id || item._id}
+                        style={{
+                          opacity: itemAnim,
+                          transform: [
+                            { scale: itemAnim },
+                            { translateY: itemAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [20, 0]
+                            })}
+                          ]
+                        }}
+                      >
+                        <TouchableOpacity
+                          style={[
+                            styles.serieCard, 
+                            { backgroundColor: colors.card },
+                            isLastItem && { borderRightWidth: 3, borderRightColor: colors.primary }
+                          ]}
+                          onPress={() => navigation.navigate('SeriesDetail', { seriesId: item.id || item._id })}
+                        >
+                          <Image 
+                            source={{ uri: item.posterUrl || item.imageUrl || item.image_url || 'https://via.placeholder.com/300x400' }} 
+                            style={styles.serieImage} 
+                          />
+                          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.95)']} style={styles.serieOverlay}>
+                            {item.isPremium && (
+                              <View style={styles.seriePremiumBadge}>
+                                <Ionicons name="star" size={12} color={colors.primary} />
+                                <Text style={styles.seriePremiumText}>Premium</Text>
+                              </View>
+                            )}
+                            <Text style={styles.serieTitle} numberOfLines={2}>{item.title}</Text>
+                            <View style={styles.serieMeta}>
+                              {item.seasons && item.seasons.length > 0 && (
+                                <>
+                                  <Ionicons name="film" size={12} color={colors.primary} />
+                                  <Text style={styles.serieMetaText}>{item.seasons.length} Saison{item.seasons.length > 1 ? 's' : ''}</Text>
+                                  <Text style={styles.serieMetaSeparator}>•</Text>
+                                </>
+                              )}
+                              {item.genre && Array.isArray(item.genre) && item.genre.length > 0 && (
+                                <>
+                                  <Text style={styles.serieMetaText}>{item.genre[0]}</Text>
+                                  <Text style={styles.serieMetaSeparator}>•</Text>
+                                </>
+                              )}
+                              <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                              <Text style={styles.serieMetaText}>
+                                {formatRelativeTime(item.created_at || item.published_at)}
+                              </Text>
+                            </View>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  }) : (
+                    <View style={styles.emptyStateHorizontal}>
+                      <Ionicons name="tv-outline" size={48} color={colors.textSecondary} />
+                      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>Aucune série disponible</Text>
+                    </View>
+                  )}
+                  <View style={{ width: 40 }} />
+                </ScrollView>
+              </Animated.View>
+            </View>
+          </Animated.View>
         </View>
       </Animated.ScrollView>
+      
+      {/* Modal Premium */}
+      <PremiumModal
+        visible={showPremiumModal}
+        onClose={() => {
+          setShowPremiumModal(false);
+          setRequiredCategory(null);
+        }}
+        requiredCategory={requiredCategory}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 }

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -20,15 +21,17 @@ import PremiumModal from '../../components/premiumModal';
 import UniversalVideoPlayer from '../../components/UniversalVideoPlayer';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
+import { canUserAccessContent, getSubscriptionBadge, getUserSubscriptionCategory } from '../../utils/subscriptionUtils';
 
 const { width } = Dimensions.get('window');
 
 export default function MovieDetailScreen({ route, navigation }) {
   const { movieId } = route.params;
-  const { isPremium } = useAuth();
+  const { user, isPremium, isAuthenticated } = useAuth();
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [requiredCategory, setRequiredCategory] = useState(null);
   const [relatedMovies, setRelatedMovies] = useState([]);
 
   useEffect(() => {
@@ -67,13 +70,58 @@ export default function MovieDetailScreen({ route, navigation }) {
   };
 
   const handlePlay = () => {
-    if (movie?.is_premium && !isPremium) {
-      setShowPremiumModal(true);
-      return;
+    // Vérifier si le film nécessite un abonnement
+    if (movie?.required_subscription_category) {
+      if (!isAuthenticated) {
+        const badge = getSubscriptionBadge(movie.required_subscription_category);
+        Alert.alert(
+          '🔒 Connexion Requise',
+          `Ce film nécessite un abonnement ${badge.label} pour être visionné.`,
+          [
+            { text: 'Plus tard', style: 'cancel' },
+            { 
+              text: 'Se connecter', 
+              onPress: () => navigation.navigate('Mon compte', { screen: 'Login' })
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Vérifier l'accès selon la hiérarchie
+      const userCategory = getUserSubscriptionCategory(user);
+      const hasAccess = canUserAccessContent(userCategory, movie.required_subscription_category);
+      
+      if (!hasAccess) {
+        const badge = getSubscriptionBadge(movie.required_subscription_category);
+        let message = `Ce film nécessite un abonnement ${badge.label}.`;
+        
+        if (userCategory) {
+          const userBadge = getSubscriptionBadge(userCategory);
+          message += `\n\nVotre abonnement actuel : ${userBadge.label}\nAbonnement requis : ${badge.label}`;
+        }
+        
+        message += `\n\nDécouvrez nos offres d'abonnement pour accéder à tous les films.`;
+        
+        Alert.alert(
+          '🔒 Abonnement Requis',
+          message,
+          [
+            { text: 'Plus tard', style: 'cancel' },
+            { 
+              text: 'Voir les offres', 
+              onPress: () => {
+                setRequiredCategory(movie.required_subscription_category);
+                setShowPremiumModal(true);
+              }
+            }
+          ]
+        );
+        return;
+      }
     }
     
     // La vidéo se lit directement dans le VideoPlayer
-    // Pas de navigation vers une autre page
   };
 
   if (loading) {
@@ -242,10 +290,15 @@ export default function MovieDetailScreen({ route, navigation }) {
       {/* Modal Premium */}
       <PremiumModal
         visible={showPremiumModal}
-        onClose={() => setShowPremiumModal(false)}
+        onClose={() => {
+          setShowPremiumModal(false);
+          setRequiredCategory(null);
+        }}
+        requiredCategory={requiredCategory}
         onSubscribe={(plan) => {
           console.log('Plan sélectionné:', plan);
           setShowPremiumModal(false);
+          setRequiredCategory(null);
         }}
         navigation={navigation}
       />

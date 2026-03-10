@@ -276,6 +276,137 @@ export const createProgramStyles = (colors) =>
       color: '#FFFFFF',
     },
 
+    // Nouveaux styles pour le calendrier
+    calendarContainer: {
+      backgroundColor: colors.surface,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border || '#330000',
+    },
+
+    calendarHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      marginBottom: 12,
+    },
+
+    calendarNavBtn: {
+      padding: 8,
+      borderRadius: 8,
+      backgroundColor: colors.background,
+    },
+
+    calendarTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+
+    calendarTitleBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 8,
+      borderRadius: 8,
+      backgroundColor: colors.background,
+    },
+
+    // Styles pour le modal calendrier complet
+    calendarModalContent: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingBottom: 20,
+      maxHeight: '80%',
+    },
+
+    calendarModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border || '#330000',
+    },
+
+    calendarModalTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.text,
+    },
+
+    calendar: {
+      borderWidth: 0,
+      borderRadius: 10,
+      marginHorizontal: 16,
+      marginTop: 16,
+    },
+
+    calendarModalActions: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+
+    calendarModalBtn: {
+      backgroundColor: colors.background,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 10,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+
+    calendarModalBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+
+    dayCardToday: {
+      borderColor: colors.primary,
+      borderWidth: 2,
+    },
+
+    dayNumberToday: {
+      color: colors.primary,
+      fontWeight: 'bold',
+    },
+
+    todayDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.primary,
+      marginTop: 2,
+    },
+
+    todayBtn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      marginRight: 6,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+
+    todayBtnText: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: colors.primary,
+      marginTop: 2,
+    },
+
     /* ================= CONTENT ================= */
 
     content: {
@@ -419,6 +550,29 @@ export const createProgramStyles = (colors) =>
       backgroundColor: `${colors.primary}20`,
       padding: 8,
       borderRadius: 8,
+    },
+
+    /* ================= EMPTY STATE ================= */
+    emptyStateContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 40,
+      paddingVertical: 60,
+    },
+
+    emptyStateTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      marginTop: 16,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+
+    emptyStateText: {
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
     },
   });
 

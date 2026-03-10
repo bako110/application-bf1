@@ -84,8 +84,10 @@ function NavigationWrapperWithBackHandling() {
         const homeIndex = homeState?.index ?? 0;
         const homeRoute = homeState?.routes?.[homeIndex];
         
-        // Si on est sur l'écran principal de l'accueil (Movies)
-        if (!homeState || homeRoute?.name === 'Movies') {
+        console.log('🏠 État de l\'onglet Accueil:', homeRoute?.name, 'Index:', homeIndex);
+        
+        // Si on est sur l'écran principal de l'accueil (Home)
+        if (!homeState || homeRoute?.name === 'Home') {
           // Double back press pour quitter
           backPressCount.current += 1;
 
@@ -108,7 +110,24 @@ function NavigationWrapperWithBackHandling() {
             return true;
           }
         } else {
-          // On est dans un sous-écran de l'accueil - retour normal
+          // On est dans un sous-écran de l'accueil
+          const currentScreenName = homeRoute?.name;
+          
+          // Liste des écrans de section qui doivent retourner directement à Home
+          const sectionScreens = [
+            'Sport', 'Divertissement', 'JTandMag', 'BreakingNews', 
+            'Reportages', 'Archive', 'Series', 'Movies', 'Program', 'Search'
+          ];
+          
+          // Si on est sur un écran de section, retourner directement à Home
+          if (sectionScreens.includes(currentScreenName)) {
+            console.log('✅ Retour direct de', currentScreenName, 'vers Home');
+            navigation.navigate('Accueil', { screen: 'Home' });
+            backPressCount.current = 0;
+            return true;
+          }
+          
+          // Pour les écrans de détails, laisser le retour normal fonctionner
           backPressCount.current = 0;
           return false;
         }

@@ -78,6 +78,11 @@ export default function DrawerMenu({ visible, onClose }) {
       description: 'Catalogue de films',
     },
     {
+      title: 'Séries',
+      screen: 'SeriesList',
+      description: 'Séries TV et épisodes',
+    },
+    {
       title: 'Calendrier',
       screen: 'Program',
       description: 'Programmes TV et horaires',
@@ -107,6 +112,10 @@ export default function DrawerMenu({ visible, onClose }) {
         case 'MoviesList':
           // Films - Dans HomeStack
           navigation.navigate('Accueil', { screen: 'Movies' });
+          break;
+        case 'SeriesList':
+          // Séries - Dans HomeStack
+          navigation.navigate('Accueil', { screen: 'Series' });
           break;
         case 'Archive':
           // Archive - Dans HomeStack

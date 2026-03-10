@@ -28,7 +28,7 @@ const ContentActions = ({ contentId, contentType, navigation, allowComments = tr
     setShowLoginModal(false);
     if (navigation) {
       // Naviguer vers le tab Profil puis vers l'écran Login
-      navigation.getParent()?.navigate('Profil', {
+      navigation.getParent()?.navigate('Mon compte', {
         screen: 'Login'
       });
     }

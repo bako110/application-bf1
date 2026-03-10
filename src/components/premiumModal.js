@@ -5,7 +5,7 @@ import subscriptionService from '../services/subscriptionService';
 import authService from '../services/authService';
 import { colors } from '../contexts/ThemeContext';
 
-const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
+const PremiumModal = ({ visible, onClose, onSubscribe, navigation, requiredCategory = null }) => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
@@ -48,7 +48,21 @@ const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
     setLoading(true);
     try {
       const data = await subscriptionService.getAvailablePlans();
-      setPlans(data);
+      
+      // Filtrer les plans selon la catégorie requise
+      let filteredPlans = data;
+      if (requiredCategory) {
+        // Mapper les catégories du modèle aux plans disponibles
+        // basic -> afficher uniquement plans Basic
+        // standard -> afficher uniquement plans Standard
+        // premium -> afficher uniquement plans Premium
+        filteredPlans = data.filter(plan => {
+          const planCategory = plan.code.toLowerCase().split('_')[0]; // Ex: "BASIC_1M" -> "basic"
+          return planCategory === requiredCategory.toLowerCase();
+        });
+      }
+      
+      setPlans(filteredPlans);
     } catch (error) {
       console.error('Erreur chargement plans:', error);
       Alert.alert('Erreur', 'Impossible de charger les plans d\'abonnement');
@@ -70,7 +84,8 @@ const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
             onPress: () => {
               onClose();
               if (navigation) {
-                navigation.navigate('Login');
+                // Navigation vers le tab Profil puis Login
+                navigation.navigate('Mon compte', { screen: 'Login' });
               }
             },
           },
@@ -195,9 +210,15 @@ const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
             {/* Étape 1 : Sélection du plan */}
             {currentStep === 1 && (
               <>
-                <Text style={styles.title}>Passez à Premium</Text>
+                <Text style={styles.title}>
+                  {requiredCategory 
+                    ? `Abonnement ${requiredCategory.charAt(0).toUpperCase() + requiredCategory.slice(1)} Requis`
+                    : 'Passez à Premium'}
+                </Text>
                 <Text style={styles.subtitle}>
-                  Accédez à tous les contenus exclusifs et profitez d'une expérience sans publicité
+                  {requiredCategory
+                    ? `Ce contenu nécessite un abonnement ${requiredCategory.charAt(0).toUpperCase() + requiredCategory.slice(1)}. Choisissez votre plan ci-dessous.`
+                    : 'Accédez à tous les contenus exclusifs et profitez d\'une expérience sans publicité'}
                 </Text>
               </>
             )}
@@ -235,7 +256,10 @@ const PremiumModal = ({ visible, onClose, onSubscribe, navigation }) => {
                   style={styles.loginButton}
                   onPress={() => {
                     onClose();
-                    if (navigation) navigation.navigate('Login');
+                    if (navigation) {
+                      // Navigation vers le tab Profil puis Login
+                      navigation.navigate('Mon compte', { screen: 'Login' });
+                    }
                   }}
                 >
                   <Text style={styles.loginButtonText}>Se connecter</Text>

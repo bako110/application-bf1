@@ -21,12 +21,17 @@ import usePagination from '../hooks/usePagination';
 import LoadingFooter from '../components/LoadingFooter';
 import { useFocusEffect } from '@react-navigation/native';
 import { createArchiveStyles } from '../styles/archiveStyles';
-import LoadingScreen from '../components/LoadingScreen'; // Import du loader
+import LoadingScreen from '../components/LoadingScreen';
+import PremiumModal from '../components/premiumModal';
 
 export default function ArchiveScreen({ navigation }) {
   const { colors } = useTheme();
-  const [viewMode, setViewMode] = useState('list');
+  const [viewMode, setViewMode] = useState('grid');
   const { user, isPremium, isAuthenticated } = useAuth();
+  
+  // État pour le modal premium
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [requiredCategory, setRequiredCategory] = useState(null);
   
   // Pagination
   const fetchArchives = async (skip, limit) => {
@@ -84,53 +89,78 @@ export default function ArchiveScreen({ navigation }) {
     }
   }, [archives, viewMode]);
 
+  // Fonction helper pour obtenir le badge de catégorie
+  const getSubscriptionBadge = (category) => {
+    if (!category) return { label: 'Gratuit', color: '#4CAF50', icon: 'checkmark-circle' };
+    if (category === 'basic') return { label: 'Basic', color: '#2196F3', icon: 'shield' };
+    if (category === 'standard') return { label: 'Standard', color: '#9C27B0', icon: 'shield-checkmark' };
+    if (category === 'premium') return { label: 'Premium', color: '#FF6F00', icon: 'star' };
+    return { label: 'Gratuit', color: '#4CAF50', icon: 'checkmark-circle' };
+  };
+
   const handleArchivePress = async (archive) => {
     const archiveId = archive.id || archive._id;
     
-    // Vérifier si c'est une vidéo premium
-    if (archive.is_premium && !isPremium) {
-      // Si l'utilisateur n'est pas connecté, rediriger vers la connexion
-      if (!isAuthenticated) {
-        Alert.alert(
-          '🔒 Connexion Requise',
-          'Vous devez être connecté pour accéder aux archives premium.\n\nConnectez-vous pour découvrir nos offres d\'abonnement.',
-          [
-            { text: 'Plus tard', style: 'cancel' },
-            { 
-              text: 'Se connecter', 
-              onPress: () => {
-                // Naviguer vers l'écran de connexion dans le stack Profil
-                navigation.getParent()?.navigate('Profil', {
-                  screen: 'Login',
-                  params: { returnToSubscription: true }
-                });
-              }
-            }
-          ]
-        );
-        return;
-      }
-      
-      // Si connecté mais pas premium, afficher le modal de souscription
-      const priceText = archive.price > 0 
-        ? `Prix: ${Math.round(archive.price)} XOF` 
-        : 'Abonnement premium requis';
-      
+    // Si l'utilisateur n'est pas connecté et le contenu nécessite un abonnement
+    if (archive.required_subscription_category && !isAuthenticated) {
+      const badge = getSubscriptionBadge(archive.required_subscription_category);
       Alert.alert(
-        '🔒 Vidéo Premium',
-        `Cette vidéo d'archive est réservée aux abonnés premium.\n\n${priceText}\n\nDécouvrez nos offres d'abonnement pour accéder à toutes les archives vidéo.`,
+        '🔒 Connexion Requise',
+        `Cette archive nécessite un abonnement ${badge.label}.\n\nConnectez-vous pour découvrir nos offres d'abonnement.`,
         [
           { text: 'Plus tard', style: 'cancel' },
           { 
-            text: 'Voir les offres', 
+            text: 'Se connecter', 
             onPress: () => {
-              // Naviguer vers l'onglet Profil pour voir les offres premium
-              navigation.getParent()?.navigate('Profil');
+              navigation.getParent()?.navigate('Mon compte', {
+                screen: 'Login',
+                params: { returnToSubscription: true }
+              });
             }
           }
         ]
       );
       return;
+    }
+    
+    // Si connecté, vérifier l'accès via l'API pour respecter la hiérarchie
+    if (isAuthenticated && archive.required_subscription_category) {
+      try {
+        const accessInfo = await archiveService.checkArchiveAccess(archiveId);
+        
+        if (!accessInfo.has_access) {
+          const badge = getSubscriptionBadge(archive.required_subscription_category);
+          
+          // Message adapté selon la situation
+          let message = `Cette archive nécessite un abonnement ${badge.label}.`;
+          
+          if (accessInfo.user_category) {
+            const userBadge = getSubscriptionBadge(accessInfo.user_category);
+            message += `\n\nVotre abonnement actuel : ${userBadge.label}\nAbonnement requis : ${badge.label}`;
+          }
+          
+          message += `\n\nDécouvrez nos offres d'abonnement pour accéder à toutes les archives.`;
+          
+          Alert.alert(
+            '🔒 Abonnement Requis',
+            message,
+            [
+              { text: 'Plus tard', style: 'cancel' },
+              { 
+                text: 'Voir les offres', 
+                onPress: () => {
+                  setRequiredCategory(archive.required_subscription_category);
+                  setShowPremiumModal(true);
+                }
+              }
+            ]
+          );
+          return;
+        }
+      } catch (error) {
+        console.error('Erreur vérification accès:', error);
+        // En cas d'erreur, continuer vers le lecteur (comportement permissif)
+      }
     }
 
     // Naviguer vers le lecteur vidéo
@@ -153,22 +183,21 @@ export default function ArchiveScreen({ navigation }) {
           activeOpacity={0.9}
         >
           <Image
-            source={{ uri: item.image || item.thumbnail || 'https://via.placeholder.com/400x250' }}
+            source={{ uri: item.thumbnail || item.image || 'https://via.placeholder.com/400x250/1a1a1a/666666?text=Archive' }}
             style={styles.archiveImage}
+            resizeMode="cover"
+            onError={(e) => {
+              console.log('Erreur chargement image archive:', item.id);
+            }}
           />
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.95)']}
             style={styles.archiveOverlay}
           >
-            {item.is_premium && (
-              <View style={styles.archivePremiumBadge}>
-                <Ionicons name="lock-closed" size={10} color="#FFD700" />
-                <Text style={styles.archivePremiumText}>Premium</Text>
-              </View>
-            )}
-            {item.is_premium && item.price > 0 && (
-              <View style={styles.archivePriceBadge}>
-                <Text style={styles.archivePriceText}>{Math.round(item.price)} XOF</Text>
+            {item.required_subscription_category && (
+              <View style={[styles.archivePremiumBadge, { backgroundColor: getSubscriptionBadge(item.required_subscription_category).color }]}>
+                <Ionicons name={getSubscriptionBadge(item.required_subscription_category).icon} size={10} color="#FFF" />
+                <Text style={styles.archivePremiumText}>{getSubscriptionBadge(item.required_subscription_category).label}</Text>
               </View>
             )}
             <Text style={styles.archiveTitle} numberOfLines={2}>
@@ -187,20 +216,19 @@ export default function ArchiveScreen({ navigation }) {
           activeOpacity={0.9}
         >
           <Image
-            source={{ uri: item.image || item.thumbnail || 'https://via.placeholder.com/400x250' }}
+            source={{ uri: item.thumbnail || item.image || 'https://via.placeholder.com/400x250/1a1a1a/666666?text=Archive' }}
             style={styles.archiveImageList}
+            resizeMode="cover"
+            onError={(e) => {
+              console.log('Erreur chargement image archive:', item.id);
+            }}
           />
           <View style={styles.archiveContentList}>
             <View style={styles.archiveBadgesRow}>
-              {item.is_premium && (
-                <View style={styles.archivePremiumBadgeList}>
-                  <Ionicons name="lock-closed" size={12} color="#FFD700" />
-                  <Text style={styles.archivePremiumTextList}>Premium</Text>
-                </View>
-              )}
-              {item.is_premium && item.price > 0 && (
-                <View style={styles.archivePriceBadgeList}>
-                  <Text style={styles.archivePriceTextList}>{Math.round(item.price)} XOF</Text>
+              {item.required_subscription_category && (
+                <View style={[styles.archivePremiumBadgeList, { backgroundColor: getSubscriptionBadge(item.required_subscription_category).color }]}>
+                  <Ionicons name={getSubscriptionBadge(item.required_subscription_category).icon} size={12} color="#FFF" />
+                  <Text style={styles.archivePremiumTextList}>{getSubscriptionBadge(item.required_subscription_category).label}</Text>
                 </View>
               )}
             </View>
@@ -230,7 +258,7 @@ export default function ArchiveScreen({ navigation }) {
           </Text>
           <TouchableOpacity 
             style={styles.subscribeButton} 
-            onPress={() => navigation.navigate('Profile')}
+            onPress={() => navigation.navigate('Mon compte')}
           >
             <Text style={styles.subscribeButtonText}>S'abonner</Text>
           </TouchableOpacity>
@@ -275,6 +303,17 @@ export default function ArchiveScreen({ navigation }) {
           </Animated.View>
         )}
       </ScrollView>
+      
+      {/* Modal Premium */}
+      <PremiumModal
+        visible={showPremiumModal}
+        onClose={() => {
+          setShowPremiumModal(false);
+          setRequiredCategory(null);
+        }}
+        requiredCategory={requiredCategory}
+        navigation={navigation}
+      />
     </View>
   );
 }

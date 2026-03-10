@@ -571,6 +571,64 @@ export const createHomeStyles = (colors) => StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+
+  // Styles pour Séries TV
+  serieCard: {
+    width: 200,
+    height: 160,
+    marginLeft: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.card,
+  },
+  serieImage: {
+    width: '100%',
+    height: '100%',
+  },
+  serieOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
+  },
+  seriePremiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 4,
+  },
+  seriePremiumText: {
+    color: '#FFD700',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  serieTitle: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  serieMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  serieMetaText: {
+    color: '#B0B0B0',
+    fontSize: 9,
+  },
+  serieMetaSeparator: {
+    color: '#B0B0B0',
+    fontSize: 9,
+    marginHorizontal: 4,
+  },
+
   contentContainer: {
     paddingTop: 8,
   },

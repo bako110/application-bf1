@@ -39,6 +39,7 @@ class SubscriptionService {
 
       const response = await api.post('/subscriptions', {
         user_id: user.id,
+        plan_id: planId, // Important: envoyer le plan_id pour la synchronisation backend
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
         is_active: true,

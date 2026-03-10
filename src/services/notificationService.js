@@ -115,21 +115,38 @@ class NotificationService {
 
   // Marquer toutes les notifications comme lues
   async markAllAsRead() {
+    console.log('🔔 [NotificationService] markAllAsRead appelé');
     const isAuth = await authService.isAuthenticated();
     if (!isAuth) {
       throw { requiresAuth: true, message: 'Vous devez être connecté' };
     }
 
     try {
-      const notifications = await this.fetchNotifications();
-      const unreadNotifications = notifications.filter(n => !n.is_read);
-      
-      await Promise.all(
-        unreadNotifications.map(n => this.markAsRead(n.id))
-      );
-      
-      return { success: true };
+      console.log('🔔 [NotificationService] Appel PATCH /notifications/mark-all-read');
+      const response = await api.patch('/notifications/mark-all-read');
+      console.log('✅ [NotificationService] Toutes les notifications marquées comme lues:', response.data);
+      return response.data;
     } catch (error) {
+      console.error('❌ [NotificationService] Erreur markAllAsRead:', error);
+      throw error.response?.data || error.message;
+    }
+  }
+
+  // Supprimer toutes les notifications
+  async deleteAllNotifications() {
+    console.log('🔔 [NotificationService] deleteAllNotifications appelé');
+    const isAuth = await authService.isAuthenticated();
+    if (!isAuth) {
+      throw { requiresAuth: true, message: 'Vous devez être connecté' };
+    }
+
+    try {
+      console.log('🔔 [NotificationService] Appel DELETE /notifications/delete-all');
+      const response = await api.delete('/notifications/delete-all');
+      console.log('✅ [NotificationService] Toutes les notifications supprimées:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [NotificationService] Erreur deleteAllNotifications:', error);
       throw error.response?.data || error.message;
     }
   }

@@ -6,8 +6,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import notificationService from '../services/notificationService';
 import { formatRelativeTime } from '../utils/dateUtils';
@@ -21,7 +23,21 @@ export default function NotificationsScreen({ navigation }) {
 
   useEffect(() => {
     loadNotifications();
+    
+    // Rafraîchir les notifications toutes les 30 secondes
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
+
+  // Recharger quand l'écran devient visible
+  useFocusEffect(
+    React.useCallback(() => {
+      loadNotifications();
+    }, [])
+  );
 
   const loadNotifications = async () => {
     try {
@@ -46,9 +62,8 @@ export default function NotificationsScreen({ navigation }) {
       if (!notification.is_read) {
         const notifId = notification.id || notification._id;
         await notificationService.markAsRead(notifId);
-        setNotifications(notifications.map(n =>
-          (n.id || n._id) === notifId ? { ...n, is_read: true } : n
-        ));
+        // Retirer la notification de la liste car elle est maintenant lue
+        setNotifications(notifications.filter(n => (n.id || n._id) !== notifId));
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -57,15 +72,45 @@ export default function NotificationsScreen({ navigation }) {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await Promise.all(
-        notifications
-          .filter(n => !n.is_read)
-          .map(n => notificationService.markAsRead(n.id || n._id))
-      );
-      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+      await notificationService.markAllAsRead();
+      // Recharger les notifications (l'endpoint /me ne retournera plus rien car toutes sont lues)
+      loadNotifications();
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
+  };
+
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      await notificationService.deleteNotification(notificationId);
+      setNotifications(notifications.filter(n => (n.id || n._id) !== notificationId));
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      Alert.alert('Erreur', 'Impossible de supprimer la notification');
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    Alert.alert(
+      'Supprimer toutes les notifications',
+      'Êtes-vous sûr de vouloir supprimer toutes les notifications ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await notificationService.deleteAllNotifications();
+              setNotifications([]);
+            } catch (error) {
+              console.error('Error deleting all notifications:', error);
+              Alert.alert('Erreur', 'Impossible de supprimer toutes les notifications');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const getNotificationIcon = (category) => {
@@ -84,30 +129,41 @@ export default function NotificationsScreen({ navigation }) {
     const styles = createNotificationsStyles(colors);
     
     return (
-      <TouchableOpacity
-        style={[styles.notificationCard, !item.is_read && styles.unreadCard]}
-        onPress={() => handleNotificationPress(item)}
-      >
-        <View style={styles.notificationIcon}>
-          <Ionicons
-            name={getNotificationIcon(item.category)}
-            size={24}
-            color={item.is_read ? colors.textSecondary : colors.primary}
-          />
-        </View>
-        <View style={styles.notificationContent}>
-          <Text style={[styles.notificationTitle, !item.is_read && styles.unreadTitle]}>
-            {item.title}
-          </Text>
-          <Text style={styles.notificationMessage} numberOfLines={2}>
-            {item.message}
-          </Text>
-          <Text style={styles.notificationTime}>
-            {formatRelativeTime(item.created_at)}
-          </Text>
-        </View>
-        {!item.is_read && <View style={styles.unreadDot} />}
-      </TouchableOpacity>
+      <View style={[styles.notificationCard, !item.is_read && styles.unreadCard]}>
+        <TouchableOpacity
+          style={styles.notificationMainContent}
+          onPress={() => handleNotificationPress(item)}
+        >
+          <View style={styles.notificationIcon}>
+            <Ionicons
+              name={getNotificationIcon(item.category)}
+              size={24}
+              color={item.is_read ? colors.textSecondary : colors.primary}
+            />
+          </View>
+          <View style={styles.notificationContent}>
+            <Text style={[styles.notificationTitle, !item.is_read && styles.unreadTitle]}>
+              {item.title}
+            </Text>
+            <Text style={styles.notificationMessage} numberOfLines={2}>
+              {item.message}
+            </Text>
+            <Text style={styles.notificationTime}>
+              {formatRelativeTime(item.created_at)}
+            </Text>
+          </View>
+          {!item.is_read && <View style={styles.unreadDot} />}
+        </TouchableOpacity>
+        
+        {/* Bouton de suppression */}
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDeleteNotification(item.id || item._id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="trash-outline" size={20} color="#E23E3E" />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -128,9 +184,15 @@ export default function NotificationsScreen({ navigation }) {
           <Text style={styles.headerText}>
             {notifications.filter(n => !n.is_read).length} non lues
           </Text>
-          <TouchableOpacity onPress={handleMarkAllAsRead}>
-            <Text style={styles.markAllButton}>Tout marquer comme lu</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={handleMarkAllAsRead} style={styles.headerButton}>
+              <Text style={styles.markAllButton}>Tout marquer lu</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDeleteAll} style={styles.deleteAllButton}>
+              <Ionicons name="trash" size={18} color="#E23E3E" />
+              <Text style={styles.deleteAllText}>Tout supprimer</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 

@@ -211,7 +211,7 @@ export default function FavoritesScreen({ navigation }) {
           </Text>
           <TouchableOpacity
             style={styles.loginButton}
-            onPress={() => navigation.navigate('Profil')}
+            onPress={() => navigation.navigate('Mon compte')}
           >
             <Text style={styles.loginButtonText}>Se connecter</Text>
           </TouchableOpacity>

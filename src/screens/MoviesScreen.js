@@ -34,6 +34,15 @@ export default function MoviesScreen({ navigation }) {
 
   const genres = ['Tous', 'Action', 'Drame', 'Comédie', 'Thriller', 'Romance', 'Documentaire'];
 
+  // Fonction helper pour obtenir le badge de catégorie
+  const getSubscriptionBadge = (category) => {
+    if (!category) return { label: 'Gratuit', color: '#4CAF50', icon: 'checkmark-circle' };
+    if (category === 'basic') return { label: 'Basic', color: '#2196F3', icon: 'shield' };
+    if (category === 'standard') return { label: 'Standard', color: '#9C27B0', icon: 'shield-checkmark' };
+    if (category === 'premium') return { label: 'Premium', color: '#FF6F00', icon: 'star' };
+    return { label: 'Gratuit', color: '#4CAF50', icon: 'checkmark-circle' };
+  };
+
   // Pagination
   const fetchMovies = async (skip, limit) => {
     if (filter === 'premium') {
@@ -109,7 +118,7 @@ export default function MoviesScreen({ navigation }) {
       console.error('Error toggling like:', error);
       if (error.requiresAuth) {
         alert('Vous devez être connecté pour liker un film. Veuillez vous connecter depuis votre profil.');
-        navigation.navigate('Profil');
+        navigation.navigate('Mon compte');
       }
     }
   };
@@ -309,9 +318,9 @@ export default function MoviesScreen({ navigation }) {
                   source={{ uri: movie.image_url || 'https://via.placeholder.com/200x300' }}
                   style={styles.movieImageRow}
                 />
-                {movie.is_premium && (
-                  <View style={styles.premiumBadge}>
-                    <Ionicons name="star" size={12} color="#FFD700" />
+                {movie.required_subscription_category && (
+                  <View style={[styles.premiumBadge, { backgroundColor: getSubscriptionBadge(movie.required_subscription_category).color }]}>
+                    <Ionicons name={getSubscriptionBadge(movie.required_subscription_category).icon} size={12} color="#FFF" />
                   </View>
                 )}
                 <TouchableOpacity
@@ -368,9 +377,9 @@ export default function MoviesScreen({ navigation }) {
                       source={{ uri: movie.image_url || 'https://via.placeholder.com/200x300' }}
                       style={styles.movieImage}
                     />
-                    {movie.is_premium && (
-                      <View style={styles.premiumBadge}>
-                        <Ionicons name="star" size={12} color="#FFD700" />
+                    {movie.required_subscription_category && (
+                      <View style={[styles.premiumBadge, { backgroundColor: getSubscriptionBadge(movie.required_subscription_category).color }]}>
+                        <Ionicons name={getSubscriptionBadge(movie.required_subscription_category).icon} size={12} color="#FFF" />
                       </View>
                     )}
                     <TouchableOpacity
@@ -416,10 +425,10 @@ export default function MoviesScreen({ navigation }) {
                         <Text style={styles.movieListGenre}>{movie.genre}</Text>
                       )}
                       <View style={styles.movieListMeta}>
-                        {movie.is_premium && (
-                          <View style={styles.premiumTag}>
-                            <Ionicons name="star" size={12} color="#FFD700" />
-                            <Text style={styles.premiumTagText}>Premium</Text>
+                        {movie.required_subscription_category && (
+                          <View style={[styles.premiumTag, { backgroundColor: getSubscriptionBadge(movie.required_subscription_category).color }]}>
+                            <Ionicons name={getSubscriptionBadge(movie.required_subscription_category).icon} size={12} color="#FFF" />
+                            <Text style={styles.premiumTagText}>{getSubscriptionBadge(movie.required_subscription_category).label}</Text>
                           </View>
                         )}
                         <View style={styles.likesInfo}>

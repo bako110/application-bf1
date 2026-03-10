@@ -11,9 +11,13 @@ import DivertissementScreen from '../screens/DivertissementScreen';
 import ArchiveScreen from '../screens/ArchiveScreen';
 import ProgramScreen from '../screens/ProgramScreen';
 import MoviesScreen from '../screens/MoviesScreen';
+import SeriesScreen from '../screens/SeriesScreen';
 import sportScreen from '../screens/sportScreen';
 import MovieDetailScreen from '../screens/details/MovieDetailScreen';
 import MoviePlayerScreen from '../screens/details/MoviePlayerScreen';
+import SeriesDetailScreen from '../screens/details/SeriesDetailScreen';
+import SeasonDetailScreen from '../screens/details/SeasonDetailScreen';
+import EpisodePlayerScreen from '../screens/details/EpisodePlayerScreen';
 import LiveShowFullScreen from '../screens/details/LiveShowFullScreen';
 import ShowDetailScreen from '../screens/details/ShowDetailScreen';
 import NewsDetailScreen from '../screens/details/NewsDetailScreen';
@@ -23,6 +27,26 @@ import AboutScreen from '../screens/AboutScreen';
 import SearchScreen from '../screens/SearchScreen';
 
 const Stack = createStackNavigator();
+
+// Fonction pour créer le headerLeft qui retourne toujours à Home
+const createHeaderLeft = (navigation) => {
+  return () => (
+    <TouchableOpacity
+      onPress={() => navigation.navigate('Home')}
+      style={{ 
+        marginLeft: 16,
+        padding: 4,
+      }}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Ionicons 
+        name="arrow-back" 
+        size={24} 
+        color="#E23E3E" 
+      />
+    </TouchableOpacity>
+  );
+};
 
 // Fonction pour créer le headerRight de manière cohérente avec les autres écrans
 const createHeaderRight = (navigation, extraButtons = null) => {
@@ -110,6 +134,7 @@ export default function HomeStack() {
         component={BreakingNewsScreen}
         options={({ navigation }) => ({
           title: 'Flash Info',
+          headerLeft: createHeaderLeft(navigation),
           headerRight: createHeaderRight(navigation),
         })}
       />
@@ -120,6 +145,7 @@ export default function HomeStack() {
         component={JTandMagScreen}
         options={({ navigation }) => ({
           title: 'JT et Mag',
+          headerLeft: createHeaderLeft(navigation),
           headerRight: createHeaderRight(navigation),
         })}
       />
@@ -130,6 +156,7 @@ export default function HomeStack() {
         component={ReportagesScreen}
         options={({ navigation }) => ({
           title: 'Reportages',
+          headerLeft: createHeaderLeft(navigation),
           headerRight: createHeaderRight(navigation),
         })}
       />
@@ -140,6 +167,7 @@ export default function HomeStack() {
         component={DivertissementScreen}
         options={({ navigation }) => ({
           title: 'Divertissement',
+          headerLeft: createHeaderLeft(navigation),
           headerRight: createHeaderRight(navigation),
         })}
       />
@@ -150,6 +178,7 @@ export default function HomeStack() {
         component={ArchiveScreen}
         options={({ route, navigation }) => ({
           title: 'Archives',
+          headerLeft: createHeaderLeft(navigation),
           headerRight: () => {
             // Créer le bouton de changement de vue
             const viewModeButton = (
@@ -190,6 +219,7 @@ export default function HomeStack() {
   component={ProgramScreen}
   options={({ route, navigation }) => ({
     title: 'Programmes',
+    headerLeft: createHeaderLeft(navigation),
     headerRight: () => (
       <View
         style={{
@@ -256,6 +286,7 @@ export default function HomeStack() {
         component={MoviesScreen}
         options={({ navigation }) => ({
           title: 'Films',
+          headerLeft: createHeaderLeft(navigation),
           headerRight: createHeaderRight(navigation),
         })}
       />
@@ -277,6 +308,47 @@ export default function HomeStack() {
         options={{
           title: 'Lecteur Vidéo',
           headerShown: false, // Cacher le header pour le lecteur vidéo
+        }}
+      />
+      
+      {/* Séries TV */}
+      <Stack.Screen 
+        name="Series" 
+        component={SeriesScreen}
+        options={({ navigation }) => ({
+          title: 'Séries',
+          headerLeft: createHeaderLeft(navigation),
+          headerRight: createHeaderRight(navigation),
+        })}
+      />
+      
+      {/* Détails de la Série */}
+      <Stack.Screen 
+        name="SeriesDetail" 
+        component={SeriesDetailScreen}
+        options={({ navigation }) => ({
+          title: 'Détails de la Série',
+          headerRight: createHeaderRight(navigation),
+        })}
+      />
+      
+      {/* Détails de la Saison */}
+      <Stack.Screen 
+        name="SeasonDetail" 
+        component={SeasonDetailScreen}
+        options={({ navigation }) => ({
+          title: 'Épisodes',
+          headerRight: createHeaderRight(navigation),
+        })}
+      />
+      
+      {/* Lecteur d'Épisode */}
+      <Stack.Screen 
+        name="EpisodePlayer" 
+        component={EpisodePlayerScreen}
+        options={{
+          title: 'Lecteur',
+          headerShown: false, // Cacher le header pour le lecteur plein écran
         }}
       />
       
@@ -316,6 +388,7 @@ export default function HomeStack() {
         component={sportScreen}
         options={({ navigation }) => ({
           title: 'Sports',
+          headerLeft: createHeaderLeft(navigation),
           headerRight: createHeaderRight(navigation),
         })}
       />

@@ -35,7 +35,6 @@ export default function ProfileScreen({ navigation }) {
   });
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const isRefreshing = useRef(false);
 
   // Changer le titre du header selon l'état de connexion
   React.useLayoutEffect(() => {
@@ -54,73 +53,33 @@ export default function ProfileScreen({ navigation }) {
     }
   }, [user]);
 
-  // Fonction de chargement des données memoized pour éviter les re-créations
-  const loadUserData = React.useCallback(async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      await Promise.all([
-        loadFavorites(),
-        loadSubscription(),
-      ]);
-      // Charger les stats après les favoris
-      setTimeout(loadUserStats, 100);
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, loadFavorites, loadSubscription, loadUserStats]);
-
   // Rafraîchir les données quand l'écran devient actif
   useFocusEffect(
     React.useCallback(() => {
-      // Éviter les appels multiples avec un ref
-      if (!user || isRefreshing.current) return;
-
-      const refreshProfileSilently = async () => {
-        isRefreshing.current = true;
-        try {
-          console.log('🔄 Rafraîchissement automatique du profil...');
-          // Rafraîchir les données utilisateur en arrière-plan
-          await refreshUser();
-          // Charger les données de profil
-          await loadUserData();
-        } catch (error) {
-          console.error('⚠️ Erreur rafraîchissement auto:', error);
-          // En cas d'erreur, charger quand même les données locales
-          await loadUserData();
-        } finally {
-          // Reset après un délai pour éviter les appels trop fréquents
-          setTimeout(() => {
-            isRefreshing.current = false;
-          }, 2000);
-        }
-      };
-      
-      refreshProfileSilently();
+      if (user) {
+        loadUserData();
+      }
     }, [user])
   );
 
-  const loadFavorites = React.useCallback(async () => {
+  const loadFavorites = async () => {
     try {
       const data = await favoriteService.getMyFavorites();
       setFavorites(data);
     } catch (error) {
       console.error('Error loading favorites:', error);
     }
-  }, []);
+  };
 
-  const loadUserStats = React.useCallback(async () => {
-    if (!user?.id) {
-      console.log('⚠️ Pas d\'utilisateur connecté');
-      return;
-    }
-
+  const loadUserStats = async () => {
     try {
       console.log('🔍 Début chargement stats utilisateur...');
       
+      if (!user?.id) {
+        console.log('⚠️ Pas d\'utilisateur connecté');
+        return;
+      }
+
       // Charger le nombre total de likes donnés par l'utilisateur
       console.log('❤️ Chargement du nombre de likes de l\'utilisateur...');
       const totalLikes = await likeService.countMyLikes();
@@ -138,66 +97,40 @@ export default function ProfileScreen({ navigation }) {
         likes: totalLikes
       });
     } catch (error) {
-      console.error('❌ Erreur chargement stats utilisateur:', error);
-    }
-  }, [user?.id]);
+    
 
-  // Fonction pour obtenir le badge de catégorie
-  const getCategoryBadge = (category) => {
-    if (!category) {
-      return {
-        label: 'Gratuit',
-        color: '#4CAF50',
-        icon: 'gift-outline'
-      };
-    }
-
-    const categories = {
-      basic: {
-        label: 'Basic',
-        color: '#2196F3',
-        icon: 'star-outline'
-      },
-      standard: {
-        label: 'Standard',
-        color: '#9C27B0',
-        icon: 'star-half-outline'
-      },
-      premium: {
-        label: 'Premium',
-        color: '#FF6F00',
-        icon: 'star'
-      }
-    };
-
-    return categories[category] || categories.basic;
-  };
-
-  const loadSubscription = React.useCallback(async () => {
+  const loadSubscription = async () => {
     setLoadingSubscription(true);
     try {
       console.log('📋 Chargement de l\'abonnement...');
       const subData = await subscriptionService.getMySubscription();
-      console.log('✅ Abonnements chargés:', subData);
-      
-      // L'API retourne une liste d'abonnements
-      if (Array.isArray(subData) && subData.length > 0) {
-        const activeSub = subData.find(sub => sub.is_active);
-        setSubscription(activeSub || subData[0]);
-      } else if (subData && !Array.isArray(subData)) {
-        setSubscription(subData);
-      } else {
-        setSubscription(null);
-      }
-    } catch (error) {
+      console.log('✅ Abonnement chargé:', subData);
+      setSubscription(subData);
+    }   loadSubscription(),
+      catch (error) {
       console.error('❌ Erreur chargement abonnement:', error);
       setSubscription(null);
     } finally {
       setLoadingSubscription(false);
     }
-  }, []);
+  };  console.error('❌ Erreur chargement stats utilisateur:', error);
+    }
+  };
 
-  // Cette fonction est maintenant définie plus haut avec useCallback
+  const loadUserData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        loadFavorites(),
+      ]);
+      // Charger les stats après les favoris
+      setTimeout(loadUserStats, 100);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -312,6 +245,28 @@ export default function ProfileScreen({ navigation }) {
         </View>
         <Text style={styles.username}>{user.username}</Text>
         <Text style={styles.email}>{user.email}</Text>
+        
+        {/* Bouton pour rafraîchir le profil si les données sont incorrectes */}
+        <TouchableOpacity 
+          style={styles.refreshButton}
+          onPress={async () => {
+            try {
+              await refreshUser();
+              Alert.alert('Succès', 'Profil mis à jour avec succès');
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de rafraîchir le profil');
+            }
+          }}
+        >
+          <Ionicons name="refresh" size={16} color={colors.text} />
+          <Text style={styles.refreshButtonText}>Rafraîchir le profil</Text>
+        </TouchableOpacity>
+        {user.is_premium && (
+          <View style={styles.premiumBadge}>
+            <Ionicons name="star" size={16} color="#FFD700" />
+            <Text style={styles.premiumText}>PREMIUM</Text>
+          </View>
+        )}
       </LinearGradient>
 
       {/* Subscription Info */}
@@ -329,20 +284,6 @@ export default function ProfileScreen({ navigation }) {
             </View>
           ) : subscription ? (
             <View style={styles.subscriptionCard}>
-              {/* Badge de catégorie */}
-              {subscription.category && (
-                <View style={[styles.categoryBadgeContainer, { backgroundColor: getCategoryBadge(subscription.category).color + '15' }]}>
-                  <Ionicons 
-                    name={getCategoryBadge(subscription.category).icon} 
-                    size={20} 
-                    color={getCategoryBadge(subscription.category).color} 
-                  />
-                  <Text style={[styles.categoryBadgeText, { color: getCategoryBadge(subscription.category).color }]}>
-                    {getCategoryBadge(subscription.category).label}
-                  </Text>
-                </View>
-              )}
-              
               <View style={styles.subscriptionRow}>
                 <Text style={styles.subscriptionLabel}>Plan</Text>
                 <Text style={styles.subscriptionValue}>
@@ -412,50 +353,6 @@ export default function ProfileScreen({ navigation }) {
               </TouchableOpacity>
             </View>
           )}
-        </View>
-      )}
-      
-      {/* Plan Upgrade Section for Non-Premium Users */}
-      {!user.is_premium && (
-        <View style={styles.subscriptionSection}>
-          <View style={styles.subscriptionHeader}>
-            <Ionicons name="star-outline" size={20} color={colors.primary} />
-            <Text style={styles.subscriptionTitle}>Découvrez nos Plans</Text>
-          </View>
-          
-          <View style={styles.freePlanCard}>
-            <View style={[styles.categoryBadgeContainer, { backgroundColor: '#4CAF50' + '15' }]}>
-              <Ionicons name="gift-outline" size={20} color="#4CAF50" />
-              <Text style={[styles.categoryBadgeText, { color: '#4CAF50' }]}>Gratuit</Text>
-            </View>
-            
-            <Text style={styles.freePlanText}>
-              Vous utilisez actuellement notre offre gratuite.
-            </Text>
-            
-            <View style={styles.planBenefitsList}>
-              <View style={styles.planBenefit}>
-                <Ionicons name="checkmark" size={16} color="#4CAF50" />
-                <Text style={styles.planBenefitText}>Contenu gratuit illimité</Text>
-              </View>
-              <View style={styles.planBenefit}>
-                <Ionicons name="close" size={16} color={colors.error} />
-                <Text style={[styles.planBenefitText, { opacity: 0.6 }]}>Accès au contenu premium</Text>
-              </View>
-              <View style={styles.planBenefit}>
-                <Ionicons name="close" size={16} color={colors.error} />
-                <Text style={[styles.planBenefitText, { opacity: 0.6 }]}>Qualité HD/4K</Text>
-              </View>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.upgradeButton}
-              onPress={() => navigation.navigate('Premium')}
-            >
-              <Ionicons name="arrow-up" size={16} color="#FFFFFF" />
-              <Text style={styles.upgradeButtonText}>Passer à Premium</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       )}
 
