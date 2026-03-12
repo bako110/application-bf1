@@ -33,6 +33,7 @@ import archiveService from '../services/archiveService';
 import seriesService from '../services/seriesService';
 import liveStreamService from '../services/liveStreamService';
 import { formatRelativeTime } from '../utils/dateUtils';
+import { canUserAccessContent } from '../utils/subscriptionUtils';
 
 // Fonction pour formater la durée
 const formatDuration = (duration) => {
@@ -79,7 +80,7 @@ const { width, height } = Dimensions.get('window');
 const INITIAL_DISPLAY_COUNT = 10;
 
 export default function HomeScreen({ navigation }) {
-  const { user, isPremium, isAuthenticated } = useAuth();
+  const { user, isPremium, isAuthenticated, subscriptionCategory } = useAuth();
   const { colors, isDarkMode } = useTheme();
   
   // État pour le modal premium
@@ -594,6 +595,19 @@ export default function HomeScreen({ navigation }) {
   const handleArchivePress = async (archive) => {
     const archiveId = archive.id || archive._id;
     
+    // Vérifier d'abord côté client si l'utilisateur a accès
+    const userCategory = subscriptionCategory || user?.subscription_category;
+    const hasClientAccess = canUserAccessContent(userCategory, archive.required_subscription_category);
+    
+    // Si l'utilisateur a accès selon la hiérarchie client, naviguer directement
+    if (hasClientAccess) {
+      navigation.navigate('ShowDetail', { 
+        showId: archiveId, 
+        isArchive: true 
+      });
+      return;
+    }
+    
     // Vérifier si une catégorie d'abonnement est requise
     if (archive.required_subscription_category) {
       // Si l'utilisateur n'est pas connecté, rediriger vers la connexion
@@ -619,7 +633,7 @@ export default function HomeScreen({ navigation }) {
         return;
       }
       
-      // Si connecté, vérifier l'accès via l'API pour respecter la hiérarchie
+      // Si connecté mais n'a pas accès, vérifier via l'API (double vérification)
       try {
         const accessInfo = await archiveService.checkArchiveAccess(archiveId);
         
@@ -634,10 +648,10 @@ export default function HomeScreen({ navigation }) {
             message += `\n\nVotre abonnement actuel : ${userBadge.label}\nAbonnement requis : ${badge.label}`;
           }
           
-          message += `\n\nDécouvrez nos offres d'abonnement pour accéder à toutes les archives.`;
+          message += `\n\nAméliorez votre abonnement pour accéder à ce contenu.`;
           
           Alert.alert(
-            '🔒 Abonnement Requis',
+            '🔒 Abonnement Insuffisant',
             message,
             [
               { text: 'Plus tard', style: 'cancel' },
@@ -901,7 +915,10 @@ export default function HomeScreen({ navigation }) {
                               <Text style={styles.newsBadgeText}>{item.category || item.edition || 'Actualités'}</Text>
                             </View>
                             <Text style={styles.newsTitle} numberOfLines={2}>{item.title}</Text>
-                            <Text style={styles.newsTime}>{formatRelativeTime(item.created_at || item.published_at)}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                              <Text style={styles.newsTime}>{formatRelativeTime(item.created_at || item.published_at)}</Text>
+                            </View>
                           </LinearGradient>
                         </TouchableOpacity>
                       </Animated.View>
@@ -986,7 +1003,7 @@ export default function HomeScreen({ navigation }) {
                           <View style={styles.trendingInfo}>
                             <Text style={[styles.trendingTitle, { color: colors.text }]} numberOfLines={1}>{item.title}</Text>
                             <View style={styles.trendingMeta}>
-                              <Ionicons name="eye" size={14} color={colors.textSecondary} />
+                              <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
                               <Text style={[styles.trendingViews, { color: colors.textSecondary }]}>
                                 {formatRelativeTime(item.created_at || item.published_at || item.aired_at)}
                               </Text>
@@ -1060,9 +1077,12 @@ export default function HomeScreen({ navigation }) {
                           <Image source={{ uri: item.image_url || item.image || 'https://via.placeholder.com/300x200' }} style={styles.interviewImage} />
                           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.interviewOverlay}>
                             <Text style={styles.interviewTitle} numberOfLines={2}>{item.title}</Text>
-                            <Text style={styles.interviewGuest} numberOfLines={1}>
-                              {formatRelativeTime(item.created_at || item.published_at)}
-                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                              <Text style={styles.interviewGuest} numberOfLines={1}>
+                                {formatRelativeTime(item.created_at || item.published_at)}
+                              </Text>
+                            </View>
                           </LinearGradient>
                         </TouchableOpacity>
                       </Animated.View>
@@ -1218,9 +1238,12 @@ export default function HomeScreen({ navigation }) {
                           </View>
                           <View style={styles.videoInfo}>
                             <Text style={[styles.videoTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
-                            <Text style={[styles.videoDate, { color: colors.textSecondary }]}>
-                              {formatRelativeTime(item.aired_at || item.created_at)}
-                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                              <Text style={[styles.videoDate, { color: colors.textSecondary }]}>
+                                {formatRelativeTime(item.aired_at || item.created_at)}
+                              </Text>
+                            </View>
                           </View>
                         </TouchableOpacity>
                       </Animated.View>
@@ -1301,16 +1324,13 @@ export default function HomeScreen({ navigation }) {
                             )}
                             <Text style={styles.archiveTitle} numberOfLines={2}>{item.title}</Text>
                             <View style={styles.archiveMeta}>
-                              <Ionicons name="videocam" size={12} color={colors.primary} />
-                              <Text style={styles.archiveMetaText}>Vidéo</Text>
                               {item.duration_minutes && (
                                 <>
-                                  <Text style={styles.archiveMetaSeparator}>•</Text>
                                   <Ionicons name="time" size={12} color={colors.textSecondary} />
                                   <Text style={styles.archiveMetaText}>{item.duration_minutes} min</Text>
+                                  <Text style={styles.archiveMetaSeparator}>•</Text>
                                 </>
                               )}
-                              <Text style={styles.archiveMetaSeparator}>•</Text>
                               <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
                               <Text style={styles.archiveMetaText}>
                                 {formatRelativeTime(item.created_at || item.published_at)}
@@ -1332,7 +1352,8 @@ export default function HomeScreen({ navigation }) {
             </View>
           </Animated.View>
 
-          {/* SECTION SÉRIES TV */}
+          {/* SECTION SÉRIES TV - COMMENTÉE */}
+          {/*
           <Animated.View style={{
             opacity: sectionAnimations.series.opacity,
             transform: [
@@ -1428,6 +1449,7 @@ export default function HomeScreen({ navigation }) {
               </Animated.View>
             </View>
           </Animated.View>
+          */}
         </View>
       </Animated.ScrollView>
       

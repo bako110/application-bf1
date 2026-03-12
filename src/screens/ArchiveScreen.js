@@ -23,11 +23,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { createArchiveStyles } from '../styles/archiveStyles';
 import LoadingScreen from '../components/LoadingScreen';
 import PremiumModal from '../components/premiumModal';
+import { formatViews } from '../utils/dateUtils';
+import { canUserAccessContent } from '../utils/subscriptionUtils';
 
 export default function ArchiveScreen({ navigation }) {
   const { colors } = useTheme();
   const [viewMode, setViewMode] = useState('grid');
-  const { user, isPremium, isAuthenticated } = useAuth();
+  const { user, isPremium, isAuthenticated, subscriptionCategory } = useAuth();
   
   // État pour le modal premium
   const [showPremiumModal, setShowPremiumModal] = useState(false);
@@ -101,6 +103,19 @@ export default function ArchiveScreen({ navigation }) {
   const handleArchivePress = async (archive) => {
     const archiveId = archive.id || archive._id;
     
+    // Vérifier d'abord côté client si l'utilisateur a accès
+    const userCategory = subscriptionCategory || user?.subscription_category;
+    const hasClientAccess = canUserAccessContent(userCategory, archive.required_subscription_category);
+    
+    // Si l'utilisateur a accès selon la hiérarchie client, naviguer directement
+    if (hasClientAccess) {
+      navigation.navigate('ShowDetail', { 
+        showId: archiveId, 
+        isArchive: true 
+      });
+      return;
+    }
+    
     // Si l'utilisateur n'est pas connecté et le contenu nécessite un abonnement
     if (archive.required_subscription_category && !isAuthenticated) {
       const badge = getSubscriptionBadge(archive.required_subscription_category);
@@ -123,7 +138,7 @@ export default function ArchiveScreen({ navigation }) {
       return;
     }
     
-    // Si connecté, vérifier l'accès via l'API pour respecter la hiérarchie
+    // Si connecté mais n'a pas accès, vérifier via l'API (double vérification)
     if (isAuthenticated && archive.required_subscription_category) {
       try {
         const accessInfo = await archiveService.checkArchiveAccess(archiveId);
@@ -139,10 +154,10 @@ export default function ArchiveScreen({ navigation }) {
             message += `\n\nVotre abonnement actuel : ${userBadge.label}\nAbonnement requis : ${badge.label}`;
           }
           
-          message += `\n\nDécouvrez nos offres d'abonnement pour accéder à toutes les archives.`;
+          message += `\n\nAméliorez votre abonnement pour accéder à ce contenu.`;
           
           Alert.alert(
-            '🔒 Abonnement Requis',
+            '🔒 Abonnement Insuffisant',
             message,
             [
               { text: 'Plus tard', style: 'cancel' },
@@ -203,6 +218,12 @@ export default function ArchiveScreen({ navigation }) {
             <Text style={styles.archiveTitle} numberOfLines={2}>
               {item.title}
             </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <Ionicons name="eye-outline" size={12} color="#B0B0B0" />
+              <Text style={{ color: '#B0B0B0', fontSize: 12 }}>
+                {formatViews(item.views || item.view_count || item.views_count || 0)}
+              </Text>
+            </View>
           </LinearGradient>
         </TouchableOpacity>
       );
@@ -235,6 +256,12 @@ export default function ArchiveScreen({ navigation }) {
             <Text style={styles.archiveTitleList} numberOfLines={2}>
               {item.title}
             </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <Ionicons name="eye-outline" size={12} color="#B0B0B0" />
+              <Text style={{ color: '#B0B0B0', fontSize: 12 }}>
+                {formatViews(item.views || item.view_count || item.views_count || 0)}
+              </Text>
+            </View>
           </View>
         </TouchableOpacity>
       );
@@ -250,7 +277,7 @@ export default function ArchiveScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {!isPremium && (
+      {!isPremium && !user?.subscription_category && (
         <View style={styles.premiumBanner}>
           <Ionicons name="videocam" size={20} color="#FFD700" />
           <Text style={styles.premiumBannerText}>

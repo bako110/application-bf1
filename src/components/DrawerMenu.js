@@ -77,11 +77,18 @@ export default function DrawerMenu({ visible, onClose }) {
       screen: 'MoviesList',
       description: 'Catalogue de films',
     },
+    // {
+    //   title: 'Séries',
+    //   screen: 'SeriesList',
+    //   description: 'Séries TV et épisodes',
+    // },
     {
-      title: 'Séries',
-      screen: 'SeriesList',
-      description: 'Séries TV et épisodes',
+      title: 'Favoris',
+      screen: 'Favorites',
+      description: 'Mes contenus favoris',
+      icon: 'heart',
     },
+    
     {
       title: 'Calendrier',
       screen: 'Program',
@@ -131,6 +138,10 @@ export default function DrawerMenu({ visible, onClose }) {
         case 'Program':
           // Programme EPG - Dans HomeStack
           navigation.navigate('Accueil', { screen: 'Program' });
+          break;
+        case 'Favorites':
+          // Favoris - Dans HomeStack
+          navigation.navigate('Accueil', { screen: 'Favorites' });
           break;
         case 'About':
           // À propos - Navigation directe

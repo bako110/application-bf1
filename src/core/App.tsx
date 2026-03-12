@@ -18,6 +18,7 @@ import notificationService from '../services/notificationService';
 import websocketService from '../services/websocketService';
 import pushNotificationService from '../services/pushNotificationService';
 import connectionService from '../services/connectionService';
+import locationService from '../services/locationService';
 
 // Components
 import Splash from '../components/Splash';
@@ -188,6 +189,41 @@ function AppContent() {
 
     // Connecter au WebSocket pour les notifications en temps réel
     websocketService.connect();
+
+    // Déterminer la localisation en arrière-plan pour adapter les prix
+    console.log('📍 [App] Initialisation du service de localisation...');
+    
+    // Fonction pour initialiser la localisation
+    const initLocation = async () => {
+      try {
+        // Vérifier si l'utilisateur est connecté
+        const isAuth = await import('../services/authService').then(m => m.default.isAuthenticated());
+        
+        if (isAuth) {
+          console.log('👤 [App] Utilisateur connecté détecté, vérification localisation backend...');
+          
+          // Vérifier si la localisation existe déjà dans le backend
+          const backendLocation = await locationService.getLocationFromBackend();
+          
+          if (!backendLocation || backendLocation.is_in_country === null) {
+            console.log('⚠️ [App] Pas de localisation dans le backend, détection GPS...');
+            const location = await locationService.determineLocation();
+            console.log('📍 [App] Localisation détectée et envoyée:', location);
+          } else {
+            console.log('✅ [App] Localisation déjà présente dans le backend:', backendLocation);
+          }
+        } else {
+          console.log('🔓 [App] Utilisateur non connecté, détection GPS locale uniquement');
+          const location = await locationService.determineLocation();
+          console.log('📍 [App] Localisation locale:', location.isInCountry ? 'AU PAYS' : 'À L\'ÉTRANGER');
+        }
+      } catch (error) {
+        console.error('❌ [App] Erreur initialisation localisation:', error);
+      }
+    };
+    
+    // Lancer l'initialisation
+    initLocation();
 
     // Replanifier les notifications quotidiennes toutes les heures
     const rescheduleInterval = setInterval(() => {

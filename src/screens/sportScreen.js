@@ -27,6 +27,7 @@ import { SportsStyles } from '../styles/sportsStyles';
 import { useAuth } from '../contexts/AuthContext';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import likeService from '../services/likeService';
+import { formatViews } from '../utils/dateUtils';
 
 // Mapping des types de sport avec icônes seulement (les couleurs suivent le thème)
 const SPORT_ICONS = {
@@ -357,7 +358,7 @@ export default function SportScreen({ navigation }) {
               <View style={styles.statItem}>
                 <Ionicons name="eye-outline" size={14} color={colors.textSecondary} />
                 <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                  {item.views > 1000 ? `${(item.views / 1000).toFixed(1)}k` : item.views || 0}
+                  {formatViews(item.views || item.view_count || item.views_count || 0)}
                 </Text>
               </View>
               

@@ -42,19 +42,26 @@ export const AuthProvider = ({ children }) => {
     // Forcer un rechargement complet pour s'assurer que tout est synchronisé
     await loadUser();
     
-    // Déterminer la localisation pour adapter les prix d'abonnement
-    console.log('📍 [AuthContext] Détection de la localisation...');
-    locationService.determineLocation().then((location) => {
-      console.log('📍 [AuthContext] Localisation détectée:', location);
-    }).catch((error) => {
-      console.error('❌ [AuthContext] Erreur localisation:', error);
-    });
+    console.log('✅ [AuthContext] Connexion réussie, utilisateur:', loggedUser?.username);
     
     // Émettre un événement pour notifier tous les composants
     DeviceEventEmitter.emit('userLoggedIn', loggedUser);
-    
-    console.log('✅ [AuthContext] Connexion réussie, utilisateur:', loggedUser?.username);
     console.log('📢 [AuthContext] Événement userLoggedIn émis');
+    
+    // Synchroniser la localisation après connexion (en arrière-plan mais avec logs)
+    console.log('📍 [AuthContext] Démarrage synchronisation localisation...');
+    locationService.syncLocationAfterLogin()
+      .then((location) => {
+        console.log('✅ [AuthContext] Synchronisation localisation terminée:', location);
+        if (location.sentToBackend) {
+          console.log('✅ [AuthContext] ✓ Localisation envoyée au backend avec succès');
+        } else {
+          console.warn('⚠️ [AuthContext] ✗ Localisation NON envoyée au backend');
+        }
+      })
+      .catch((error) => {
+        console.error('❌ [AuthContext] Erreur synchronisation localisation:', error);
+      });
     
     return { user: loggedUser, token };
   };

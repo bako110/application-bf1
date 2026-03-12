@@ -16,7 +16,7 @@ import { createBreakingNewsStyles } from '../styles/breakingNewsStyles';
 import newsService from '../services/newsService';
 import categoryService from '../services/categoryService';
 import { useFocusEffect } from '@react-navigation/native';
-import { formatRelativeTime } from '../utils/dateUtils';
+import { formatRelativeTime, formatViews } from '../utils/dateUtils';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import NotificationHeader from '../components/NotificationHeader';
 import LoadingScreen from '../components/LoadingScreen';
@@ -191,10 +191,16 @@ export default function BreakingNewsScreen({ navigation }) {
                     {news.description}
                   </Text>
                   <View style={styles.newsMeta}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="eye-outline" size={14} color={'#B0B0B0'} />
+                      <Text style={styles.newsTime}>{formatViews(news.views || news.view_count || news.views_count || 0)}</Text>
+                    </View>
+                    <Text style={styles.newsTime}>•</Text>
                     <View style={styles.authorContainer}>
                       <Ionicons name="person-circle" size={16} color={'#B0B0B0'} />
                       <Text style={styles.authorText}>{news.author}</Text>
                     </View>
+                    <Text style={styles.newsTime}>•</Text>
                     <Text style={styles.newsTime}>
                       {formatRelativeTime(news.created_at || news.time)}
                     </Text>
@@ -211,6 +217,11 @@ export default function BreakingNewsScreen({ navigation }) {
                     {news.description}
                   </Text>
                   <View style={styles.newsMetaList}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="eye-outline" size={12} color={'#B0B0B0'} />
+                      <Text style={styles.newsTimeList}>{formatViews(news.views || news.view_count || news.views_count || 0)}</Text>
+                    </View>
+                    <Text style={styles.newsTimeList}>•</Text>
                     <Text style={styles.newsTimeList}>
                       {formatRelativeTime(news.created_at || news.time)}
                     </Text>

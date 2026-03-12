@@ -12,6 +12,7 @@ import ArchiveScreen from '../screens/ArchiveScreen';
 import ProgramScreen from '../screens/ProgramScreen';
 import MoviesScreen from '../screens/MoviesScreen';
 import SeriesScreen from '../screens/SeriesScreen';
+import FavoritesScreen from '../screens/FavoritesScreen';
 import sportScreen from '../screens/sportScreen';
 import MovieDetailScreen from '../screens/details/MovieDetailScreen';
 import MoviePlayerScreen from '../screens/details/MoviePlayerScreen';
@@ -409,6 +410,17 @@ export default function HomeStack() {
         component={AboutScreen}
         options={({ navigation }) => ({
           title: 'À propos',
+          headerRight: createHeaderRight(navigation),
+        })}
+      />
+      
+      {/* Favoris */}
+      <Stack.Screen 
+        name="Favorites" 
+        component={FavoritesScreen}
+        options={({ navigation }) => ({
+          title: 'Mes Favoris',
+          headerLeft: createHeaderLeft(navigation),
           headerRight: createHeaderRight(navigation),
         })}
       />

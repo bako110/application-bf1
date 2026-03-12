@@ -118,8 +118,8 @@ export const createMoviesStyles = (colors, screenWidth) => StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.5,
     borderColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     marginRight: 8,
     backgroundColor: 'transparent',
     minWidth: 80,
@@ -130,13 +130,15 @@ export const createMoviesStyles = (colors, screenWidth) => StyleSheet.create({
     borderColor: colors.primary,
   },
   filterBtnText: {
-    color: colors.primary,
-    fontWeight: '600',
-    fontSize: 11,
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 14,
   },
   filterBtnTextActive: {
-    color: '#fff',
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
+  
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',

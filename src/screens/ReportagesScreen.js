@@ -20,6 +20,7 @@ import likeService from '../services/likeService';
 import reportageService from '../services/reportageService';
 import { createReportagesStyles } from '../styles/reportagesStyles';
 import SnakeLoader  from '../components/LoadingScreen'; // Import du loader
+import { formatViews } from '../utils/dateUtils';
 
 // Fonctions utilitaires
 const formatDuration = (duration) => {
@@ -329,7 +330,7 @@ function ReportagesScreen({ navigation }) {
                   <View style={viewMode === 'grid' ? styles.videoMeta : styles.videoMetaList}>
                     <View style={styles.metaItem}>
                       <Ionicons name="eye" size={10} color={'#B0B0B0'} />
-                      <Text style={styles.metaText}>{video.views_count || video.views || 0} vues</Text>
+                      <Text style={styles.metaText}>{formatViews(video.views_count || video.views || video.view_count || 0)}</Text>
                     </View>
                     <Text style={styles.metaSeparator}>•</Text>
                     <Text style={styles.dateText}>{formatDate(video.aired_at || video.created_at)}</Text>

@@ -13,22 +13,22 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import favoriteService from '../services/favoriteService';
 import likeService from '../services/likeService';
 import commentService from '../services/commentService';
 import subscriptionService from '../services/subscriptionService';
 import Logo from '../components/logo';
 import { useFocusEffect } from '@react-navigation/native';
 import { createProfileStyles } from '../styles/profileStyles'; // Import des styles séparés
+import PremiumModal from '../components/premiumModal';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, refreshUser } = useAuth();
-  const { colors } = useTheme();
-  const [favorites, setFavorites] = useState([]);
+  
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [subscription, setSubscription] = useState(null);
   const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [stats, setStats] = useState({
     comments: 0,
     likes: 0
@@ -36,6 +36,8 @@ export default function ProfileScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const isRefreshing = useRef(false);
+  
+  const { colors } = useTheme();
 
   // Changer le titre du header selon l'état de connexion
   React.useLayoutEffect(() => {
@@ -61,17 +63,16 @@ export default function ProfileScreen({ navigation }) {
     setLoading(true);
     try {
       await Promise.all([
-        loadFavorites(),
         loadSubscription(),
       ]);
-      // Charger les stats après les favoris
+      // Charger les stats après
       setTimeout(loadUserStats, 100);
     } catch (error) {
       console.error('Error loading user data:', error);
     } finally {
       setLoading(false);
     }
-  }, [user, loadFavorites, loadSubscription, loadUserStats]);
+  }, [user, loadSubscription, loadUserStats]);
 
   // Rafraîchir les données quand l'écran devient actif
   useFocusEffect(
@@ -102,15 +103,6 @@ export default function ProfileScreen({ navigation }) {
       refreshProfileSilently();
     }, [user])
   );
-
-  const loadFavorites = React.useCallback(async () => {
-    try {
-      const data = await favoriteService.getMyFavorites();
-      setFavorites(data);
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-    }
-  }, []);
 
   const loadUserStats = React.useCallback(async () => {
     if (!user?.id) {
@@ -250,14 +242,10 @@ export default function ProfileScreen({ navigation }) {
             <Logo size="large" showText={true} />
             <Text style={styles.loginTitle}>Bienvenue sur BF1 TV</Text>
             <Text style={styles.loginSubtitle}>
-              Connectez-vous pour accéder à vos favoris, commentaires et profiter d'une expérience personnalisée
+              Connectez-vous pour commenter, recevoir des notifications et profiter d'une expérience personnalisée
             </Text>
             
             <View style={styles.benefitsContainer}>
-              <View style={styles.benefitItem}>
-                <Ionicons name="heart" size={24} color={colors.primary} />
-                <Text style={styles.benefitText}>Gérez vos favoris</Text>
-              </View>
               <View style={styles.benefitItem}>
                 <Ionicons name="chatbubbles" size={24} color={colors.primary} />
                 <Text style={styles.benefitText}>Commentez les contenus</Text>
@@ -299,7 +287,8 @@ export default function ProfileScreen({ navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Profile Header */}
       <LinearGradient
         colors={[colors.gradient?.end || colors.surface, colors.surface, colors.gradient?.end || colors.surface]}
@@ -406,7 +395,7 @@ export default function ProfileScreen({ navigation }) {
               </Text>
               <TouchableOpacity 
                 style={styles.subscribeButton}
-                onPress={() => navigation.navigate('Premium')}
+                onPress={() => setShowPremiumModal(true)}
               >
                 <Text style={styles.subscribeButtonText}>S'abonner</Text>
               </TouchableOpacity>
@@ -450,7 +439,7 @@ export default function ProfileScreen({ navigation }) {
             
             <TouchableOpacity 
               style={styles.upgradeButton}
-              onPress={() => navigation.navigate('Premium')}
+              onPress={() => setShowPremiumModal(true)}
             >
               <Ionicons name="arrow-up" size={16} color="#FFFFFF" />
               <Text style={styles.upgradeButtonText}>Passer à Premium</Text>
@@ -458,63 +447,6 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
       )}
-
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{favorites.length}</Text>
-          <Text style={styles.statLabel}>Favoris</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.comments}</Text>
-          <Text style={styles.statLabel}>Commentaires</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{stats.likes}</Text>
-          <Text style={styles.statLabel}>Likes</Text>
-        </View>
-      </View>
-
-      {/* Favorites */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Mes 5 Derniers Favoris</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Favorites')}>
-            <Text style={styles.seeAllText}>Voir tout →</Text>
-          </TouchableOpacity>
-        </View>
-        {favorites.length > 0 ? (
-          <View style={styles.favoritesList}>
-            {favorites.slice(-5).reverse().map((fav) => (
-              <TouchableOpacity 
-                key={fav.id} 
-                style={styles.favoriteItem}
-                onPress={() => navigation.navigate('Favorites')}
-              >
-                <Ionicons 
-                  name={fav.content_type === 'movie' ? 'film' : 'tv'} 
-                  size={20} 
-                  color={colors.primary} 
-                />
-                <Text style={styles.favoriteItemTitle} numberOfLines={1}>
-                  {fav.content_title}
-                </Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyFavorites}>
-            <Ionicons name="heart-outline" size={40} color={colors.textSecondary} />
-            <Text style={styles.emptyFavoritesText}>
-              Aucun favori pour le moment
-            </Text>
-            <Text style={styles.emptyFavoritesSubtext}>
-              Ajoutez des films et émissions en cliquant sur ⭐
-            </Text>
-          </View>
-        )}
-      </View>
 
       {/* Menu Options */}
       <View style={styles.section}>
@@ -566,5 +498,12 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.footerText}>Version 1.0.0</Text>
       </View>
     </ScrollView>
+
+    <PremiumModal
+      visible={showPremiumModal}
+      onClose={() => setShowPremiumModal(false)}
+      navigation={navigation}
+    />
+    </View>
   );
 }

@@ -24,6 +24,7 @@ import viewService from '../services/viewService';
 import usePagination from '../hooks/usePagination';
 import likeService from '../services/likeService';
 import authService from '../services/authService';
+import { formatViews } from '../utils/dateUtils';
 
 export default function DivertissementScreen({ navigation }) {
   const { colors } = useTheme();
@@ -320,6 +321,12 @@ export default function DivertissementScreen({ navigation }) {
                       <Text style={viewMode === 'grid' ? baseStyles.interviewTitle : baseStyles.interviewTitleList}>
                         {interview.title}
                       </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                        <Ionicons name="eye-outline" size={12} color="#B0B0B0" />
+                        <Text style={{ color: '#B0B0B0', fontSize: 12 }}>
+                          {formatViews(interview.views || interview.view_count || interview.views_count || 0)}
+                        </Text>
+                      </View>
                     </LinearGradient>
                   </TouchableOpacity>
                 );

@@ -16,6 +16,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { createJTandMagStyles } from '../styles/jtandMagStyles';
 import jtandMagService from '../services/jtandMagService';
 import useAutoRefresh from '../hooks/useAutoRefresh';
+import { formatViews } from '../utils/dateUtils';
 import NotificationHeader from '../components/NotificationHeader';
 import SnakeLoader from '../components/LoadingScreen';
 
@@ -220,7 +221,7 @@ export default function JTandMagScreen({ navigation }) {
                       <View style={styles.showMeta}>
                         <View style={styles.metaItem}>
                           <Ionicons name="eye" size={14} color={'#E23E3E'} />
-                          <Text style={styles.metaText}>{show.views || 0}</Text>
+                          <Text style={styles.metaText}>{formatViews(show.views || show.view_count || show.views_count || 0)}</Text>
                         </View>
                         <View style={styles.hostItem}>
                           <Ionicons name="person" size={12} color={'#B0B0B0'} />
@@ -255,7 +256,7 @@ export default function JTandMagScreen({ navigation }) {
                       <View style={styles.showMeta}>
                         <View style={styles.metaItem}>
                           <Ionicons name="eye" size={14} color={'#E23E3E'} />
-                          <Text style={styles.metaText}>{show.views || 0}</Text>
+                          <Text style={styles.metaText}>{formatViews(show.views || show.view_count || show.views_count || 0)}</Text>
                         </View>
                         <View style={styles.hostItem}>
                           <Ionicons name="person" size={12} color={'#B0B0B0'} />

@@ -4,7 +4,6 @@ import ProfileScreen from '../screens/ProfileScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
-import FavoritesScreen from '../screens/FavoritesScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupportScreen from '../screens/SupportScreen';
@@ -44,16 +43,6 @@ export default function ProfileStack() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen 
-        name="Favorites" 
-        component={FavoritesScreen}
-        options={{
-          headerShown: true,
-          headerTitle: 'Mes Favoris',
-          headerStyle: { backgroundColor: '#000000' },
-          headerTintColor: '#FFFFFF',
-        }}
-      />
       <Stack.Screen 
         name="Notifications" 
         component={NotificationsScreen}

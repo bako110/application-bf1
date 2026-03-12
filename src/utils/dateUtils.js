@@ -30,9 +30,15 @@ export const formatRelativeTime = (date) => {
   } else if (diffDay < 7) {
     return `Il y a ${diffDay} jour${diffDay > 1 ? 's' : ''}`;
   } else if (diffWeek < 4) {
+    const remainingDays = diffDay % 7;
+    if (remainingDays > 0) {
+      return `Il y a ${diffWeek} semaine${diffWeek > 1 ? 's' : ''} et ${remainingDays} jour${remainingDays > 1 ? 's' : ''}`;
+    }
     return `Il y a ${diffWeek} semaine${diffWeek > 1 ? 's' : ''}`;
-  } else if (diffMonth < 12) {
-    return `Il y a ${diffMonth} mois`;
+  } else if (diffDay < 365) {
+    // Après 4 semaines, afficher en mois (minimum 1 mois)
+    const months = Math.max(1, Math.floor(diffDay / 30));
+    return `Il y a ${months} mois`;
   } else {
     return `Il y a ${diffYear} an${diffYear > 1 ? 's' : ''}`;
   }
@@ -132,5 +138,24 @@ export const formatSmartDate = (date) => {
     return 'Hier';
   } else {
     return formatRelativeTime(date);
+  }
+};
+
+/**
+ * Formate le nombre de vues (1000 -> 1K, 1000000 -> 1M)
+ * @param {number} views - Nombre de vues
+ * @returns {string} - Nombre formaté
+ */
+export const formatViews = (views) => {
+  if (!views || views === 0) return '0 vue';
+  
+  if (views < 1000) {
+    return `${views} vue${views > 1 ? 's' : ''}`;
+  } else if (views < 1000000) {
+    const k = (views / 1000).toFixed(1);
+    return `${k}K vues`;
+  } else {
+    const m = (views / 1000000).toFixed(1);
+    return `${m}M vues`;
   }
 };

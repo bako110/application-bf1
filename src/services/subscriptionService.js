@@ -111,12 +111,19 @@ class SubscriptionService {
       const priceMultiplier = await locationService.getPriceMultiplier();
       const { isInCountry } = await locationService.getLocationStatus();
       
-      console.log(`💰 Multiplicateur de prix: x${priceMultiplier} (${isInCountry ? 'AU PAYS' : 'À L\'ÉTRANGER'})`);
+      console.log(`\n💰 ============ TARIFICATION SELON LOCALISATION ============`);
+      console.log(`📍 Localisation: ${isInCountry ? 'BURKINA FASO (au pays)' : 'ÉTRANGER'}`);
+      console.log(`🔢 Multiplicateur de prix: x${priceMultiplier}`);
+      console.log(`═════════════════════════════════════════════════════════\n`);
       
       // Transformer les données du backend pour l'affichage
-      return response.data.map(plan => {
+      const transformedPlans = response.data.map(plan => {
         const basePrice = plan.price_cents / 100;
         const adjustedPrice = basePrice * priceMultiplier;
+        
+        console.log(`📦 Plan: ${plan.name}`);
+        console.log(`   💵 Prix de base (BF): ${basePrice.toLocaleString()} FCFA`);
+        console.log(`   💰 Prix ajusté (x${priceMultiplier}): ${adjustedPrice.toLocaleString()} FCFA`);
         
         return {
           id: plan.id,
@@ -133,6 +140,9 @@ class SubscriptionService {
           savings: this.calculateSavings(plan.duration_months, plan.price_cents * priceMultiplier),
         };
       });
+      
+      console.log(`\n✅ ${transformedPlans.length} plans chargés avec succès\n`);
+      return transformedPlans;
     } catch (error) {
       console.error('Erreur chargement plans:', error);
       return [];
