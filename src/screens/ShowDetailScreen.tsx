@@ -75,9 +75,9 @@ function RelatedCard({ item, onPress }: { item: any; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.relCard} onPress={onPress} activeOpacity={0.85}>
       <View style={[styles.relThumb, { backgroundColor: theme.surface }]}>
-        {item.thumbnail || item.image ? (
+        {(item.thumbnail || item.image_url || item.image) ? (
           <Image
-            source={{ uri: item.thumbnail || item.image }}
+            source={{ uri: item.thumbnail || item.image_url || item.image }}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
           />
@@ -455,7 +455,7 @@ export function ShowDetailScreen() {
     );
   }
 
-  const heroImage = show.thumbnail || show.image_url || show.image || show.poster;
+  const heroImage = show.thumbnail || show.image_url || show.image || null;
   const duration  = show.duration_minutes ?? show.duration;
   const isLocked  = !canAccess(show.subscription);
 

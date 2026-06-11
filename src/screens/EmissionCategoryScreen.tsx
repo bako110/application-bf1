@@ -166,7 +166,7 @@ export function EmissionCategoryScreen() {
   const { isAuthenticated } = useAuthStore();
   const { showLoginModal } = useUiStore();
 
-  const { name, filterPath } = route.params as any;
+  const { name, filterPath, heroImage: heroImageParam } = route.params as any;
 
   const [activeTab,  setActiveTab]  = useState<0 | 1>(0);
   const [favIds,     setFavIds]     = useState<Set<string>>(new Set());
@@ -181,12 +181,22 @@ export function EmissionCategoryScreen() {
 
   // Infos de la catégorie courante (image hero, schedule…)
   const catInfo: any = useMemo(() => {
-    if (!name) return null;
-    const normName = normalize(name);
-    return (allEmissions as any[]).find((e: any) =>
-      normalize(e.name ?? '') === normName ||
-      (e.filter_path && e.filter_path === filterPath)
-    ) ?? null;
+    if (!name && !filterPath) return null;
+    const normName = normalize(name ?? '');
+
+    // Extrait le paramètre `category` d'une URL de filtre pour comparaison souple
+    function extractCat(fp: string) {
+      try { return new URLSearchParams(fp.split('?')[1] ?? '').get('category') ?? ''; }
+      catch { return ''; }
+    }
+    const fpCat = extractCat(filterPath ?? '');
+
+    return (allEmissions as any[]).find((e: any) => {
+      if (normName && normalize(e.name ?? '') === normName) return true;
+      if (filterPath && e.filter_path === filterPath) return true;
+      if (fpCat && extractCat(e.filter_path ?? '') === fpCat) return true;
+      return false;
+    }) ?? null;
   }, [allEmissions, name, filterPath]);
 
   const schedule    = catInfo?.schedule || catInfo?.broadcast_time || null;
@@ -212,9 +222,8 @@ export function EmissionCategoryScreen() {
   const contentType: string = (data as any)?.pages?.[0]?.contentType ?? 'show';
   const totalCount: number  = (data as any)?.pages?.[0]?.total ?? allShows.length;
 
-  // Hero image : catégorie → première image des shows
-  const firstShowImg = allShows[0]?.thumbnail || allShows[0]?.image_url || allShows[0]?.image || null;
-  const heroImg = catInfo?.image_background || catInfo?.image_main || catInfo?.image_url || catInfo?.image || firstShowImg || null;
+  // Hero image : param immédiat → image_background de la catégorie → image_main
+  const heroImg = catInfo?.image_background || catInfo?.image_main || heroImageParam || null;
 
   // ── Émissions "À voir aussi" ──────────────────────────────────────────────
   const discoverList = useMemo(() =>
@@ -372,7 +381,7 @@ export function EmissionCategoryScreen() {
         renderItem={({ item }) => {
           // Onglet "À voir aussi"
           if (activeTab === 1) {
-            const emImg = item.image_main || item.image_url || item.image || '';
+            const emImg = item.image_main || '';
             return (
               <TouchableOpacity
                 style={[styles.discoverRow, { borderBottomColor: theme.border }]}

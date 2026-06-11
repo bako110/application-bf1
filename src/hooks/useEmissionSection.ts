@@ -9,10 +9,11 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 
 export interface EmissionEntry {
-  label:   string;
-  apiName: string;
-  image?:  string;
-  count:   number;
+  label:            string;
+  apiName:          string;
+  image?:           string;
+  image_background?: string;
+  count:            number;
 }
 
 interface Options {
@@ -59,31 +60,44 @@ export function useEmissionSection({
     }
 
     const allActive = sectionCats.filter(c => c.is_active !== false);
+    const sectionFiltered = section
+      ? allActive.filter(c => !c.section || softMatch(c.section, section))
+      : allActive;
 
-    function catImage(apiName: string): string | undefined {
-      const meta = allActive.find(c => c.name && softMatch(c.name, apiName));
-      return meta?.image_main || meta?.image_url || meta?.image || undefined;
+    function catMeta(apiName: string): { image?: string; image_background?: string } {
+      const pool = sectionFiltered.length ? sectionFiltered : allActive;
+      const meta = pool.find(c => c.name && softMatch(c.name, apiName));
+      return {
+        image:            meta?.image_main || meta?.image_url || meta?.image || undefined,
+        image_background: meta?.image_background || undefined,
+      };
     }
 
     if (orderedCats?.length) {
       return orderedCats.map(({ label, api: apiName }) => {
         const entry = countMap.get(apiName) ??
           [...countMap.entries()].find(([k]) => softMatch(k, apiName))?.[1];
+        const meta = catMeta(apiName);
         return {
           label,
           apiName,
-          image: catImage(apiName) || entry?.img || undefined,
-          count: entry?.count ?? 0,
+          image:            meta.image || entry?.img || undefined,
+          image_background: meta.image_background,
+          count:            entry?.count ?? 0,
         };
       });
     }
 
-    return Array.from(countMap.entries()).map(([apiName, { count, img }]) => ({
-      label:   apiName,
-      apiName,
-      image:   catImage(apiName) || img || undefined,
-      count,
-    }));
+    return Array.from(countMap.entries()).map(([apiName, { count, img }]) => {
+      const meta = catMeta(apiName);
+      return {
+        label:            apiName,
+        apiName,
+        image:            meta.image || img || undefined,
+        image_background: meta.image_background,
+        count,
+      };
+    });
   }, [items, sectionCats, section, orderedCats, catField]);
 
   // Patch d'images manquantes via fetch dédié par catégorie
@@ -118,7 +132,6 @@ export function useEmissionSection({
     });
   }, [base, fetchFn]);
 
-  // Fusionner patches dans base
   return useMemo(() => {
     if (!Object.keys(patches).length) return base;
     return base.map(e =>

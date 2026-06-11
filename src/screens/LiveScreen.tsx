@@ -8,6 +8,7 @@ import { WebView } from 'react-native-webview';
 import { useQuery } from '@tanstack/react-query';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import { LiveMiniPlayer } from '../components/home/LiveMiniPlayer';
 import OrientationLib from 'react-native-orientation-locker';
 const Orientation = (OrientationLib as any)?.default ?? OrientationLib;
 
@@ -233,10 +234,13 @@ export function LiveScreen() {
   const { showLoginModal } = useUiStore();
   const pulseAnim          = useRef(new Animated.Value(1)).current;
 
-  const [activeTab,    setActiveTab]    = useState<ContentTab>('schedule');
-  const [chatVisible,  setChatVisible]  = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [reminderIds,  setReminderIds]  = useState<Set<string>>(new Set());
+  const [activeTab,      setActiveTab]      = useState<ContentTab>('schedule');
+  const [chatVisible,    setChatVisible]    = useState(false);
+  const [isFullscreen,   setIsFullscreen]   = useState(false);
+  const [reminderIds,    setReminderIds]    = useState<Set<string>>(new Set());
+  const [showMini,       setShowMini]       = useState(false);
+  const [miniDismissed,  setMiniDismissed]  = useState(false);
+  const flatListRef = useRef<FlatList>(null);
 
   // Hook WebSocket chat — instancié ici pour afficher le compteur sur le bouton
   const chat = useLiveChat(user?.id ?? null);
@@ -409,8 +413,8 @@ export function LiveScreen() {
     <View style={[styles.container, { backgroundColor: '#000' }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-      {/* ── Player 16:9 (haut fixe) ── */}
-      <View style={[styles.playerWrapper, { marginTop: insets.top }]}>
+      {/* ── Player 16:9 (haut fixe) — masqué quand mini player actif ── */}
+      <View style={[styles.playerWrapper, { marginTop: insets.top, opacity: showMini ? 0 : 1 }]}>
         {liveLoading ? (
           <View style={styles.playerLoader}>
             <ActivityIndicator size="small" color={COLORS.primary} />
@@ -562,8 +566,15 @@ export function LiveScreen() {
           </View>
         ) : (
           <FlatList
+            ref={flatListRef}
             data={currentItems}
             keyExtractor={(item, i) => String(item.id ?? item._id ?? i)}
+            onScroll={e => {
+              const y = e.nativeEvent.contentOffset.y;
+              if (y > 80 && !miniDismissed) setShowMini(true);
+              if (y <= 20) { setShowMini(false); setMiniDismissed(false); }
+            }}
+            scrollEventThrottle={16}
             renderItem={({ item }) =>
               activeTab === 'schedule' ? (
                 <ScheduleCard
@@ -591,6 +602,20 @@ export function LiveScreen() {
       </View>
 
       {/* ── Modal Chat ── */}
+      {/* ── Mini player (scroll vers le bas) ── */}
+      {isOnAir && (
+        <LiveMiniPlayer
+          liveData={liveData}
+          isOnAir={isOnAir}
+          visible={showMini}
+          onClose={() => { setShowMini(false); setMiniDismissed(true); }}
+          onExpand={() => {
+            setShowMini(false);
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+          }}
+        />
+      )}
+
       <LiveChatModal
         visible={chatVisible}
         onClose={() => setChatVisible(false)}

@@ -12,10 +12,6 @@ import { RootNavigator }      from './navigation/RootNavigator';
 import { SplashScreen }       from './components/SplashScreen';
 import { LoginRequiredModal } from './components/ui/LoginRequiredModal';
 import { useLoginNavigation } from './hooks/useLoginNavigation';
-import {
-  requestNotificationPermission,
-  scheduleJournalNotifications,
-} from './services/notificationService';
 
 LogBox.ignoreLogs([
   'Non-serializable values were found in the navigation state',
@@ -59,13 +55,6 @@ function AppInit() {
     });
   }, []);
 
-  // Notifs JT automatiques : schedule dès le premier lancement, sans compte requis
-  useEffect(() => {
-    if (!ready) return;
-    requestNotificationPermission().then(granted => {
-      if (granted) scheduleJournalNotifications();
-    });
-  }, [ready]);
 
   // Tant que les prefs ne sont pas chargées, on n'affiche rien
   // (la SplashScreen masque tout pendant ce temps)

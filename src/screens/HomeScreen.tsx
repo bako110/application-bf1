@@ -31,8 +31,8 @@ const JT_CATS = [
   { label: 'Le 13H',        api: 'LE 13H' },
   { label: 'Le 19h30',      api: 'LE 19H30' },
   { label: 'Kibaye Wakato', api: 'Kibaye Wakato' },
-  { label: 'Le 7Infos',     api: '7INFOS' },
-  { label: 'Edwum Nere',    api: 'D WUUM NEERE' },
+  { label: '7INFOS',        api: '7INFOS' },
+  { label: 'D WUUM NEERE',  api: 'D WUUM NEERE' },
 ];
 
 const MAGAZINE_CATS = [
@@ -188,7 +188,7 @@ export function HomeScreen() {
             <MissedCard
               key={item.id}
               title={item.title}
-              image={item.thumbnail || item.image_url || item.image}
+              image={item.thumbnail || item.image_url || item.image || null}
               category={item.category || item.edition || 'BF1'}
               duration={item.duration_minutes ?? item.duration}
               views={item.views}
@@ -216,6 +216,7 @@ export function HomeScreen() {
               onPress={() => navigation.navigate('EmissionCategory', {
                 name:       e.label,
                 filterPath: `/jtandmag?category=${encodeURIComponent(e.apiName)}`,
+                heroImage:  e.image_background || e.image,
               })}
             />
           ))}
@@ -233,7 +234,7 @@ export function HomeScreen() {
             <MissedCard
               key={item.id}
               title={item.title}
-              image={item.thumbnail || item.image_url || item.image}
+              image={item.thumbnail || item.image_url || item.image || null}
               category={item.category || item.emission_name || 'Reportage'}
               duration={item.duration_minutes ?? item.duration}
               views={item.views}
@@ -261,6 +262,7 @@ export function HomeScreen() {
               onPress={() => navigation.navigate('EmissionCategory', {
                 name:       e.label,
                 filterPath: `/magazine?category=${encodeURIComponent(e.apiName)}`,
+                heroImage:  e.image_background || e.image,
               })}
             />
           ))}
@@ -282,6 +284,7 @@ export function HomeScreen() {
               onPress={() => navigation.navigate('EmissionCategory', {
                 name:       e.label,
                 filterPath: `/divertissement?category=${encodeURIComponent(e.apiName)}`,
+                heroImage:  e.image_background || e.image,
               })}
             />
           ))}
@@ -303,6 +306,7 @@ export function HomeScreen() {
               onPress={() => navigation.navigate('EmissionCategory', {
                 name:       e.label,
                 filterPath: `/tele-realite?category=${encodeURIComponent(e.apiName)}`,
+                heroImage:  e.image_background || e.image,
               })}
             />
           ))}
@@ -324,6 +328,7 @@ export function HomeScreen() {
               onPress={() => navigation.navigate('EmissionCategory', {
                 name:       e.label,
                 filterPath: `/sports?category=${encodeURIComponent(e.apiName)}`,
+                heroImage:  e.image_background || e.image,
               })}
             />
           ))}
@@ -342,7 +347,7 @@ export function HomeScreen() {
               <ContentCard
                 key={item.id}
                 title={item.title}
-                image={item.thumbnail || item.image}
+                image={item.thumbnail || item.image_url || item.image || null}
                 duration={item.duration_minutes ?? item.duration}
                 date={item.created_at}
                 subscription={item.subscription}

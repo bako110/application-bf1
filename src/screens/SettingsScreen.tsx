@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, StatusBar,
-  ScrollView, Switch, Platform,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -59,43 +59,6 @@ function RadioRow({
   );
 }
 
-/** Ligne avec toggle switch */
-function ToggleRow({
-  icon, label, desc, value, onValueChange, theme, last,
-}: {
-  icon:          string;
-  label:         string;
-  desc?:         string;
-  value:         boolean;
-  onValueChange: (v: boolean) => void;
-  theme:         any;
-  last?:         boolean;
-}) {
-  return (
-    <View
-      style={[
-        styles.optionRow,
-        { borderBottomColor: theme.divider, alignItems: 'center' },
-        last && { borderBottomWidth: 0 },
-      ]}
-    >
-      <View style={[styles.iconWrap, { backgroundColor: COLORS.redAlpha12 }]}>
-        <Icon name={icon as any} size={18} color={value ? COLORS.primary : theme.text2} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.optionLabel, { color: theme.text }]}>{label}</Text>
-        {desc ? <Text style={[styles.optionDesc, { color: theme.text3 }]}>{desc}</Text> : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: theme.border, true: COLORS.primary }}
-        thumbColor={Platform.OS === 'android' ? (value ? COLORS.primary : theme.text3) : undefined}
-        ios_backgroundColor={theme.border}
-      />
-    </View>
-  );
-}
 
 // ─── Écran principal ──────────────────────────────────────────────────────────
 
@@ -179,36 +142,6 @@ export function SettingsScreen() {
               }
             </TouchableOpacity>
           ))}
-        </View>
-
-        {/* ── Notifications ── */}
-        <SectionLabel label={t.settings.notifications} theme={theme} />
-        <View style={[styles.card, { backgroundColor: theme.surface }]}>
-          <ToggleRow
-            icon="notifications"
-            label={t.settings.notifPush}
-            desc={t.settings.notifPushDesc}
-            value={true}
-            onValueChange={() => {}}
-            theme={theme}
-          />
-          <ToggleRow
-            icon="tv"
-            label={t.settings.notifEmissions}
-            desc={t.settings.notifEmissionsDesc}
-            value={true}
-            onValueChange={() => {}}
-            theme={theme}
-          />
-          <ToggleRow
-            icon="radio"
-            label={t.settings.notifLive}
-            desc={t.settings.notifLiveDesc}
-            value={false}
-            onValueChange={() => {}}
-            theme={theme}
-            last
-          />
         </View>
 
         {/* ── À propos ── */}

@@ -191,9 +191,9 @@ function CommentsDrawer({
 
 // ─── Item Reel ────────────────────────────────────────────────────────────────
 function ReelItem({
-  item, isActive, itemHeight,
+  item, isActive, itemHeight, bottomInset, topInset,
 }: {
-  item: any; isActive: boolean; itemHeight: number;
+  item: any; isActive: boolean; itemHeight: number; bottomInset: number; topInset: number;
 }) {
   const { isAuthenticated } = useAuthStore();
   const { showLoginModal } = useUiStore();
@@ -320,7 +320,7 @@ function ReelItem({
       )}
 
       {/* ── Barre d'actions droite ── */}
-      <View style={styles.actionBar}>
+      <View style={[styles.actionBar, { bottom: 110 + bottomInset }]}>
 
         {/* Mute */}
         <TouchableOpacity style={styles.actionBtn} onPress={() => setMuted(v => !v)}>
@@ -356,7 +356,7 @@ function ReelItem({
       </View>
 
       {/* Infos bas gauche */}
-      <View style={styles.infoBlock} pointerEvents="none">
+      <View style={[styles.infoBlock, { bottom: 56 + bottomInset }]} pointerEvents="none">
         <View style={styles.authorRow}>
           <View style={styles.authorAvatar}>
             <Icon name="person" size={13} color="rgba(255,255,255,0.7)" />
@@ -372,7 +372,7 @@ function ReelItem({
       </View>
 
       {/* Barre de progression bas */}
-      <View style={styles.progressBar} pointerEvents="none" />
+      <View style={[styles.progressBar, { bottom: bottomInset }]} pointerEvents="none" />
 
       {/* Drawer commentaires */}
       <CommentsDrawer
@@ -405,7 +405,7 @@ export function ReelsScreen() {
     if (first) setActiveIndex(first.index ?? 0);
   }, []);
 
-  const itemHeight = SH - insets.top;
+  const itemHeight = SH;
 
   if (isLoading) {
     return (
@@ -438,6 +438,8 @@ export function ReelsScreen() {
             item={item}
             isActive={index === activeIndex}
             itemHeight={itemHeight}
+            bottomInset={insets.bottom}
+            topInset={insets.top}
           />
         )}
         keyExtractor={item => String(item.id ?? item._id ?? Math.random())}
@@ -488,10 +490,9 @@ const styles = StyleSheet.create({
   actionBar: {
     position:   'absolute',
     right:      14,
-    bottom:     110,
     alignItems: 'center',
     gap:        18,
-    zIndex:     10,   // au-dessus de tapZone
+    zIndex:     10,
   },
   actionBtn: {
     alignItems: 'center',
@@ -524,7 +525,7 @@ const styles = StyleSheet.create({
 
   // ── Infos bas gauche ──────────────────────────────────────────────────────
   infoBlock: {
-    position: 'absolute', bottom: 56, left: SPACING.lg, right: 82,
+    position: 'absolute', left: SPACING.lg, right: 82,
     gap: 5, zIndex: 3,
   },
   authorRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -548,7 +549,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.7)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   progressBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
+    position: 'absolute', left: 0, right: 0,
     height: 2, backgroundColor: 'rgba(255,255,255,0.2)', zIndex: 4,
   },
 

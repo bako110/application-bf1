@@ -26,7 +26,7 @@ export type HomeStackParams = {
   ReportagesPage:  undefined;
   ArchivePage:     undefined;
   TeleRealitePage: undefined;
-  EmissionCategory: { name: string; filterPath?: string; categoryId?: number | string };
+  EmissionCategory: { name: string; filterPath?: string; categoryId?: number | string; heroImage?: string };
   Programs:        undefined;
   Search:          undefined;
 };
@@ -35,7 +35,7 @@ export type HomeStackParams = {
 export type EmissionsStackParams = {
   Emissions:        undefined;
   EmissionDetail:   { id: number | string; name?: string };
-  EmissionCategory: { name: string; filterPath?: string; categoryId?: number | string };
+  EmissionCategory: { name: string; filterPath?: string; categoryId?: number | string; heroImage?: string };
   ShowDetail:       { id: number | string; type?: string };
 };
 
