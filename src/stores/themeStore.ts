@@ -20,12 +20,10 @@ function resolve(p: Preference): ThemeMode {
   return p;
 }
 
-const systemDefault = resolve('auto');
-
 export const useThemeStore = create<ThemeStore>((set) => ({
-  mode:       systemDefault,
-  preference: 'auto',
-  theme:      themes[systemDefault],
+  mode:       'dark',
+  preference: 'dark',
+  theme:      themes['dark'],
 
   async setMode(p) {
     await AsyncStorage.setItem(KEY, p);
@@ -36,13 +34,13 @@ export const useThemeStore = create<ThemeStore>((set) => ({
   async loadSavedMode() {
     try {
       const saved = (await AsyncStorage.getItem(KEY)) as Preference | null;
-      // Si jamais sauvegardé → 'auto' par défaut
-      const pref: Preference = saved === 'light' ? 'light' : saved === 'dark' ? 'dark' : 'auto';
+      // 'auto' ou null → forcer 'dark' par défaut
+      const pref: Preference = saved === 'light' ? 'light' : saved === 'dark' ? 'dark' : 'dark';
+      if (saved === 'auto' || saved === null) await AsyncStorage.setItem(KEY, 'dark');
       const resolved = resolve(pref);
       set({ preference: pref, mode: resolved, theme: themes[resolved] });
     } catch {
-      const fallback = resolve('auto');
-      set({ preference: 'auto', mode: fallback, theme: themes[fallback] });
+      set({ preference: 'dark', mode: 'dark', theme: themes['dark'] });
     }
   },
 }));
