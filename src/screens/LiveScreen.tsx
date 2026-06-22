@@ -12,10 +12,11 @@ import { LiveMiniPlayer } from '../components/home/LiveMiniPlayer';
 import OrientationLib from 'react-native-orientation-locker';
 const Orientation = (OrientationLib as any)?.default ?? OrientationLib;
 
-import { useTheme }          from '../hooks/useTheme';
-import { useTranslation }    from '../hooks/useTranslation';
-import { useAuthStore }      from '../stores';
-import { useUiStore }        from '../stores';
+import { useTheme }           from '../hooks/useTheme';
+import { useTranslation }     from '../hooks/useTranslation';
+import { useAuthStore }       from '../stores';
+import { useUiStore }         from '../stores';
+import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useLiveChat }         from '../hooks/useLiveChat';
 import { LiveChatModal }        from '../components/live/LiveChatModal';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, LIST_THUMB_W, LIST_THUMB_H } from '../constants';
@@ -231,8 +232,9 @@ export function LiveScreen() {
   const insets             = useSafeAreaInsets();
   const navigation         = useNavigation<any>();
   const { isAuthenticated, user } = useAuthStore();
-  const { showLoginModal } = useUiStore();
-  const pulseAnim          = useRef(new Animated.Value(1)).current;
+  const { showLoginModal }  = useUiStore();
+  const navigateToLogin     = useLoginNavigation();
+  const pulseAnim           = useRef(new Animated.Value(1)).current;
 
   const [activeTab,      setActiveTab]      = useState<ContentTab>('schedule');
   const [chatVisible,    setChatVisible]    = useState(false);
@@ -244,6 +246,13 @@ export function LiveScreen() {
 
   // Hook WebSocket chat — instancié ici pour afficher le compteur sur le bouton
   const chat = useLiveChat(user?.id ?? null);
+
+  // Fermer le modal automatiquement si l'admin ferme le chat
+  useEffect(() => {
+    if (!chat.chatOpen && chatVisible) {
+      setChatVisible(false);
+    }
+  }, [chat.chatOpen, chatVisible]);
 
   // ── Status live ──────────────────────────────────────────────────────────
   const { data: liveData, isLoading: liveLoading } = useQuery({
@@ -623,7 +632,7 @@ export function LiveScreen() {
         isAuthenticated={isAuthenticated}
         onLoginPress={() => {
           setChatVisible(false);
-          setTimeout(() => showLoginModal(), 300);
+          setTimeout(navigateToLogin, 300);
         }}
         messages={chat.messages}
         chatOpen={chat.chatOpen}

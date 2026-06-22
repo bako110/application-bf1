@@ -27,6 +27,7 @@ export function MagazineScreen() {
     <PageScreen
       title={t.content.magazine}
       onBack={() => navigation.goBack()}
+      searchPlaceholder="Rechercher un magazine…"
       isLoading={isLoading}
       isEmpty={!items.length && !isLoading}
       data={items}

@@ -27,6 +27,7 @@ export function TeleRealiteScreen() {
     <PageScreen
       title={t.content.tele_realite}
       onBack={() => navigation.goBack()}
+      searchPlaceholder="Rechercher une émission…"
       isLoading={isLoading}
       isEmpty={!items.length && !isLoading}
       data={items}

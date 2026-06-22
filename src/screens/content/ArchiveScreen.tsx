@@ -27,6 +27,7 @@ export function ArchiveScreen() {
     <PageScreen
       title={t.content.archive}
       onBack={() => navigation.goBack()}
+      searchPlaceholder="Rechercher dans les archives…"
       isLoading={isLoading}
       isEmpty={!items.length && !isLoading}
       data={items}

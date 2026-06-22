@@ -27,6 +27,7 @@ export function ReportagesScreen() {
     <PageScreen
       title={t.content.reportage}
       onBack={() => navigation.goBack()}
+      searchPlaceholder="Rechercher un reportage…"
       isLoading={isLoading}
       isEmpty={!items.length && !isLoading}
       data={items}

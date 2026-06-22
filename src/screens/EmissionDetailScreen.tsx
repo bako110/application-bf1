@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, StatusBar, ActivityIndicator,
+  View, Text, FlatList, StyleSheet, StatusBar,
   TouchableOpacity, Image, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,8 +13,10 @@ import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../stores';
 import { ContentCard } from '../components/ui/ContentCard';
+import { SkeletonEmissionDetail } from '../components/ui/SkeletonEmissionDetail';
 import * as api from '../services/api';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, GRID_CARD_W, HERO_H } from '../constants';
+import { getImageUrl } from '../utils';
 import type { EmissionsStackParams } from '../navigation/types';
 
 type Nav = StackNavigationProp<EmissionsStackParams>;
@@ -56,7 +58,7 @@ export function EmissionDetailScreen() {
       {/* Hero header */}
       <View style={styles.heroWrapper}>
         {emission?.image ? (
-          <Image source={{ uri: emission.image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <Image source={{ uri: getImageUrl(emission.image) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
           <LinearGradient
             colors={[theme.bg3, theme.bg2]}
@@ -87,9 +89,7 @@ export function EmissionDetailScreen() {
 
       {/* Shows grid */}
       {loadingShows ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
+        <SkeletonEmissionDetail />
       ) : (
         <FlatList
           data={shows ?? []}

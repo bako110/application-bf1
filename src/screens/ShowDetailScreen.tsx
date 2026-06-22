@@ -13,10 +13,13 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore, useUiStore } from '../stores';
+import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import * as api from '../services/api';
 import { PremiumModal } from '../components/profile/PremiumModal';
+import { SkeletonShowDetail } from '../components/ui/SkeletonShowDetail';
 import { formatFullDate, formatViews } from '../utils';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SCREEN, HERO_H, REL_W, REL_H } from '../constants';
+import { getImageUrl } from '../utils';
 import type { HomeStackParams } from '../navigation/types';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
@@ -77,7 +80,7 @@ function RelatedCard({ item, onPress }: { item: any; onPress: () => void }) {
       <View style={[styles.relThumb, { backgroundColor: theme.surface }]}>
         {(item.thumbnail || item.image_url || item.image) ? (
           <Image
-            source={{ uri: item.thumbnail || item.image_url || item.image }}
+            source={{ uri: getImageUrl(item.thumbnail || item.image_url || item.image) }}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
           />
@@ -128,126 +131,131 @@ function CommentsModal({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      {/* Fond semi-transparent cliquable pour fermer */}
-      <TouchableOpacity
-        style={cmStyles.backdrop}
-        activeOpacity={1}
-        onPress={onClose}
-      />
+      <View style={cmStyles.root}>
+        {/* Fond semi-transparent cliquable pour fermer */}
+        <TouchableOpacity
+          style={cmStyles.backdrop}
+          activeOpacity={1}
+          onPress={onClose}
+        />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={cmStyles.kav}
-      >
-        <View style={[cmStyles.sheet, { backgroundColor: theme.surface }]}>
-          {/* Handle */}
-          <View style={cmStyles.handleWrap}>
-            <View style={[cmStyles.handle, { backgroundColor: theme.border }]} />
-          </View>
+        {/* Sheet — KeyboardAvoidingView uniquement sur iOS */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={cmStyles.kav}
+        >
+          <View style={[cmStyles.sheet, { backgroundColor: theme.surface }]}>
+            {/* Handle */}
+            <View style={cmStyles.handleWrap}>
+              <View style={[cmStyles.handle, { backgroundColor: theme.border }]} />
+            </View>
 
-          {/* Header */}
-          <View style={[cmStyles.header, { borderBottomColor: theme.divider }]}>
-            <Text style={[cmStyles.title, { color: theme.text }]}>
-              {t.comments.title}
-              {comments.length > 0 && (
-                <Text style={[cmStyles.count, { color: theme.text3 }]}>  {comments.length}</Text>
-              )}
-            </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-              <Icon name="close" size={20} color={theme.text3} />
-            </TouchableOpacity>
-          </View>
+            {/* Header */}
+            <View style={[cmStyles.header, { borderBottomColor: theme.divider }]}>
+              <Text style={[cmStyles.title, { color: theme.text }]}>
+                {t.comments.title}
+                {comments.length > 0 && (
+                  <Text style={[cmStyles.count, { color: theme.text3 }]}>  {comments.length}</Text>
+                )}
+              </Text>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                <Icon name="close" size={20} color={theme.text3} />
+              </TouchableOpacity>
+            </View>
 
-          {/* Liste — flex: 1 pour remplir l'espace disponible */}
-          <FlatList
-            data={comments}
-            keyExtractor={(item, i) => String(item.id ?? i)}
-            style={cmStyles.list}
-            contentContainerStyle={cmStyles.listContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <View style={cmStyles.empty}>
-                <Icon name="chatbubble-ellipses-outline" size={44} color={theme.text3} />
-                <Text style={[cmStyles.emptyText, { color: theme.text3 }]}>{t.comments.empty}</Text>
-              </View>
-            }
-            renderItem={({ item }) => {
-              const name    = item.user?.username ?? item.username ?? 'Anonyme';
-              const initial = (name[0] ?? '?').toUpperCase();
-              const body    = item.text ?? item.content ?? '';
-              const date    = item.created_at ?? item.date ?? null;
-              return (
-                <View style={[cmStyles.row, { borderBottomColor: theme.divider }]}>
-                  <View style={[cmStyles.avatar, { backgroundColor: typeColor + 'cc' }]}>
-                    <Text style={cmStyles.initial}>{initial}</Text>
-                  </View>
-                  <View style={cmStyles.rowBody}>
-                    <View style={cmStyles.rowTop}>
-                      <Text style={[cmStyles.name, { color: theme.text }]} numberOfLines={1}>{name}</Text>
-                      {date && (
-                        <Text style={[cmStyles.date, { color: theme.text3 }]}>
-                          {new Date(date).toLocaleDateString()}
-                        </Text>
-                      )}
-                    </View>
-                    <Text style={[cmStyles.body, { color: theme.text2 }]}>{body}</Text>
-                  </View>
+            {/* Liste */}
+            <FlatList
+              data={comments}
+              keyExtractor={(item, i) => String(item.id ?? i)}
+              style={cmStyles.list}
+              contentContainerStyle={cmStyles.listContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              ListEmptyComponent={
+                <View style={cmStyles.empty}>
+                  <Icon name="chatbubble-ellipses-outline" size={44} color={theme.text3} />
+                  <Text style={[cmStyles.emptyText, { color: theme.text3 }]}>{t.comments.empty}</Text>
                 </View>
-              );
-            }}
-          />
+              }
+              renderItem={({ item }) => {
+                const name    = item.user?.username ?? item.username ?? 'Anonyme';
+                const initial = (name[0] ?? '?').toUpperCase();
+                const body    = item.text ?? item.content ?? '';
+                const date    = item.created_at ?? item.date ?? null;
+                return (
+                  <View style={[cmStyles.row, { borderBottomColor: theme.divider }]}>
+                    <View style={[cmStyles.avatar, { backgroundColor: typeColor + 'cc' }]}>
+                      <Text style={cmStyles.initial}>{initial}</Text>
+                    </View>
+                    <View style={cmStyles.rowBody}>
+                      <View style={cmStyles.rowTop}>
+                        <Text style={[cmStyles.name, { color: theme.text }]} numberOfLines={1}>{name}</Text>
+                        {date && (
+                          <Text style={[cmStyles.date, { color: theme.text3 }]}>
+                            {new Date(date).toLocaleDateString()}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={[cmStyles.body, { color: theme.text2 }]}>{body}</Text>
+                    </View>
+                  </View>
+                );
+              }}
+            />
 
-          {/* Input */}
-          <View style={[cmStyles.inputRow, {
-            borderTopColor:  theme.divider,
-            backgroundColor: theme.surface,
-            paddingBottom:   Math.max(insets.bottom, 16),
-          }]}>
-            {isAuthenticated ? (
-              <>
-                <TextInput
-                  ref={inputRef}
-                  style={[cmStyles.input, { backgroundColor: theme.bg1, color: theme.text, borderColor: theme.border }]}
-                  value={text}
-                  onChangeText={setText}
-                  placeholder={t.comments.placeholder}
-                  placeholderTextColor={theme.text3}
-                  returnKeyType="send"
-                  onSubmitEditing={handleSend}
-                  editable={!isSending}
-                  multiline={false}
-                />
-                <TouchableOpacity
-                  onPress={handleSend}
-                  disabled={!text.trim() || isSending}
-                  style={[cmStyles.sendBtn, {
-                    backgroundColor: text.trim() && !isSending ? COLORS.primary : theme.bg2,
-                  }]}
-                >
-                  {isSending
-                    ? <ActivityIndicator size="small" color="#fff" />
-                    : <Icon name="send" size={16} color={text.trim() ? COLORS.white : theme.text3} />
-                  }
-                </TouchableOpacity>
-              </>
-            ) : (
-              <View style={cmStyles.loginHint}>
-                <Icon name="lock-closed-outline" size={14} color={theme.text3} />
-                <Text style={[cmStyles.loginText, { color: theme.text3 }]}>{t.comments.loginRequired}</Text>
-              </View>
-            )}
+            {/* Input */}
+            <View style={[cmStyles.inputRow, {
+              borderTopColor:  theme.divider,
+              backgroundColor: theme.surface,
+              paddingBottom:   Math.max(insets.bottom, 16),
+            }]}>
+              {isAuthenticated ? (
+                <>
+                  <TextInput
+                    ref={inputRef}
+                    style={[cmStyles.input, { backgroundColor: theme.bg1, color: theme.text, borderColor: theme.border }]}
+                    value={text}
+                    onChangeText={setText}
+                    placeholder={t.comments.placeholder}
+                    placeholderTextColor={theme.text3}
+                    returnKeyType="send"
+                    onSubmitEditing={handleSend}
+                    editable={!isSending}
+                    multiline={false}
+                  />
+                  <TouchableOpacity
+                    onPress={handleSend}
+                    disabled={!text.trim() || isSending}
+                    style={[cmStyles.sendBtn, {
+                      backgroundColor: text.trim() && !isSending ? COLORS.primary : theme.bg2,
+                    }]}
+                  >
+                    {isSending
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Icon name="send" size={16} color={text.trim() ? COLORS.white : theme.text3} />
+                    }
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <View style={cmStyles.loginHint}>
+                  <Icon name="lock-closed-outline" size={14} color={theme.text3} />
+                  <Text style={[cmStyles.loginText, { color: theme.text3 }]}>{t.comments.loginRequired}</Text>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
 
 const cmStyles = StyleSheet.create({
+  root:        { flex: 1, justifyContent: 'flex-end' },
   backdrop:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
-  kav:         { flex: 1, justifyContent: 'flex-end' },
-  sheet:       { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', overflow: 'hidden' },
+  kav:         { height: '82%' },
+  sheet:       { flex: 1, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' },
   handleWrap:  { alignItems: 'center', paddingTop: 10, paddingBottom: 4 },
   handle:      { width: 36, height: 4, borderRadius: 2 },
   header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 0.5 },
@@ -293,6 +301,7 @@ export function ShowDetailScreen() {
   const insets            = useSafeAreaInsets();
   const { isAuthenticated, canAccess, user } = useAuthStore();
   const { showLoginModal } = useUiStore();
+  const navigateToLogin    = useLoginNavigation();
   const qc                = useQueryClient();
 
   const { id, type } = route.params;
@@ -380,14 +389,17 @@ export function ShowDetailScreen() {
   // ─── Auth-guard ────────────────────────────────────────────────────────────
   const guardedLike = () => {
     if (!isAuthenticated) { showLoginModal(); return; }
+    if (!canAccess(show?.subscription)) { setPremiumOpen(true); return; }
     likeMutation.mutate();
   };
   const guardedFav = () => {
     if (!isAuthenticated) { showLoginModal(); return; }
+    if (!canAccess(show?.subscription)) { setPremiumOpen(true); return; }
     favMutation.mutate();
   };
   const guardedComment = () => {
     if (!isAuthenticated) { showLoginModal(); return; }
+    if (!canAccess(show?.subscription)) { setPremiumOpen(true); return; }
     setCommentOpen(true);
   };
 
@@ -395,14 +407,7 @@ export function ShowDetailScreen() {
   const httpStatus = (error as any)?.status ?? (error as any)?.response?.status;
 
   if (isLoading) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.bg }]}>
-        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      </View>
-    );
+    return <SkeletonShowDetail />;
   }
 
   if (httpStatus === 401) {
@@ -415,7 +420,7 @@ export function ShowDetailScreen() {
         <Icon name="lock-closed" size={52} color={COLORS.primary} />
         <Text style={[styles.authTitle, { color: theme.text }]}>{t.show.loginRequired}</Text>
         <Text style={[styles.authSub, { color: theme.text3 }]}>{t.show.loginRequiredSub}</Text>
-        <TouchableOpacity style={styles.authBtn} onPress={() => showLoginModal()}>
+        <TouchableOpacity style={styles.authBtn} onPress={navigateToLogin}>
           <Text style={styles.authBtnText}>{t.auth.login}</Text>
         </TouchableOpacity>
       </View>
@@ -438,7 +443,12 @@ export function ShowDetailScreen() {
           <Icon name="lock-open-outline" size={16} color="#000" />
           <Text style={[styles.authBtnText, { color: '#000' }]}>{t.show.seeOffers}</Text>
         </TouchableOpacity>
-        <PremiumModal visible={premiumOpen} onClose={() => setPremiumOpen(false)} onSuccess={() => { setPremiumOpen(false); navigation.goBack(); }} />
+        <PremiumModal
+          visible={premiumOpen}
+          onClose={() => setPremiumOpen(false)}
+          requiredCategory={null}
+          onSuccess={() => { setPremiumOpen(false); navigation.goBack(); }}
+        />
       </View>
     );
   }
@@ -509,7 +519,7 @@ export function ShowDetailScreen() {
                   activeOpacity={1}
                 >
                   {heroImage ? (
-                    <Image source={{ uri: heroImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    <Image source={{ uri: getImageUrl(heroImage) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                   ) : null}
                   <View style={styles.ytPlayBtn}>
                     <Icon name="play" size={32} color="#fff" />
@@ -521,7 +531,7 @@ export function ShowDetailScreen() {
         ) : (
           <View style={styles.hero}>
             {heroImage ? (
-              <Image source={{ uri: heroImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              <Image source={{ uri: getImageUrl(heroImage) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             ) : (
               <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0d0008' }]} />
             )}

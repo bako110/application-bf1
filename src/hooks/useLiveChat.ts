@@ -202,6 +202,29 @@ export function useLiveChat(userId?: string | number | null) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Re-join quand userId arrive (store hydraté après connexion WS) ────────
+  const prevUserIdRef = useRef<string | number | null | undefined>(undefined);
+  useEffect(() => {
+    if (prevUserIdRef.current === undefined) {
+      prevUserIdRef.current = userId;
+      return;
+    }
+    if (prevUserIdRef.current === userId) return;
+    prevUserIdRef.current = userId;
+    // userId vient d'arriver → re-envoyer join_livestream avec le bon token
+    if (wsReadyRef.current && wsRef.current) {
+      AsyncStorage.getItem('bf1_token').catch(() => null).then(token => {
+        if (wsReadyRef.current && wsRef.current) {
+          wsRef.current.send(JSON.stringify({
+            type: 'join_livestream',
+            user_id: userId ?? null,
+            token: token ?? null,
+          }));
+        }
+      });
+    }
+  }, [userId]);
+
   // ── Envoyer un message ────────────────────────────────────────────────────
   const sendMessage = useCallback(async (text: string, user: { id?: any; username?: string; avatar_url?: string | null } | null) => {
     const trimmed = text.trim();
@@ -211,9 +234,9 @@ export function useLiveChat(userId?: string | number | null) {
       wsRef.current.send(JSON.stringify({
         type:       'chat_send',
         text:       trimmed,
-        user_id:    user?.id    ?? null,
-        username:   user?.username  ?? 'Anonyme',
-        avatar_url: user?.avatar_url ?? null,
+        user_id:    user?.id       ?? null,
+        username:   user?.username ?? 'Anonyme',
+        avatar_url: (user as any)?.avatar_url ?? (user as any)?.avatar ?? null,
       }));
       return true;
     }

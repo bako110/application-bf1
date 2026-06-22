@@ -27,6 +27,7 @@ export function MissedScreen() {
     <PageScreen
       title={t.content.missed}
       onBack={() => navigation.goBack()}
+      searchPlaceholder="Rechercher dans le rattrapage…"
       isLoading={isLoading}
       isEmpty={!items.length && !isLoading}
       data={items}

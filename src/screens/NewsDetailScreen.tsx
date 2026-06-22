@@ -12,6 +12,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore, useUiStore } from '../stores';
+import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { ImageWithSkeleton } from '../components/ui/ImageWithSkeleton';
 import * as api from '../services/api';
 import { formatFullDate } from '../utils';
@@ -132,7 +133,7 @@ function CommentsModal({
   const { theme }           = useTheme();
   const { t }               = useTranslation();
   const { user, isAuthenticated } = useAuthStore();
-  const { showLoginModal } = useUiStore();
+  const navigateToLogin     = useLoginNavigation();
   const qc                  = useQueryClient();
   const [inputText, setInputText] = useState('');
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -252,7 +253,7 @@ function CommentsModal({
           ) : (
             <TouchableOpacity
               style={styles.cmLoginBtn}
-              onPress={() => { onClose(); setTimeout(() => showLoginModal(t.newsDetail.loginToComment), 350); }}
+              onPress={() => { onClose(); setTimeout(navigateToLogin, 350); }}
             >
               <Text style={styles.cmLoginText}>{t.newsDetail.loginToComment}</Text>
             </TouchableOpacity>

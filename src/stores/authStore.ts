@@ -9,6 +9,7 @@ interface User {
   username: string;
   email: string;
   subscription_category?: string;
+  avatar_url?: string;
   avatar?: string;
   [key: string]: unknown;
 }
@@ -76,16 +77,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     });
   },
 
-  async loginWithGoogle(token, user) {
-    const res = await api.loginWithToken(token, user);
-    // Récupérer le profil complet depuis l'API
+  async loginWithGoogle(idToken, _user) {
+    const res = await api.loginWithGoogleIdToken(idToken);
     let fullUser = res.user;
     try {
       const me = await api.refreshUser();
       if (me) fullUser = me;
     } catch {}
     set({
-      token:           token,
+      token:           res.access_token,
       user:            fullUser,
       isAuthenticated: true,
     });

@@ -54,7 +54,6 @@ export function HomeHeader({ onSearchPress, scrollY, onProfileTabPress }: Props)
         { icon: 'home',             label: t.nav.home,                    route: 'HomeTab'           },
         { icon: 'tv-outline',       label: t.nav.emissions,               route: 'EmissionsTab'      },
         { icon: 'radio-outline',    label: t.nav.live,                    route: 'LiveTab'           },
-        { icon: 'play-circle',      label: t.nav.reels,                   route: 'ReelsTab'          },
       ],
     },
     {
@@ -123,10 +122,8 @@ export function HomeHeader({ onSearchPress, scrollY, onProfileTabPress }: Props)
             <Icon name="menu-outline" size={26} color={COLORS.primary} />
           </TouchableOpacity>
 
-          {/* Logo centré */}
-          <View style={styles.brandWrap}>
-            <BF1Logo size="md" />
-          </View>
+          {/* Espace centré */}
+          <View style={styles.brandWrap} />
 
           {/* Actions droite */}
           <View style={styles.actions}>

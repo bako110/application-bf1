@@ -27,6 +27,7 @@ export function JTandMagScreen() {
     <PageScreen
       title={t.content.jtandmag}
       onBack={() => navigation.goBack()}
+      searchPlaceholder="Rechercher un journal…"
       isLoading={isLoading}
       isEmpty={!items.length && !isLoading}
       data={items}

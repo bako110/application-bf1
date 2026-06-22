@@ -14,6 +14,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore, useUiStore } from '../stores';
 import * as api from '../services/api';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, HERO_H, EP_THUMB_W } from '../constants';
+import { getImageUrl } from '../utils';
 import type { HomeStackParams } from '../navigation/types';
 
 type Nav   = StackNavigationProp<HomeStackParams>;
@@ -72,7 +73,7 @@ function EpisodeRow({
       {/* Miniature 16:9 */}
       <View style={[styles.epThumb, { backgroundColor: isDark ? '#1a1a1a' : '#e8e8e8' }]}>
         {img ? (
-          <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <Image source={{ uri: getImageUrl(img) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
           <View style={[StyleSheet.absoluteFill, styles.epFallback]}>
             <Icon name="play-circle-outline" size={28} color={COLORS.redAlpha50} />
@@ -298,7 +299,7 @@ export function EmissionCategoryScreen() {
             {/* ── HERO ── */}
             <View style={styles.hero}>
               {heroImg ? (
-                <Image source={{ uri: heroImg }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                <Image source={{ uri: getImageUrl(heroImg) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
               ) : (
                 <LinearGradient
                   colors={['#1a0505', '#2a0a0a', '#0d0d0d']}
@@ -394,7 +395,7 @@ export function EmissionCategoryScreen() {
               >
                 <View style={[styles.discoverThumb, { backgroundColor: isDark ? '#1a1a1a' : '#e8e8e8' }]}>
                   {emImg ? (
-                    <Image source={{ uri: emImg }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    <Image source={{ uri: getImageUrl(emImg) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                   ) : (
                     <View style={[StyleSheet.absoluteFill, styles.epFallback]}>
                       <Icon name="tv-outline" size={20} color={COLORS.redAlpha50} />

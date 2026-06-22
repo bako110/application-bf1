@@ -125,7 +125,7 @@ export const RADIUS = {
 // ─── API ─────────────────────────────────────────────────────────────────────
 export const API_CONFIG = {
   IS_PRODUCTION: true,
-  PRODUCTION_URL: 'https://bf1.fly.dev',
+  PRODUCTION_URL: 'http://161.97.117.46:8090',
   LOCAL_URL:      'http://192.168.137.1:8000',
   get BASE_URL() {
     return `${this.IS_PRODUCTION ? this.PRODUCTION_URL : this.LOCAL_URL}/api/v1`;

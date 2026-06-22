@@ -57,14 +57,17 @@ export async function register(username: string, email: string, password: string
   return res;
 }
 
-export async function loginWithToken(token: string, user: any) {
-  http.setToken(token);
-  http.clearCache();
-  await AsyncStorage.multiSet([
-    ['bf1_token', token],
-    ['bf1_user',  JSON.stringify(user)],
-  ]);
-  return { access_token: token, user };
+export async function loginWithGoogleIdToken(idToken: string) {
+  const res = await http.post<any>('/users/auth/google/mobile', { id_token: idToken });
+  if (res.access_token) {
+    http.setToken(res.access_token);
+    http.clearCache();
+    await AsyncStorage.multiSet([
+      ['bf1_token', res.access_token],
+      ['bf1_user',  JSON.stringify(res.user)],
+    ]);
+  }
+  return res;
 }
 
 export async function suggestUsername(email: string): Promise<string | null> {
@@ -172,9 +175,10 @@ export async function getPrograms() {
 
 export async function getEmissions() {
   const res = await http.get<any[]>('/emission-categories').catch(() => []);
-  return (Array.isArray(res) ? res : [])
+  const result = (Array.isArray(res) ? res : [])
     .filter(i => i.is_active !== false)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return result;
 }
 
 // ─── Détails par ID ──────────────────────────────────────────────────────────

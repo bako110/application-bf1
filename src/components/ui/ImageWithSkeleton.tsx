@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Image, Animated, StyleSheet } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { getImageUrl } from '../../utils';
 
 interface Props {
   uri?:         string | null;
@@ -76,7 +77,7 @@ export function ImageWithSkeleton({ uri, style, resizeMode = 'cover', fallback }
       {/* Image réelle — fade-in à l'arrivée */}
       {uri && !error && (
         <Animated.Image
-          source={{ uri }}
+          source={{ uri: getImageUrl(uri) }}
           style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}
           resizeMode={resizeMode}
           onLoad={onLoad}

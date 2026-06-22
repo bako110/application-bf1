@@ -15,12 +15,14 @@ interface SectionRowProps {
   isEmpty?:   boolean;
   emptyText?: string;
   landscape?: boolean;
+  variant?:   'default' | 'emission' | 'missed' | 'content';
   children:   React.ReactNode;
 }
 
 export function SectionRow({
   title, onSeeMore, isLoading = false,
-  isEmpty = false, landscape = false, children,
+  isEmpty = false, landscape = false,
+  variant = 'default', children,
 }: SectionRowProps) {
   const { theme } = useTheme();
 
@@ -51,7 +53,7 @@ export function SectionRow({
 
       {/* Contenu */}
       {isLoading ? (
-        <SkeletonRow count={5} landscape={landscape} />
+        <SkeletonRow count={5} landscape={landscape} variant={variant} />
       ) : (
         <ScrollView
           horizontal

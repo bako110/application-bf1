@@ -1,58 +1,68 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text } from 'react-native';
 import { BF1Logo } from './ui/BF1Logo';
 import { useTheme } from '../hooks/useTheme';
 import { FONT_WEIGHT } from '../constants';
 
-const TAGLINE  = 'La chaîne au cœur de nos défis';
-const CHAR_MS  = 70;    // vitesse frappe
-const HOLD_MS  = 1500;  // pause après texte complet avant fade out
-const FADE_OUT = 600;   // écran fade out
+const TAGLINE = 'La chaîne au cœur de nos défis';
+const HOLD_MS = 1600;
+const FADE_MS = 600;
 
 interface Props { onDone: () => void }
 
 export function SplashScreen({ onDone }: Props) {
   const { theme, isDark } = useTheme();
-  const [text, setText]   = useState('');
 
   const screenOpacity = useRef(new Animated.Value(1)).current;
+  const clipWidth     = useRef(new Animated.Value(0)).current;
+  const [textWidth, setTextWidth] = useState(0);
 
   useEffect(() => {
-    let typeTimer: ReturnType<typeof setInterval>;
-    let holdTimer: ReturnType<typeof setTimeout>;
+    if (textWidth === 0) return;
 
-    // 1. Typewriter
-    let i = 0;
-    typeTimer = setInterval(() => {
-      i++;
-      setText(TAGLINE.slice(0, i));
-      if (i >= TAGLINE.length) {
-        clearInterval(typeTimer);
+    const duration = TAGLINE.length * 55; // ~55ms par caractère
 
-        // 2. Pause pour lire
-        holdTimer = setTimeout(() => {
-          Animated.timing(screenOpacity, {
-            toValue:        0,
-            duration:       FADE_OUT,
-            useNativeDriver: true,
-          }).start(() => onDone());
-        }, HOLD_MS);
-      }
-    }, CHAR_MS);
+    Animated.timing(clipWidth, {
+      toValue:         textWidth,
+      duration,
+      easing:          Easing.linear,
+      useNativeDriver: false,
+    }).start(() => {
+      const t = setTimeout(() => {
+        Animated.timing(screenOpacity, {
+          toValue:         0,
+          duration:        FADE_MS,
+          useNativeDriver: true,
+        }).start(() => onDone());
+      }, HOLD_MS);
+      return () => clearTimeout(t);
+    });
+  }, [textWidth]);
 
-    return () => {
-      clearInterval(typeTimer);
-      clearTimeout(holdTimer);
-    };
-  }, []);
+  const textColor = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)';
 
   return (
     <Animated.View style={[styles.container, { opacity: screenOpacity, backgroundColor: theme.bg }]}>
       <BF1Logo size="xxl" />
 
-      <Text style={[styles.tagline, { color: isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)' }]}>
-        {text}
+      {/* Texte fantôme hors écran : mesure la largeur réelle sans être visible */}
+      <Text
+        numberOfLines={1}
+        style={[styles.tagline, styles.ghost, { color: textColor }]}
+        onLayout={e => {
+          const w = e.nativeEvent.layout.width;
+          if (w > 0 && textWidth === 0) setTextWidth(w);
+        }}
+      >
+        {TAGLINE}
       </Text>
+
+      {/* Clip animé : révèle le texte de gauche à droite */}
+      <Animated.View style={{ width: clipWidth, overflow: 'hidden' }}>
+        <Text numberOfLines={1} style={[styles.tagline, { color: textColor }]}>
+          {TAGLINE}
+        </Text>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -68,7 +78,10 @@ const styles = StyleSheet.create({
     fontSize:      16,
     fontWeight:    FONT_WEIGHT.semibold,
     letterSpacing: 0.4,
-    textAlign:     'center',
-    minHeight:     22,
+    flexShrink:    0,
+  },
+  ghost: {
+    position: 'absolute',
+    opacity:  0,
   },
 });

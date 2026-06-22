@@ -1,4 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
+import { useRef } from 'react';
 
 /**
  * Retourne une fonction qui navigue vers l'écran Login,
@@ -7,15 +8,18 @@ import { useNavigation } from '@react-navigation/native';
  */
 export function useLoginNavigation() {
   const navigation = useNavigation<any>();
+  const navRef = useRef(navigation);
+  navRef.current = navigation;
 
   return () => {
-    // Remonter jusqu'au tab navigator
-    const tabNav = navigation.getParent?.() ?? navigation;
+    const nav = navRef.current;
+    if (!nav) return;
     try {
+      const parent = nav.getParent?.();
+      const tabNav = parent ?? nav;
       tabNav.navigate('ProfileTab', { screen: 'Login', params: {} });
     } catch {
-      // Fallback si déjà dans ProfileTab
-      navigation.navigate('Login');
+      try { nav.navigate('Login' as never); } catch {}
     }
   };
 }

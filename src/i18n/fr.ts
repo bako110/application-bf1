@@ -5,6 +5,7 @@ export default {
     live:       'Direct',
     emissions:  'Émissions',
     reels:      'Reels',
+    search:     'Recherche',
     profile:    'Mon compte',
   },
 

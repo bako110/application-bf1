@@ -1,36 +1,46 @@
-/**
- * Transforme les items d'une section API en liste de catégories d'émissions
- * avec image et count — miroir de _loadEmissionSection dans home.js.
- *
- * Si l'image admin (emission-categories) est absente ET qu'aucun item de la
- * catégorie n'est présent dans les 100 chargés, on fait un fetch dédié
- * fetchFn(apiName, 0, 1) pour récupérer l'image du premier épisode.
- */
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo } from 'react';
 
 export interface EmissionEntry {
-  label:            string;
-  apiName:          string;
-  image?:           string;
+  label:             string;
+  apiName:           string;
+  image?:            string;
   image_background?: string;
-  count:            number;
+  filter_path?:      string;
+  count:             number;
 }
 
 interface Options {
-  items?:       any[];
   sectionCats?: any[];
   section?:     string;
   orderedCats?: { label: string; api: string }[];
-  catField?:    string;
-  // fetchFn = api.getJTandMag / getMagazine / etc. — appelé avec (0, 1, apiName)
-  fetchFn?:     (skip: number, limit: number, category: string) => Promise<{ items: any[]; total?: number }>;
+}
+
+function decodeIfCorrupted(s: string): string {
+  // Corrige le double-encodage UTF-8 du backend (ex: "LeÃ§ons" -> "Leçons")
+  try {
+    const bytes = Array.from(s).map(c => c.charCodeAt(0));
+    const chars = [];
+    let i = 0;
+    while (i < bytes.length) {
+      const b = bytes[i];
+      if (b < 0x80) { chars.push(b); i++; }
+      else if (b >= 0xC2 && b < 0xE0 && bytes[i+1] >= 0x80) {
+        chars.push(((b & 0x1F) << 6) | (bytes[i+1] & 0x3F)); i += 2;
+      } else if (b >= 0xE0 && bytes[i+1] >= 0x80 && bytes[i+2] >= 0x80) {
+        chars.push(((b & 0x0F) << 12) | ((bytes[i+1] & 0x3F) << 6) | (bytes[i+2] & 0x3F)); i += 3;
+      } else { chars.push(b); i++; }
+    }
+    return String.fromCharCode(...chars);
+  } catch {
+    return s;
+  }
 }
 
 function normalize(s: string) {
-  return s
+  return decodeIfCorrupted(s)
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/\p{Mn}/gu, '')
     .replace(/[^a-z0-9]/g, '');
 }
 
@@ -41,101 +51,45 @@ function softMatch(a: string, b: string): boolean {
 }
 
 export function useEmissionSection({
-  items = [],
   sectionCats = [],
   section,
   orderedCats,
-  catField = 'category',
-  fetchFn,
 }: Options): EmissionEntry[] {
-  // Résolution synchrone (image admin + items déjà chargés)
-  const base = useMemo(() => {
-    const countMap = new Map<string, { count: number; img: string }>();
-    for (const item of items) {
-      const cat = (item.sport_type || item.subcategory || item[catField] || '').trim();
-      if (!cat) continue;
-      const prev = countMap.get(cat);
-      const img  = prev?.img || item.image_main || item.image_url || item.thumbnail || item.image || '';
-      countMap.set(cat, { count: (prev?.count ?? 0) + 1, img });
-    }
-
+  return useMemo(() => {
     const allActive = sectionCats.filter(c => c.is_active !== false);
-    const sectionFiltered = section
-      ? allActive.filter(c => !c.section || softMatch(c.section, section))
+    const sectionPool = section
+      ? allActive.filter(c => c.section && softMatch(c.section, section))
       : allActive;
 
-    function catMeta(apiName: string): { image?: string; image_background?: string } {
-      const pool = sectionFiltered.length ? sectionFiltered : allActive;
-      const meta = pool.find(c => c.name && softMatch(c.name, apiName));
-      return {
-        image:            meta?.image_main || meta?.image_url || meta?.image || undefined,
-        image_background: meta?.image_background || undefined,
-      };
+    function adminEntry(apiName: string) {
+      return (
+        sectionPool.find(c => c.name && softMatch(c.name, apiName)) ??
+        allActive.find(c => c.name && softMatch(c.name, apiName))
+      );
     }
 
     if (orderedCats?.length) {
       return orderedCats.map(({ label, api: apiName }) => {
-        const entry = countMap.get(apiName) ??
-          [...countMap.entries()].find(([k]) => softMatch(k, apiName))?.[1];
-        const meta = catMeta(apiName);
+        const meta = adminEntry(apiName);
         return {
           label,
           apiName,
-          image:            meta.image || entry?.img || undefined,
-          image_background: meta.image_background,
-          count:            entry?.count ?? 0,
+          image:            meta?.image_main || undefined,
+          image_background: meta?.image_background || undefined,
+          filter_path:      meta?.filter_path || undefined,
+          count:            meta?.shows_count ?? 0,
         };
       });
     }
 
-    return Array.from(countMap.entries()).map(([apiName, { count, img }]) => {
-      const meta = catMeta(apiName);
-      return {
-        label:            apiName,
-        apiName,
-        image:            meta.image || img || undefined,
-        image_background: meta.image_background,
-        count,
-      };
-    });
-  }, [items, sectionCats, section, orderedCats, catField]);
-
-  // Patch d'images manquantes via fetch dédié par catégorie
-  const [patches, setPatches] = useState<Record<string, string>>({});
-  const fetchedRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!fetchFn) return;
-    const missing = base.filter(e => !e.image && !fetchedRef.current.has(e.apiName));
-    if (!missing.length) return;
-
-    missing.forEach(e => fetchedRef.current.add(e.apiName));
-
-    Promise.allSettled(
-      missing.map(e =>
-        fetchFn(0, 1, e.apiName).then(res => {
-          const first = res.items?.[0];
-          const img   = first?.image_url || first?.thumbnail || first?.image || first?.image_main || '';
-          return img ? { apiName: e.apiName, img } : null;
-        })
-      )
-    ).then(results => {
-      const newPatches: Record<string, string> = {};
-      for (const r of results) {
-        if (r.status === 'fulfilled' && r.value) {
-          newPatches[r.value.apiName] = r.value.img;
-        }
-      }
-      if (Object.keys(newPatches).length) {
-        setPatches(prev => ({ ...prev, ...newPatches }));
-      }
-    });
-  }, [base, fetchFn]);
-
-  return useMemo(() => {
-    if (!Object.keys(patches).length) return base;
-    return base.map(e =>
-      e.image ? e : { ...e, image: patches[e.apiName] }
-    );
-  }, [base, patches]);
+    // Sans orderedCats : construit depuis sectionPool directement
+    return sectionPool.map(meta => ({
+      label:            meta.name,
+      apiName:          meta.name,
+      image:            meta.image_main || undefined,
+      image_background: meta.image_background || undefined,
+      filter_path:      meta.filter_path || undefined,
+      count:            meta.shows_count ?? 0,
+    }));
+  }, [sectionCats, section, orderedCats]);
 }

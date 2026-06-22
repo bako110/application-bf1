@@ -27,6 +27,7 @@ export function NewsScreen() {
     <PageScreen
       title={t.content.news}
       onBack={() => navigation.goBack()}
+      searchPlaceholder="Rechercher une actualité…"
       isLoading={isLoading}
       isEmpty={!items.length && !isLoading}
       data={items}

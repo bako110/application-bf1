@@ -5,7 +5,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
-import { COLORS, FONT_SIZE, FONT_WEIGHT } from '../constants';
+import { COLORS, FONT_WEIGHT } from '../constants';
 
 type TabConfig = {
   key:        string;
@@ -18,7 +18,7 @@ const TABS: TabConfig[] = [
   { key: 'HomeTab',      icon: 'home-outline',         iconActive: 'home',          label: t => t.nav.home      },
   { key: 'EmissionsTab', icon: 'tv-outline',            iconActive: 'tv',            label: t => t.nav.emissions },
   { key: 'LiveTab',      icon: 'radio-outline',         iconActive: 'radio-outline', label: t => t.nav.live      },
-  { key: 'ReelsTab',     icon: 'play-circle-outline',   iconActive: 'play-circle',   label: t => t.nav.reels     },
+  // { key: 'ReelsTab',     icon: 'play-circle-outline',   iconActive: 'play-circle',   label: t => t.nav.reels     },
   { key: 'ProfileTab',   icon: 'person-circle-outline', iconActive: 'person-circle', label: t => t.nav.profile   },
 ];
 
@@ -37,12 +37,12 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
       },
     ]}>
       <View style={styles.tabs}>
-        {TABS.map((tab, index) => {
-          const route    = state.routes[index];
-          const isFocused = state.index === index;
-          // Le tab Live ne prend jamais la couleur active (comme le web)
-          const isLive   = tab.key === 'LiveTab';
-          const color    = (isFocused && !isLive) ? COLORS.primary : theme.tabBar.inactive;
+        {TABS.map(tab => {
+          const route     = state.routes.find(r => r.name === tab.key);
+          if (!route) return null;
+          const isFocused = state.routes[state.index]?.name === tab.key;
+          const isLive    = tab.key === 'LiveTab';
+          const color     = (isFocused && !isLive) ? COLORS.primary : theme.tabBar.inactive;
 
           const onPress = () => {
             const event = navigation.emit({

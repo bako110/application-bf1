@@ -10,6 +10,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../hooks/useTheme';
 import * as api from '../services/api';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../constants';
+import { getImageUrl } from '../utils';
 import type { HomeStackParams } from '../navigation/types';
 
 type Nav = StackNavigationProp<HomeStackParams>;
@@ -61,7 +62,7 @@ function ResultRow({ item, onPress, theme }: { item: any; onPress: () => void; t
     >
       <View style={[styles.resultThumb, { backgroundColor: theme.bg3 ?? theme.surface }]}>
         {img
-          ? <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ? <Image source={{ uri: getImageUrl(img) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           : <Icon name={cfg.icon as any} size={20} color={theme.text3} />
         }
       </View>

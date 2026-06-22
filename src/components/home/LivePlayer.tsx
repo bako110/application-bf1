@@ -1,22 +1,22 @@
 /**
- * LivePlayer — une seule WebView, deux modes visuels.
- *
- * Usage dans HomeScreen :
- *   - <LivePlaceholder ref={ref} isOnAir={...} />   ← dans le ScrollView (garde la place)
- *   - <LiveWebView placeholderRef={ref} ... />       ← dans le root View (position absolute)
- *
+ * LivePlayer — WebView unique, transition hero ↔ mini 100% interpolée.
+ * Zéro setState pour la transition — tout via Animated.interpolate sur scrollY.
  * La WebView ne se démonte JAMAIS → stream continu sans rechargement.
  */
 import React, {
-  useRef, useEffect, useCallback, forwardRef,
+  useRef, useEffect, useCallback, useState, forwardRef,
 } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Animated,
+  View, Text, TouchableOpacity, StyleSheet,
+  Animated,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, FONT_WEIGHT, RADIUS, LIVE_STREAM_URL, SCREEN, MINI_PLAYER_W, MINI_PLAYER_H } from '../../constants';
+import {
+  COLORS, FONT_WEIGHT, RADIUS, LIVE_STREAM_URL,
+  SCREEN, MINI_PLAYER_W, MINI_PLAYER_H,
+} from '../../constants';
 import { useTranslation } from '../../hooks/useTranslation';
 
 const W        = SCREEN.W;
@@ -24,11 +24,14 @@ const SCREEN_H = SCREEN.H;
 
 export const HERO_HEIGHT = W * (9 / 16);
 
-const MINI_W   = MINI_PLAYER_W;
-const MINI_H   = MINI_PLAYER_H;
-const ANIM_MS  = 260;
-const HEADER_H = 70; // doit correspondre à HomeScreen HEADER_H
-const HERO_TOP_MARGIN = 12; // marginTop du placeholder
+const MINI_W      = MINI_PLAYER_W;
+const MINI_H      = MINI_PLAYER_H;
+const HEADER_H    = 70;
+const HERO_MARGIN = 15;
+
+// Plage de scroll pendant laquelle la transition se produit
+const SCROLL_START = HERO_HEIGHT * 0.4;
+const SCROLL_END   = HERO_HEIGHT * 0.82;
 
 function buildUrl(data: any): string {
   let url = data?.live_dailymotion_url ?? data?.url ?? LIVE_STREAM_URL;
@@ -39,130 +42,260 @@ function buildUrl(data: any): string {
   return url;
 }
 
-// ─── 1. Placeholder dans le ScrollView ───────────────────────────────────────
+// ─── Placeholder ─────────────────────────────────────────────────────────────
 
-interface PlaceholderProps {
-  isOnAir: boolean;
-  onLayout?: () => void;
-}
+interface PlaceholderProps { isOnAir: boolean }
 
 export const LivePlaceholder = forwardRef<View, PlaceholderProps>(
-  ({ isOnAir, onLayout }, ref) => (
+  ({ isOnAir }, ref) => (
     <View
       ref={ref}
-      onLayout={onLayout}
       style={[styles.placeholder, isOnAir && styles.placeholderOnAir]}
       collapsable={false}
     />
   ),
 );
 
-// ─── 2. WebView flottante dans le root View ───────────────────────────────────
+// ─── WebView flottante ────────────────────────────────────────────────────────
 
 interface WebViewProps {
-  liveData:       any;
-  isOnAir:        boolean;
-  heroOut:        boolean;
-  miniDismissed:  boolean;
-  onDismiss:      () => void;
-  onExpand:       () => void;
-  placeholderRef: React.RefObject<View | null>;
+  liveData:        any;
+  isOnAir:         boolean;
+  scrollY:         Animated.Value;
+  miniDismissed:   boolean;
+  onDismiss:       () => void;
+  onExpand:        () => void;
+  placeholderRef:  React.RefObject<View | null>;
+  isScreenFocused: boolean;
 }
 
 export function LiveWebView({
-  liveData, isOnAir, heroOut, miniDismissed,
-  onDismiss, onExpand, placeholderRef,
+  liveData, isOnAir, scrollY,
+  miniDismissed, onDismiss, onExpand, placeholderRef,
+  isScreenFocused,
 }: WebViewProps) {
-  const insets    = useSafeAreaInsets();
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const { t }     = useTranslation();
+  const insets      = useSafeAreaInsets();
+  const pulseAnim   = useRef(new Animated.Value(1)).current;
+  const { t }       = useTranslation();
+  const webViewRef  = useRef<any>(null);
+  const isMutedRef  = useRef(false);
 
+  // Positions cibles (constantes après calcul)
   const BOTTOM_Y = SCREEN_H - (insets.bottom + 72) - MINI_H;
   const MINI_X   = W - MINI_W - 12;
+  const HERO_TOP = insets.top + HEADER_H + HERO_MARGIN;
 
-  // Animated values — cachés hors écran jusqu'à la première mesure
-  const animLeft   = useRef(new Animated.Value(0)).current;
-  const animTop    = useRef(new Animated.Value(-SCREEN_H)).current;
-  const animWidth  = useRef(new Animated.Value(W)).current;
-  const animHeight = useRef(new Animated.Value(HERO_HEIGHT)).current;
-  const animRadius = useRef(new Animated.Value(0)).current;
+  // ── Animated values stables (créées une seule fois dans useRef) ──────────────
 
-  const showMini = heroOut && !miniDismissed;
+  // dismissedAnim : 0 = visible, 1 = dismissed
+  const dismissedAnim = useRef(new Animated.Value(0)).current;
 
-  // Position fixe du hero quand scroll = 0
-  const heroTopY = insets.top + HEADER_H + HERO_TOP_MARGIN;
+  // heroTop : initialisé à la valeur calculée, mis à jour après mesure du placeholder
+  const heroTopAnim = useRef(new Animated.Value(HERO_TOP)).current;
 
-  // Mesure la position exacte du placeholder et cale la WebView dessus
-  const measureAndSnap = useCallback(() => {
-    if (showMini) return;
-    placeholderRef.current?.measureInWindow((_x, y) => {
-      animLeft.setValue(0);
-      animTop.setValue(y > 0 ? y : heroTopY);
-      animWidth.setValue(W);
-      animHeight.setValue(HERO_HEIGHT);
-      animRadius.setValue(0);
+  // progress brut (0→1) basé sur scrollY
+  const rawProgress = useRef(
+    scrollY.interpolate({
+      inputRange:  [SCROLL_START, SCROLL_END],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    }),
+  ).current;
+
+  // effectiveProgress = rawProgress × (1 - dismissedAnim)
+  // quand dismissed=1 → effectiveProgress=0 → retour position hero
+  const effectiveProgress = useRef(
+    Animated.multiply(
+      rawProgress,
+      Animated.subtract(new Animated.Value(1), dismissedAnim),
+    ),
+  ).current;
+
+  // Toutes les interpolations dans des useRef — créées une seule fois
+  const animWidth = useRef(
+    effectiveProgress.interpolate({
+      inputRange:  [0, 1],
+      outputRange: [W, MINI_W],
+      extrapolate: 'clamp',
+    }),
+  ).current;
+
+  const animHeight = useRef(
+    effectiveProgress.interpolate({
+      inputRange:  [0, 1],
+      outputRange: [HERO_HEIGHT, MINI_H],
+      extrapolate: 'clamp',
+    }),
+  ).current;
+
+  const animLeft = useRef(
+    effectiveProgress.interpolate({
+      inputRange:  [0, 1],
+      outputRange: [0, MINI_X],
+      extrapolate: 'clamp',
+    }),
+  ).current;
+
+  const animRadius = useRef(
+    effectiveProgress.interpolate({
+      inputRange:  [0, 1],
+      outputRange: [0, RADIUS.xl],
+      extrapolate: 'clamp',
+    }),
+  ).current;
+
+  // animTop : on interpole entre heroTopAnim (dynamique) et BOTTOM_Y
+  // On utilise une value séparée pilotée par effectiveProgress
+  const animTopProgress = useRef(new Animated.Value(0)).current;
+  const animTop = useRef(
+    Animated.add(
+      heroTopAnim,
+      Animated.multiply(
+        animTopProgress,
+        new Animated.Value(BOTTOM_Y - HERO_TOP),
+      ),
+    ),
+  ).current;
+
+  // Sync animTopProgress sur effectiveProgress via listener
+  // (Animated.add/multiply ne supporte pas interpolate chaîné avec des valeurs dynamiques)
+  useEffect(() => {
+    const id = effectiveProgress.addListener(({ value }) => {
+      animTopProgress.setValue(value);
     });
-  }, [showMini, heroTopY]);
+    return () => effectiveProgress.removeListener(id);
+  }, []);
 
-  // Mesure dès le mount puis après chaque retour en mode hero
-  useEffect(() => {
-    if (!showMini) {
-      // Tentatives successives pour couvrir les délais de layout Android
-      const t1 = setTimeout(measureAndSnap, 0);
-      const t2 = setTimeout(measureAndSnap, 150);
-      const t3 = setTimeout(measureAndSnap, 400);
-      const t4 = setTimeout(measureAndSnap, 700);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
-    }
-  }, [showMini]);
+  // Opacités overlays
+  const miniOpacity = useRef(
+    effectiveProgress.interpolate({
+      inputRange:  [0.75, 1],
+      outputRange: [0, 1],
+      extrapolate: 'clamp',
+    }),
+  ).current;
 
-  // Transition hero ↔ mini
+  const heroOpacity = useRef(
+    effectiveProgress.interpolate({
+      inputRange:  [0, 0.25],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    }),
+  ).current;
+
+  // Shadow opacity (plus d'ombre en mode mini)
+  const shadowOpacity = useRef(
+    effectiveProgress.interpolate({
+      inputRange:  [0, 1],
+      outputRange: [0, 0.55],
+      extrapolate: 'clamp',
+    }),
+  ).current;
+
+  // ── Dismiss ───────────────────────────────────────────────────────────────────
+
+  // ── Mute / unmute sans rechargement ──────────────────────────────────────────
+  const mute = useCallback(() => {
+    if (isMutedRef.current) return;
+    isMutedRef.current = true;
+    webViewRef.current?.injectJavaScript(
+      'try{document.querySelectorAll("video,audio").forEach(function(m){m.muted=true});}catch(e){}true;'
+    );
+  }, []);
+
+  const unmute = useCallback(() => {
+    if (!isMutedRef.current) return;
+    isMutedRef.current = false;
+    webViewRef.current?.injectJavaScript(
+      'try{document.querySelectorAll("video,audio").forEach(function(m){m.muted=false});}catch(e){}true;'
+    );
+  }, []);
+
+  // ── Dismiss ───────────────────────────────────────────────────────────────────
+  // offscreenX : déplace hors écran sans opacity=0 → WebView continue de jouer
+  const offscreenX = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    const cfg = { duration: ANIM_MS, useNativeDriver: false } as const;
-    if (showMini) {
-      Animated.parallel([
-        Animated.timing(animLeft,   { toValue: MINI_X,    ...cfg }),
-        Animated.timing(animTop,    { toValue: BOTTOM_Y,  ...cfg }),
-        Animated.timing(animWidth,  { toValue: MINI_W,    ...cfg }),
-        Animated.timing(animHeight, { toValue: MINI_H,    ...cfg }),
-        Animated.timing(animRadius, { toValue: RADIUS.md, ...cfg }),
-      ]).start();
+    if (miniDismissed) {
+      mute();
+      // Petit délai pour que l'animation de fermeture soit visible
+      setTimeout(() => {
+        offscreenX.setValue(W * 2);
+        dismissedAnim.setValue(1);
+      }, 160);
     } else {
-      // Snap immédiat à la bonne taille, puis anime vers la position du placeholder
-      animWidth.setValue(W);
-      animHeight.setValue(HERO_HEIGHT);
-      animRadius.setValue(0);
-      // Mesure après que le scroll soit stabilisé
-      const snap = () => {
-        placeholderRef.current?.measureInWindow((_x, y) => {
-          const ty = y > 0 ? y : heroTopY;
-          Animated.parallel([
-            Animated.timing(animLeft, { toValue: 0,  ...cfg }),
-            Animated.timing(animTop,  { toValue: ty, ...cfg }),
-          ]).start();
-        });
-      };
-      // Deux passes : immédiate + après scroll complet
-      snap();
-      const t = setTimeout(snap, 300);
-      return () => clearTimeout(t);
+      offscreenX.setValue(0);
+      dismissedAnim.setValue(0);
     }
-  }, [showMini]);
+  }, [miniDismissed, mute]);
 
-  // Badge pulse
+  // Quand le scroll revient en haut → unmute + reset dismiss
+  useEffect(() => {
+    const id = rawProgress.addListener(({ value }) => {
+      if (value < 0.05) {
+        dismissedAnim.setValue(0);
+        unmute();
+      }
+    });
+    return () => rawProgress.removeListener(id);
+  }, [unmute]);
+
+  // Quand l'écran perd le focus (navigation vers un autre tab/screen) → mute
+  // Quand il revient → unmute si pas dismissed
+  useEffect(() => {
+    if (!isScreenFocused) {
+      mute();
+    } else if (!miniDismissed) {
+      unmute();
+    }
+  }, [isScreenFocused, miniDismissed, mute, unmute]);
+
+  // ── Mesure du placeholder ─────────────────────────────────────────────────────
+
+  const measure = useCallback(() => {
+    placeholderRef.current?.measureInWindow((_x, y) => {
+      if (y > 0) heroTopAnim.setValue(y);
+    });
+  }, []);
+
+  useEffect(() => {
+    const t1 = setTimeout(measure, 50);
+    const t2 = setTimeout(measure, 300);
+    const t3 = setTimeout(measure, 800);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  // ── État isMini (léger, juste pour pointerEvents) ─────────────────────────────
+
+  const [isMini, setIsMini] = useState(false);
+  useEffect(() => {
+    const id = rawProgress.addListener(({ value }) => {
+      setIsMini(value > 0.88 && !miniDismissed);
+    });
+    return () => rawProgress.removeListener(id);
+  }, [miniDismissed]);
+
+  // ── Badge pulsé EN DIRECT ─────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!isOnAir) { pulseAnim.setValue(1); return; }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.6, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,   duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.5, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,   duration: 900, useNativeDriver: true }),
       ]),
     );
     loop.start();
     return () => loop.stop();
   }, [isOnAir]);
 
+  // ── Render ────────────────────────────────────────────────────────────────────
+
   return (
+    <Animated.View
+      style={{ position: 'absolute', zIndex: 150, transform: [{ translateX: offscreenX }] }}
+      pointerEvents={isMini && !miniDismissed ? 'auto' : 'none'}
+    >
     <Animated.View
       style={[
         styles.floatingContainer,
@@ -172,11 +305,19 @@ export function LiveWebView({
           width:        animWidth,
           height:       animHeight,
           borderRadius: animRadius,
+          shadowOpacity,
         },
       ]}
       pointerEvents="box-none"
     >
+      {/* Bordure rouge subtile en mode mini */}
+      <Animated.View
+        style={[styles.miniBorder, { opacity: miniOpacity }]}
+        pointerEvents="none"
+      />
+
       <WebView
+        ref={webViewRef}
         source={{ uri: buildUrl(liveData) }}
         style={StyleSheet.absoluteFill}
         allowsInlineMediaPlayback
@@ -189,36 +330,45 @@ export function LiveWebView({
         mixedContentMode="always"
       />
 
-      {/* Overlays MODE HERO */}
-      {!showMini && (
-        <>
-          {isOnAir && (
-            <View style={styles.liveBadge} pointerEvents="none">
-              <Animated.View style={[styles.dot, { transform: [{ scale: pulseAnim }] }]} />
-              <Text style={styles.liveText}>{t.player.live}</Text>
-            </View>
-          )}
-        </>
+      {/* Gradient bas en mode hero */}
+      <Animated.View style={[styles.heroGradient, { opacity: heroOpacity }]} pointerEvents="none" />
+
+      {/* Badge EN DIRECT */}
+      {isOnAir && (
+        <Animated.View style={[styles.liveBadge, { opacity: heroOpacity }]} pointerEvents="none">
+          <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
+          <Text style={styles.liveText}>{t.player.live}</Text>
+        </Animated.View>
       )}
 
-      {/* Overlays MODE MINI */}
-      {showMini && (
-        <>
-          <TouchableOpacity
-            style={[StyleSheet.absoluteFill]}
-            activeOpacity={0.9}
-            onPress={onExpand}
-          />
-          <TouchableOpacity
-            style={styles.closeBtn}
-            onPress={onDismiss}
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-          >
-            <Icon name="close" size={11} color="#fff" />
-          </TouchableOpacity>
-          {isOnAir && <View style={styles.miniDot} pointerEvents="none" />}
-        </>
-      )}
+      {/* Overlays mini */}
+      <Animated.View
+        style={[styles.miniOverlay, { opacity: miniOpacity }]}
+        pointerEvents={isMini ? 'box-none' : 'none'}
+      >
+        {/* Tap zone expand */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={0.85}
+          onPress={onExpand}
+        />
+        {/* Bouton fermer */}
+        <TouchableOpacity
+          style={styles.closeBtn}
+          onPress={onDismiss}
+          hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+        >
+          <Icon name="close" size={10} color="#fff" />
+        </TouchableOpacity>
+        {/* Point EN DIRECT mini */}
+        {isOnAir && (
+          <View style={styles.miniLiveBadge} pointerEvents="none">
+            <View style={styles.miniDot} />
+            <Text style={styles.miniLiveText}>LIVE</Text>
+          </View>
+        )}
+      </Animated.View>
+    </Animated.View>
     </Animated.View>
   );
 }
@@ -227,98 +377,109 @@ export function LiveWebView({
 
 const styles = StyleSheet.create({
   placeholder: {
-    width:            '100%',
-    aspectRatio:      16 / 9,
-    backgroundColor:  '#000',
-    marginTop:        15,
-    marginBottom:     28,
+    width:           '100%',
+    aspectRatio:     16 / 9,
+    backgroundColor: '#000',
+    marginTop:       HERO_MARGIN,
+    marginBottom:    28,
   },
   placeholderOnAir: {
     borderBottomWidth: 2,
     borderBottomColor: COLORS.primary,
   },
   floatingContainer: {
+    position:     'absolute',
+    overflow:     'hidden',
+    zIndex:       150,
+    shadowColor:  '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 20,
+    elevation:    20,
+  },
+  miniBorder: {
     position:      'absolute',
-    overflow:      'hidden',
-    zIndex:        150,
-    shadowColor:   '#000',
-    shadowOffset:  { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius:  18,
-    elevation:     18,
+    inset:         0,
+    borderRadius:  RADIUS.xl,
+    borderWidth:   1.5,
+    borderColor:   COLORS.primary,
+    zIndex:        30,
+    pointerEvents: 'none',
+  } as any,
+  heroGradient: {
+    position: 'absolute',
+    bottom:   0,
+    left:     0,
+    right:    0,
+    height:   60,
+    zIndex:   5,
   },
 
-  // Hero overlays
+  // Badge hero
   liveBadge: {
     position:          'absolute',
-    top:               10,
-    left:              12,
+    top:               12,
+    left:              14,
     flexDirection:     'row',
     alignItems:        'center',
-    gap:               5,
-    backgroundColor:   'rgba(226,62,62,0.88)',
+    gap:               6,
+    backgroundColor:   COLORS.redAlpha90,
     borderRadius:      RADIUS.sm,
-    paddingHorizontal: 8,
-    paddingVertical:   4,
+    paddingHorizontal: 10,
+    paddingVertical:   5,
     zIndex:            10,
   },
-  dot: {
+  liveDot: {
     width:           7,
     height:          7,
-    borderRadius:    3.5,
+    borderRadius:    4,
     backgroundColor: '#fff',
   },
   liveText: {
     color:         '#fff',
     fontSize:      11,
     fontWeight:    FONT_WEIGHT.bold,
-    letterSpacing: 0.5,
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom:   10,
-    left:     12,
-    right:    12,
-    zIndex:   10,
-    gap:      3,
-  },
-  channel: {
-    color:            '#fff',
-    fontSize:         14,
-    fontWeight:       FONT_WEIGHT.bold,
-    textShadowColor:  'rgba(0,0,0,0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  program: {
-    color:            'rgba(255,255,255,0.82)',
-    fontSize:         12,
-    textShadowColor:  'rgba(0,0,0,0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    letterSpacing: 1,
   },
 
-  // Mini overlays
+  // Overlay mini
+  miniOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+  },
   closeBtn: {
     position:        'absolute',
-    top:             6,
-    right:           6,
-    width:           22,
-    height:          22,
-    borderRadius:    11,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    top:             7,
+    right:           7,
+    width:           20,
+    height:          20,
+    borderRadius:    10,
+    backgroundColor: 'rgba(0,0,0,0.8)',
     alignItems:      'center',
     justifyContent:  'center',
     zIndex:          20,
   },
-  miniDot: {
+  miniLiveBadge: {
     position:        'absolute',
-    top:             6,
-    left:            6,
-    width:           8,
-    height:          8,
-    borderRadius:    4,
+    bottom:          7,
+    left:            8,
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius:    RADIUS.sm,
+    paddingHorizontal: 6,
+    paddingVertical:   3,
+  },
+  miniDot: {
+    width:           5,
+    height:          5,
+    borderRadius:    3,
     backgroundColor: COLORS.primary,
-    zIndex:          10,
+  },
+  miniLiveText: {
+    color:         '#fff',
+    fontSize:      9,
+    fontWeight:    FONT_WEIGHT.bold,
+    letterSpacing: 0.8,
   },
 });

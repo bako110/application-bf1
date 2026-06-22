@@ -11,9 +11,11 @@ import Video from 'react-native-video';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuthStore, useUiStore } from '../stores';
+import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../constants';
+import { getImageUrl } from '../utils';
 import * as api from '../services/api';
 
 const { height: SH, width: SW } = Dimensions.get('window');
@@ -43,7 +45,7 @@ function CommentsDrawer({
   reelId: string; visible: boolean; onClose: () => void;
 }) {
   const { isAuthenticated, user } = useAuthStore();
-  const { showLoginModal } = useUiStore();
+  const navigateToLogin = useLoginNavigation();
   const { t } = useTranslation();
   const { theme, isDark } = useTheme();
   const qc = useQueryClient();
@@ -179,7 +181,7 @@ function CommentsDrawer({
           </View>
         ) : (
           <View style={[styles.drawerLoginRow, { borderTopColor: theme.border, paddingBottom: insets.bottom + 8 }]}>
-            <TouchableOpacity style={styles.drawerLoginBtn} onPress={() => { onClose(); setTimeout(() => showLoginModal(t.comments.loginRequired), 350); }}>
+            <TouchableOpacity style={styles.drawerLoginBtn} onPress={() => { onClose(); setTimeout(navigateToLogin, 350); }}>
               <Text style={styles.drawerLoginText}>{t.comments.loginRequired}</Text>
             </TouchableOpacity>
           </View>
@@ -291,7 +293,7 @@ function ReelItem({
           ignoreSilentSwitch="ignore"
         />
       ) : thumb ? (
-        <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={{ uri: getImageUrl(thumb) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.noThumb]} />
       )}

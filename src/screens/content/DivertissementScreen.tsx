@@ -27,6 +27,7 @@ export function DivertissementScreen() {
     <PageScreen
       title={t.content.divertissement}
       onBack={() => navigation.goBack()}
+      searchPlaceholder="Rechercher un divertissement…"
       isLoading={isLoading}
       isEmpty={!items.length && !isLoading}
       data={items}

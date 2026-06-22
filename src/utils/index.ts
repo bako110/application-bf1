@@ -1,4 +1,12 @@
-import { SUB_HIERARCHY, SUB_BADGE, COLORS } from '../constants';
+import { SUB_HIERARCHY, SUB_BADGE, COLORS, API_CONFIG } from '../constants';
+
+// ─── URL d'image ──────────────────────────────────────────────────────────────
+export function getImageUrl(path?: string | null): string | undefined {
+  if (!path) return undefined;
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const base = API_CONFIG.BASE_URL.replace('/api/v1', '');
+  return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+}
 
 // ─── Formatage de date ────────────────────────────────────────────────────────
 export function formatTimeAgo(dateString?: string | null): string {

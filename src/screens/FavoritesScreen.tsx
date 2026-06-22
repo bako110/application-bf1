@@ -14,6 +14,7 @@ import { useAuthStore } from '../stores';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import * as api from '../services/api';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../constants';
+import { getImageUrl } from '../utils';
 import type { ProfileStackParams } from '../navigation/types';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
@@ -96,7 +97,7 @@ function FavCard({
       <View style={[styles.thumb, { backgroundColor: theme.bg3 ?? '#111' }]}>
         {img ? (
           <>
-            <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <Image source={{ uri: getImageUrl(img) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.55)']}
               style={StyleSheet.absoluteFill}

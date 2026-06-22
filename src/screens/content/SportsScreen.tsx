@@ -27,6 +27,7 @@ export function SportsScreen() {
     <PageScreen
       title={t.content.sports}
       onBack={() => navigation.goBack()}
+      searchPlaceholder="Rechercher un sport…"
       isLoading={isLoading}
       isEmpty={!items.length && !isLoading}
       data={items}
