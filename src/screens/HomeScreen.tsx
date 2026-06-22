@@ -17,6 +17,7 @@ import { EmissionCard } from '../components/ui/EmissionCard';
 import { Toast } from '../components/ui/Toast';
 import { HomeHeader } from '../components/home/HomeHeader';
 import { LivePlaceholder, LiveWebView, HERO_HEIGHT } from '../components/home/LivePlayer';
+import type { LiveWebViewHandle } from '../components/home/LivePlayer';
 import * as api from '../services/api';
 import { useEmissionSection } from '../hooks/useEmissionSection';
 import { PremiumModal } from '../components/profile/PremiumModal';
@@ -77,9 +78,10 @@ export function HomeScreen() {
   const scrollY        = useRef(new Animated.Value(0)).current;
   const scrollViewRef  = useRef<any>(null);
   const placeholderRef = useRef<View>(null);
+  const livePlayerRef  = useRef<LiveWebViewHandle>(null);
 
   // ─── Live ─────────────────────────────────────────────────────────────────
-  const { data: liveData } = useQuery({
+  const { data: liveData, refetch: rLive } = useQuery({
     queryKey:        ['live-status'],
     queryFn:         () => api.getLive(),
     refetchInterval: 30_000,
@@ -108,9 +110,10 @@ export function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([rMissed(), rReport(), rArchives(), rCats()]);
+    await Promise.all([rLive(), rMissed(), rReport(), rArchives(), rCats()]);
+    livePlayerRef.current?.refreshPlayer();
     setRefreshing(false);
-  }, []);
+  }, [rLive]);
 
   const goDetail = useCallback((item: any, sectionType?: string) =>
     navigation.navigate('ShowDetail', { id: item.id, type: item.type ?? sectionType }), [navigation]);
@@ -386,6 +389,7 @@ export function HomeScreen() {
       />
 
       <LiveWebView
+        ref={livePlayerRef}
         liveData={liveData}
         isOnAir={isOnAir}
         scrollY={scrollY}
