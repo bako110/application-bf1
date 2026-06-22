@@ -293,7 +293,7 @@ export const LiveWebView = forwardRef<LiveWebViewHandle, WebViewProps>(function 
   return (
     <Animated.View
       style={{ position: 'absolute', zIndex: 150, transform: [{ translateX: offscreenX }] }}
-      pointerEvents={isMini && !miniDismissed ? 'auto' : 'none'}
+      pointerEvents="box-none"
     >
       <Animated.View
         style={[
@@ -341,30 +341,18 @@ export const LiveWebView = forwardRef<LiveWebViewHandle, WebViewProps>(function 
           </Animated.View>
         )}
 
-        {/* Contrôles hero (pause/play + refresh) — visibles seulement en mode hero */}
+        {/* Barre de contrôles hero — visible seulement en mode hero */}
         <Animated.View
-          style={[styles.heroControls, { opacity: heroOpacity }]}
-          pointerEvents={!isMini ? 'box-none' : 'none'}
+          style={[styles.controlBar, { opacity: heroOpacity }]}
+          pointerEvents={!isMini ? 'auto' : 'none'}
         >
-          {/* Bouton pause/play */}
-          <TouchableOpacity
-            style={styles.controlBtn}
-            onPress={togglePause}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-          >
-            <Icon name={isPaused ? 'play' : 'pause'} size={18} color="#fff" />
+          <TouchableOpacity style={styles.ctrlBtn} onPress={togglePause} activeOpacity={0.8}>
+            <Icon name={isPaused ? 'play' : 'pause'} size={20} color="#fff" />
           </TouchableOpacity>
-
-          {/* Bouton refresh */}
-          <TouchableOpacity
-            style={styles.controlBtn}
-            onPress={refreshPlayer}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-          >
-            <Icon name="refresh" size={18} color="#fff" />
+          <TouchableOpacity style={styles.ctrlBtn} onPress={refreshPlayer} activeOpacity={0.8}>
+            <Icon name="refresh" size={20} color="#fff" />
           </TouchableOpacity>
+          <View style={styles.ctrlSpacer} />
         </Animated.View>
 
         {/* Overlays mini */}
@@ -467,25 +455,29 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  // Contrôles hero (pause + refresh)
-  heroControls: {
-    position:       'absolute',
-    bottom:         10,
-    right:          10,
-    flexDirection:  'row',
-    gap:            8,
-    zIndex:         15,
+  // Barre de contrôles hero
+  controlBar: {
+    position:          'absolute',
+    bottom:            0,
+    left:              0,
+    right:             0,
+    flexDirection:     'row',
+    alignItems:        'center',
+    paddingHorizontal: 10,
+    paddingVertical:   8,
+    backgroundColor:   'rgba(0,0,0,0.50)',
+    zIndex:            15,
   },
-  controlBtn: {
-    width:           36,
-    height:          36,
-    borderRadius:    18,
-    backgroundColor: 'rgba(0,0,0,0.60)',
+  ctrlBtn: {
+    width:           38,
+    height:          38,
+    borderRadius:    19,
     alignItems:      'center',
     justifyContent:  'center',
-    borderWidth:     1,
-    borderColor:     'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginRight:     6,
   },
+  ctrlSpacer: { flex: 1 },
 
   // Overlay mini
   miniOverlay: {

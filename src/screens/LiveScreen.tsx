@@ -239,7 +239,29 @@ export function LiveScreen() {
   const [chatVisible,    setChatVisible]    = useState(false);
   const [isFullscreen,   setIsFullscreen]   = useState(false);
   const [reminderIds,    setReminderIds]    = useState<Set<string>>(new Set());
+  const [isPaused,       setIsPaused]       = useState(false);
+  const [webViewKey,     setWebViewKey]     = useState(0);
+  const webViewRef = useRef<any>(null);
   const flatListRef = useRef<FlatList>(null);
+
+  const togglePause = useCallback(() => {
+    if (isPaused) {
+      webViewRef.current?.injectJavaScript(
+        'try{document.querySelectorAll("video").forEach(function(v){v.play();});}catch(e){}true;'
+      );
+      setIsPaused(false);
+    } else {
+      webViewRef.current?.injectJavaScript(
+        'try{document.querySelectorAll("video").forEach(function(v){v.pause();});}catch(e){}true;'
+      );
+      setIsPaused(true);
+    }
+  }, [isPaused]);
+
+  const refreshLive = useCallback(() => {
+    setIsPaused(false);
+    setWebViewKey(k => k + 1);
+  }, []);
 
   // Hook WebSocket chat — instancié ici pour afficher le compteur sur le bouton
   const chat = useLiveChat(user?.id ?? null);
@@ -427,6 +449,8 @@ export function LiveScreen() {
           </View>
         ) : isOnAir && playerUrl !== 'about:blank' ? (
           <WebView
+            key={webViewKey}
+            ref={webViewRef}
             source={{ uri: playerUrl }}
             style={StyleSheet.absoluteFill}
             allowsInlineMediaPlayback
@@ -461,16 +485,20 @@ export function LiveScreen() {
           </View>
         )}
 
-        {/* Bouton plein écran */}
+        {/* Barre de contrôles */}
         {isOnAir && playerUrl !== 'about:blank' && (
-          <TouchableOpacity
-            style={styles.fullscreenBtn}
-            onPress={openFullscreen}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-          >
-            <Icon name="expand-outline" size={18} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.controlBar}>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={togglePause} activeOpacity={0.8}>
+              <Icon name={isPaused ? 'play' : 'pause'} size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={refreshLive} activeOpacity={0.8}>
+              <Icon name="refresh" size={20} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.ctrlSpacer} />
+            <TouchableOpacity style={styles.ctrlBtn} onPress={openFullscreen} activeOpacity={0.8}>
+              <Icon name="expand-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -486,6 +514,8 @@ export function LiveScreen() {
         <View style={styles.fsContainer}>
           <StatusBar hidden />
           <WebView
+            key={webViewKey}
+            ref={webViewRef}
             source={{ uri: playerUrl }}
             style={StyleSheet.absoluteFill}
             allowsInlineMediaPlayback
@@ -502,15 +532,19 @@ export function LiveScreen() {
               <Text style={styles.liveText}>{t.player.live}</Text>
             </View>
           )}
-          {/* Bouton fermer */}
-          <TouchableOpacity
-            style={styles.fsCloseBtn}
-            onPress={closeFullscreen}
-            activeOpacity={0.8}
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-          >
-            <Icon name="contract-outline" size={20} color="#fff" />
-          </TouchableOpacity>
+          {/* Barre de contrôles plein écran */}
+          <View style={styles.fsControlBar}>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={togglePause} activeOpacity={0.8}>
+              <Icon name={isPaused ? 'play' : 'pause'} size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={refreshLive} activeOpacity={0.8}>
+              <Icon name="refresh" size={20} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.ctrlSpacer} />
+            <TouchableOpacity style={styles.ctrlBtn} onPress={closeFullscreen} activeOpacity={0.8}>
+              <Icon name="contract-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -655,20 +689,32 @@ const styles = StyleSheet.create({
   },
   viewersText: { fontSize: FONT_SIZE.xs, color: 'rgba(255,255,255,0.85)', fontWeight: FONT_WEIGHT.semibold },
 
-  fullscreenBtn: {
-    position: 'absolute', bottom: 8, right: 8,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: RADIUS.sm,
-    padding: 7, zIndex: 10,
+  // Barre de contrôles
+  controlBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.50)',
+    zIndex: 10,
   },
+  ctrlBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginRight: 6,
+  },
+  ctrlSpacer: { flex: 1 },
 
   // Plein écran
   fsContainer: {
     flex: 1, backgroundColor: '#000',
   },
-  fsCloseBtn: {
-    position: 'absolute', top: 14, right: 14,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: RADIUS.sm,
-    padding: 8, zIndex: 20,
+  fsControlBar: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 10,
+    backgroundColor: 'rgba(0,0,0,0.50)',
+    zIndex: 20,
   },
 
   // Sections
