@@ -235,7 +235,7 @@ export function LiveScreen() {
   const navigateToLogin     = useLoginNavigation();
   const pulseAnim           = useRef(new Animated.Value(1)).current;
 
-  const [activeTab,      setActiveTab]      = useState<ContentTab>('schedule');
+  const [activeTab,      setActiveTab]      = useState<ContentTab>('recent');
   const [chatVisible,    setChatVisible]    = useState(false);
   const [isFullscreen,   setIsFullscreen]   = useState(false);
   const [reminderIds,    setReminderIds]    = useState<Set<string>>(new Set());
@@ -399,10 +399,10 @@ export function LiveScreen() {
 
   // ── Onglets ──────────────────────────────────────────────────────────────
   const tabs: { key: ContentTab; label: string }[] = [
-    { key: 'schedule',   label: t.live.tabSchedule },
     { key: 'recent',     label: t.live.tabRecent },
     { key: 'episodes',   label: t.live.tabEpisodes },
     { key: 'highlights', label: t.live.tabHighlights },
+    { key: 'schedule',   label: t.live.tabSchedule },
   ];
 
   const currentItems =
