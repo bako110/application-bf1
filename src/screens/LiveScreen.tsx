@@ -8,7 +8,6 @@ import { WebView } from 'react-native-webview';
 import { useQuery } from '@tanstack/react-query';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { LiveMiniPlayer } from '../components/home/LiveMiniPlayer';
 import OrientationLib from 'react-native-orientation-locker';
 const Orientation = (OrientationLib as any)?.default ?? OrientationLib;
 
@@ -20,7 +19,7 @@ import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useLiveChat }         from '../hooks/useLiveChat';
 import { LiveChatModal }        from '../components/live/LiveChatModal';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, LIST_THUMB_W, LIST_THUMB_H } from '../constants';
-import { formatFullDate, formatViews } from '../utils';
+import { formatFullDate, formatViews, getImageUrl } from '../utils';
 import * as api from '../services/api';
 import {
   scheduleReminder,
@@ -70,7 +69,7 @@ function EpisodeCard({ item, theme, onPress }: EpisodeCardProps) {
       {/* Thumbnail */}
       <View style={styles.episodeThumb}>
         {image ? (
-          <Image source={{ uri: image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <Image source={{ uri: getImageUrl(image) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
           <View style={[StyleSheet.absoluteFill, styles.thumbPlaceholder]}>
             <Icon name="play-circle-outline" size={28} color={theme.text3} />
@@ -141,7 +140,7 @@ function ScheduleCard({ item, isOnAir, hasReminder, onToggleReminder, theme }: S
       {/* Thumbnail */}
       <View style={schedStyles.thumb}>
         {image ? (
-          <Image source={{ uri: image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <Image source={{ uri: getImageUrl(image) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         ) : (
           <View style={[StyleSheet.absoluteFill, schedStyles.thumbBg,
             { backgroundColor: isOnAir ? COLORS.primary + '33' : theme.bg }]}>
@@ -240,8 +239,6 @@ export function LiveScreen() {
   const [chatVisible,    setChatVisible]    = useState(false);
   const [isFullscreen,   setIsFullscreen]   = useState(false);
   const [reminderIds,    setReminderIds]    = useState<Set<string>>(new Set());
-  const [showMini,       setShowMini]       = useState(false);
-  const [miniDismissed,  setMiniDismissed]  = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   // Hook WebSocket chat — instancié ici pour afficher le compteur sur le bouton
@@ -422,8 +419,8 @@ export function LiveScreen() {
     <View style={[styles.container, { backgroundColor: '#000' }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-      {/* ── Player 16:9 (haut fixe) — masqué quand mini player actif ── */}
-      <View style={[styles.playerWrapper, { marginTop: insets.top, opacity: showMini ? 0 : 1 }]}>
+      {/* ── Player 16:9 (haut fixe) ── */}
+      <View style={[styles.playerWrapper, { marginTop: insets.top }]}>
         {liveLoading ? (
           <View style={styles.playerLoader}>
             <ActivityIndicator size="small" color={COLORS.primary} />
@@ -578,11 +575,6 @@ export function LiveScreen() {
             ref={flatListRef}
             data={currentItems}
             keyExtractor={(item, i) => String(item.id ?? item._id ?? i)}
-            onScroll={e => {
-              const y = e.nativeEvent.contentOffset.y;
-              if (y > 80 && !miniDismissed) setShowMini(true);
-              if (y <= 20) { setShowMini(false); setMiniDismissed(false); }
-            }}
             scrollEventThrottle={16}
             renderItem={({ item }) =>
               activeTab === 'schedule' ? (
@@ -609,21 +601,6 @@ export function LiveScreen() {
           />
         )}
       </View>
-
-      {/* ── Modal Chat ── */}
-      {/* ── Mini player (scroll vers le bas) ── */}
-      {isOnAir && (
-        <LiveMiniPlayer
-          liveData={liveData}
-          isOnAir={isOnAir}
-          visible={showMini}
-          onClose={() => { setShowMini(false); setMiniDismissed(true); }}
-          onExpand={() => {
-            setShowMini(false);
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-          }}
-        />
-      )}
 
       <LiveChatModal
         visible={chatVisible}
