@@ -14,6 +14,7 @@ import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore, useUiStore } from '../stores';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
+import { useContentComments } from '../hooks/useContentComments';
 import * as api from '../services/api';
 import { PremiumModal } from '../components/profile/PremiumModal';
 import { SkeletonShowDetail } from '../components/ui/SkeletonShowDetail';
@@ -349,12 +350,10 @@ export function ShowDetailScreen() {
     enabled:  !!show && isAuthenticated,
   });
 
-  // ─── Commentaires ──────────────────────────────────────────────────────────
-  const { data: comments = [] } = useQuery({
-    queryKey: ['comments', contentType, idStr],
-    queryFn:  () => api.getComments(contentType, idStr),
-    enabled:  commentOpen && !!show,
-  });
+  // ─── Commentaires temps réel ───────────────────────────────────────────────
+  const { comments, addOptimistic, removeOptimistic } = useContentComments(
+    contentType, idStr, commentOpen && !!show
+  );
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
   const likeMutation = useMutation({
@@ -374,8 +373,21 @@ export function ShowDetailScreen() {
   });
   const commentMutation = useMutation({
     mutationFn: (text: string) => api.addComment(contentType, idStr, text),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['comments', contentType, idStr] });
+    onMutate: (text: string) => {
+      // Optimistic: afficher immédiatement le commentaire de l'utilisateur
+      const tempComment = {
+        id: `temp_${Date.now()}`,
+        user_id: String(user?.id ?? ''),
+        username: user?.username ?? 'Moi',
+        avatar_url: (user as any)?.avatar_url ?? null,
+        text,
+        created_at: new Date().toISOString(),
+      };
+      addOptimistic(tempComment);
+      return { tempId: tempComment.id };
+    },
+    onError: (_err, _text, ctx) => {
+      if (ctx?.tempId) removeOptimistic(ctx.tempId);
     },
   });
 
@@ -738,19 +750,19 @@ export function ShowDetailScreen() {
             <>
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               <Text style={[styles.sectionTitle, { color: theme.text }]}>{t.show.similar}</Text>
-              <ScrollView
+              <FlatList
+                data={related as any[]}
                 horizontal
+                keyExtractor={(item: any) => item.id}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.relScroll}
-              >
-                {(related as any[]).map((item: any) => (
+                renderItem={({ item }: { item: any }) => (
                   <RelatedCard
-                    key={item.id}
                     item={item}
                     onPress={() => navigation.push('ShowDetail', { id: item.id, type: item.type ?? contentType })}
                   />
-                ))}
-              </ScrollView>
+                )}
+              />
             </>
           )}
 
