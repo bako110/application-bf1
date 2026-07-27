@@ -77,10 +77,23 @@ export const LiveWebView = forwardRef<LiveWebViewHandle, WebViewProps>(function 
   const insets      = useSafeAreaInsets();
   const pulseAnim   = useRef(new Animated.Value(1)).current;
   const { t }       = useTranslation();
-  const webViewRef  = useRef<any>(null);
-  const isMutedRef  = useRef(false);
-  const [isPaused,  setIsPaused]  = useState(false);
-  const [webViewKey, setWebViewKey] = useState(0);
+  const webViewRef   = useRef<any>(null);
+  const isMutedRef   = useRef(false);
+  const hideTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isPaused,   setIsPaused]     = useState(false);
+  const [isMuted,    setIsMuted]      = useState(false);
+  const [showCtrl,   setShowCtrl]     = useState(false);
+  const [webViewKey, setWebViewKey]   = useState(0);
+
+  const HIDE_DELAY = 3000;
+
+  const showThenHide = useCallback(() => {
+    setShowCtrl(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setShowCtrl(false), HIDE_DELAY);
+  }, []);
+
+  useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current); }, []);
 
   const BOTTOM_Y = SCREEN_H - (insets.bottom + 72) - MINI_H;
   const MINI_X   = W - MINI_W - 12;
@@ -182,6 +195,7 @@ export const LiveWebView = forwardRef<LiveWebViewHandle, WebViewProps>(function 
   const mute = useCallback(() => {
     if (isMutedRef.current) return;
     isMutedRef.current = true;
+    setIsMuted(true);
     webViewRef.current?.injectJavaScript(
       'try{document.querySelectorAll("video,audio").forEach(function(m){m.muted=true});}catch(e){}true;'
     );
@@ -190,10 +204,15 @@ export const LiveWebView = forwardRef<LiveWebViewHandle, WebViewProps>(function 
   const unmute = useCallback(() => {
     if (!isMutedRef.current) return;
     isMutedRef.current = false;
+    setIsMuted(false);
     webViewRef.current?.injectJavaScript(
       'try{document.querySelectorAll("video,audio").forEach(function(m){m.muted=false});}catch(e){}true;'
     );
   }, []);
+
+  const toggleMute = useCallback(() => {
+    isMutedRef.current ? unmute() : mute();
+  }, [mute, unmute]);
 
   // ── Pause / Play ──────────────────────────────────────────────────────────────
   const togglePause = useCallback(() => {
@@ -315,20 +334,24 @@ export const LiveWebView = forwardRef<LiveWebViewHandle, WebViewProps>(function 
           pointerEvents="none"
         />
 
-        <WebView
-          key={webViewKey}
-          ref={webViewRef}
-          source={{ uri: buildUrl(liveData) }}
-          style={StyleSheet.absoluteFill}
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
-          javaScriptEnabled
-          domStorageEnabled
-          scrollEnabled={false}
-          bounces={false}
-          originWhitelist={['*']}
-          mixedContentMode="always"
-        />
+        {isOnAir ? (
+          <WebView
+            key={webViewKey}
+            ref={webViewRef}
+            source={{ uri: buildUrl(liveData) }}
+            style={StyleSheet.absoluteFill}
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            javaScriptEnabled
+            domStorageEnabled
+            scrollEnabled={false}
+            bounces={false}
+            originWhitelist={['*']}
+            mixedContentMode="always"
+          />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }]} />
+        )}
 
         {/* Gradient bas en mode hero */}
         <Animated.View style={[styles.heroGradient, { opacity: heroOpacity }]} pointerEvents="none" />
@@ -341,19 +364,33 @@ export const LiveWebView = forwardRef<LiveWebViewHandle, WebViewProps>(function 
           </Animated.View>
         )}
 
-        {/* Barre de contrôles hero — visible seulement en mode hero */}
-        <Animated.View
-          style={[styles.controlBar, { opacity: heroOpacity }]}
-          pointerEvents={!isMini ? 'auto' : 'none'}
-        >
-          <TouchableOpacity style={styles.ctrlBtn} onPress={togglePause} activeOpacity={0.8}>
-            <Icon name={isPaused ? 'play' : 'pause'} size={20} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.ctrlBtn} onPress={refreshPlayer} activeOpacity={0.8}>
-            <Icon name="refresh" size={20} color="#fff" />
-          </TouchableOpacity>
-          <View style={styles.ctrlSpacer} />
-        </Animated.View>
+        {/* Zone de tap hero — affiche les contrôles 3s */}
+        {!isMini && (
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={showThenHide}
+            activeOpacity={1}
+          />
+        )}
+
+        {/* Barre de contrôles hero — visible seulement après tap */}
+        {showCtrl && (
+          <Animated.View
+            style={[styles.controlBar, { opacity: heroOpacity }]}
+            pointerEvents={!isMini ? 'auto' : 'none'}
+          >
+            <TouchableOpacity style={styles.ctrlBtn} onPress={togglePause} activeOpacity={0.8}>
+              <Icon name={isPaused ? 'play' : 'pause'} size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={toggleMute} activeOpacity={0.8}>
+              <Icon name={isMuted ? 'volume-mute' : 'volume-high'} size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={refreshPlayer} activeOpacity={0.8}>
+              <Icon name="refresh" size={20} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.ctrlSpacer} />
+          </Animated.View>
+        )}
 
         {/* Overlays mini */}
         <Animated.View

@@ -26,11 +26,12 @@ const SOCIALS = [
   { icon: 'logo-facebook',color: '#1877F2',      label: 'Facebook',   value: 'Bf1TV',           url: 'https://facebook.com/Bf1TV' },
   { icon: 'logo-twitter', color: '#fff',          label: 'Twitter',    value: '@bf1tv',          url: 'https://twitter.com/bf1tv' },
   { icon: 'logo-instagram',color: '#E1306C',     label: 'Instagram',  value: '@bf1_tv',         url: 'https://instagram.com/bf1_tv' },
+  { icon: 'logo-tiktok',  color: '#fff',          label: 'TikTok',     value: '@bf1tv',          url: 'https://tiktok.com/@bf1tv' },
 ];
 
 const CONTACT_ROWS = [
-  { icon: 'mail',         label: 'Email',      value: 'redaction@bf1news.com' },
-  { icon: 'call',         label: 'Téléphone',  value: '+226 05 60 64 10' },
+  { icon: 'mail',         label: 'Email',      value: 'info@bf1.tv' },
+  { icon: 'call',         label: 'Téléphone',  value: '07 03 02 80' },
   { icon: 'location',     label: 'Adresse',    value: 'Ouagadougou, Burkina Faso' },
 ];
 

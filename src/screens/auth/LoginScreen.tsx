@@ -155,7 +155,7 @@ export function LoginScreen() {
     if (!validate()) return;
     try {
       await login(email.trim(), password);
-      navigation.goBack();
+      navigation.reset({ index: 0, routes: [{ name: 'Profile' as never }] });
     } catch (err: any) {
       setErrors({ general: err?.message || t.auth.invalidCredentials });
     }
@@ -194,7 +194,7 @@ export function LoginScreen() {
 
       setGoogleOverlay(false);
       setGoogleLoading(false);
-      navigation.goBack();
+      navigation.reset({ index: 0, routes: [{ name: 'Profile' as never }] });
     } catch (err: any) {
       setGoogleOverlay(false);
       setGoogleLoading(false);

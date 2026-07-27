@@ -69,16 +69,17 @@ export function useEmissionSection({
     }
 
     if (orderedCats?.length) {
-      return orderedCats.map(({ label, api: apiName }) => {
+      return orderedCats.flatMap(({ label, api: apiName }) => {
         const meta = adminEntry(apiName);
-        return {
+        if (!meta) return [];
+        return [{
           label,
           apiName,
-          image:            meta?.image_main || undefined,
-          image_background: meta?.image_background || undefined,
-          filter_path:      meta?.filter_path || undefined,
-          count:            meta?.shows_count ?? 0,
-        };
+          image:            meta.image_main || undefined,
+          image_background: meta.image_background || undefined,
+          filter_path:      meta.filter_path || undefined,
+          count:            meta.shows_count ?? 0,
+        }];
       });
     }
 

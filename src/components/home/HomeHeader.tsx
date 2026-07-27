@@ -45,6 +45,10 @@ export function HomeHeader({ onSearchPress, scrollY, onProfileTabPress }: Props)
   const borderOpacity = scrollY
     ? scrollY.interpolate({ inputRange: [0, 50], outputRange: [0, 1], extrapolate: 'clamp' })
     : 1;
+  // Fond glass visible en haut → disparaît au scroll (sombre uniquement en dark)
+  const glassOpacity = scrollY && isDark
+    ? scrollY.interpolate({ inputRange: [0, 45], outputRange: [1, 0], extrapolate: 'clamp' })
+    : new Animated.Value(0);
 
   // Sections construites depuis les traductions
   const drawerSections = [
@@ -101,7 +105,7 @@ export function HomeHeader({ onSearchPress, scrollY, onProfileTabPress }: Props)
         style={[styles.header, { paddingTop: Math.max(insets.top, 10) }]}
         pointerEvents="box-none"
       >
-        {/* Fond animé */}
+        {/* Fond opaque animé au scroll */}
         <Animated.View
           style={[StyleSheet.absoluteFill, { backgroundColor: theme.bg, opacity: bgOpacity }]}
           pointerEvents="none"
@@ -113,36 +117,41 @@ export function HomeHeader({ onSearchPress, scrollY, onProfileTabPress }: Props)
         />
 
         <View style={styles.content} pointerEvents="box-none">
-          {/* Hamburger gauche */}
+          {/* Hamburger — glass sur hero, transparent + icône thème au scroll */}
           <TouchableOpacity
             onPress={() => setDrawerOpen(true)}
-            style={styles.iconBtn}
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            style={styles.btn}
+            hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+            activeOpacity={0.75}
           >
-            <Icon name="menu-outline" size={26} color={COLORS.primary} />
+            <Animated.View style={[StyleSheet.absoluteFill, styles.glassLayer, { opacity: glassOpacity }]} />
+            <Icon name="menu-outline" size={22} color={COLORS.primary} />
           </TouchableOpacity>
 
-          {/* Espace centré */}
           <View style={styles.brandWrap} />
 
           {/* Actions droite */}
           <View style={styles.actions}>
             <TouchableOpacity
               onPress={onSearchPress}
-              style={styles.iconBtn}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              style={styles.btn}
+              hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+              activeOpacity={0.75}
             >
-              <Icon name="search-outline" size={22} color={COLORS.primary} />
+              <Animated.View style={[StyleSheet.absoluteFill, styles.glassLayer, { opacity: glassOpacity }]} />
+              <Icon name="search-outline" size={21} color={COLORS.primary} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => onProfileTabPress?.('Notifications')}
-              style={styles.iconBtn}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              style={styles.btn}
+              hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+              activeOpacity={0.75}
             >
+              <Animated.View style={[StyleSheet.absoluteFill, styles.glassLayer, { opacity: glassOpacity }]} />
               <Icon
                 name={unreadCount > 0 ? 'notifications' : 'notifications-outline'}
-                size={22}
+                size={21}
                 color={COLORS.primary}
               />
               {unreadCount > 0 && (
@@ -263,7 +272,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flexDirection:     'row',
-    alignItems:        'flex-end',
+    alignItems:        'center',
     justifyContent:    'space-between',
     paddingHorizontal: SPACING.lg,
     paddingBottom:     10,
@@ -276,21 +285,31 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection:  'row',
     alignItems:     'center',
-    gap:            4,
-    width:          80,
+    gap:            8,
+    width:          96,
     justifyContent: 'flex-end',
   },
-  iconBtn: {
-    padding:        4,
-    width:          40,
+  // Bouton — conteneur commun
+  btn: {
+    width:          38,
+    height:         38,
+    borderRadius:   RADIUS.full,
     alignItems:     'center',
     justifyContent: 'center',
     position:       'relative',
+    overflow:       'hidden',
+  },
+  // Fond glass — visible en haut de page, s'efface au scroll
+  glassLayer: {
+    borderRadius:    RADIUS.full,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    borderWidth:     1,
+    borderColor:     'rgba(255,255,255,0.15)',
   },
   badge: {
     position:          'absolute',
-    top:               2,
-    right:             2,
+    top:               -2,
+    right:             -2,
     minWidth:          16,
     height:            16,
     borderRadius:      8,
@@ -298,6 +317,8 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     justifyContent:    'center',
     paddingHorizontal: 3,
+    borderWidth:       1.5,
+    borderColor:       '#000',
   },
   badgeText: {
     color:      COLORS.white,

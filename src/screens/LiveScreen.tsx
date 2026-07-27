@@ -1,26 +1,27 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
-  FlatList, Image, Animated, ActivityIndicator, Modal, ScrollView,
+  FlatList, Image, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
 import { useQuery } from '@tanstack/react-query';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import OrientationLib from 'react-native-orientation-locker';
-const Orientation = (OrientationLib as any)?.default ?? OrientationLib;
+import LinearGradient from 'react-native-linear-gradient';
 
 import { useTheme }           from '../hooks/useTheme';
 import { useTranslation }     from '../hooks/useTranslation';
 import { useAuthStore }       from '../stores';
 import { useUiStore }         from '../stores';
+import { useLiveStore }       from '../stores';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useLiveChat }         from '../hooks/useLiveChat';
 import { LiveChatModal }        from '../components/live/LiveChatModal';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, LIST_THUMB_W, LIST_THUMB_H } from '../constants';
+import { ImageWithSkeleton }    from '../components/ui/ImageWithSkeleton';
+import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, LIST_THUMB_W, LIST_THUMB_H, SCREEN } from '../constants';
 import { formatFullDate, formatViews, getImageUrl } from '../utils';
 import * as api from '../services/api';
+import type { LiveHighlight as ApiLiveHighlight } from '../services/api';
 import {
   scheduleReminder,
   cancelReminder,
@@ -35,14 +36,25 @@ function buildPlayerUrl(data: any): string {
   if (!url) return 'about:blank';
   if (url.includes('dailymotion')) {
     const sep = url.includes('?') ? '&' : '?';
-    url += `${sep}ui-logo=0&ui-start-screen-info=0&sharing-enable=0&endscreen-enable=0&queue-enable=0&ui-theme=dark&syndication=0`;
+    url += `${sep}ui-logo=0&ui-start-screen-info=0&sharing-enable=0&endscreen-enable=0&queue-enable=0&ui-theme=dark&syndication=0&controls=0`;
   }
   return url;
 }
 
 // ─── Types tabs contenu ───────────────────────────────────────────────────────
 
-type ContentTab = 'recent' | 'episodes' | 'highlights' | 'schedule';
+type ContentTab = 'a_ne_pas_manquer' | 'schedule' | 'moments_forts' | 'emissions';
+
+function formatHighlightDate(dt?: string | null): string | null {
+  if (!dt) return null;
+  const d = new Date(dt);
+  if (isNaN(d.getTime())) return null;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month} · ${hours}:${minutes}`;
+}
 
 // ─── Carte épisode (style bf1_tv_mobile) ─────────────────────────────────────
 
@@ -100,6 +112,285 @@ function EpisodeCard({ item, theme, onPress }: EpisodeCardProps) {
     </TouchableOpacity>
   );
 }
+
+// ─── Carte mise en avant (À ne pas manquer / Moments forts) ──────────────────
+
+interface HighlightCardProps {
+  item:    ApiLiveHighlight;
+  theme:   any;
+  onPress: (item: ApiLiveHighlight) => void;
+}
+
+function HighlightCard({ item, theme, onPress }: HighlightCardProps) {
+  return (
+    <TouchableOpacity
+      style={[highlightStyles.card, { backgroundColor: theme.surface, shadowColor: '#000' }]}
+      onPress={() => onPress(item)}
+      activeOpacity={0.9}
+    >
+      <View style={highlightStyles.poster}>
+        <ImageWithSkeleton
+          uri={item.image_url}
+          style={StyleSheet.absoluteFill}
+          fallback={
+            <View style={[StyleSheet.absoluteFill, highlightStyles.imageFallback, { backgroundColor: theme.bg3 }]}>
+              <Icon name="film-outline" size={34} color={COLORS.redAlpha50} />
+            </View>
+          }
+        />
+
+        {/* Dégradé bas — assure la lisibilité du badge date sur toute image */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.75)']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0.45 }}
+          end={{ x: 0, y: 1 }}
+          pointerEvents="none"
+        />
+
+        {item.video_url ? (
+          <View style={highlightStyles.playBadge}>
+            <Icon name="play" size={18} color={COLORS.white} style={{ marginLeft: 2 }} />
+          </View>
+        ) : null}
+
+        {formatHighlightDate(item.event_date) ? (
+          <View style={highlightStyles.dateBadge}>
+            <Icon name="calendar-outline" size={11} color={COLORS.white} />
+            <Text style={highlightStyles.dateBadgeText}>{formatHighlightDate(item.event_date)}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={highlightStyles.info}>
+        <Text style={[highlightStyles.title, { color: theme.text }]} numberOfLines={2}>
+          {item.title}
+        </Text>
+        {item.description ? (
+          <Text style={[highlightStyles.desc, { color: theme.text3 }]} numberOfLines={2}>
+            {item.description}
+          </Text>
+        ) : null}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const highlightStyles = StyleSheet.create({
+  card: {
+    borderRadius:   RADIUS.xl,
+    marginBottom:   SPACING.lg,
+    overflow:       'hidden',
+    shadowOffset:   { width: 0, height: 4 },
+    shadowOpacity:  0.25,
+    shadowRadius:   8,
+    elevation:      5,
+  },
+  poster: {
+    width:            '100%',
+    aspectRatio:      16 / 9,
+    backgroundColor:  COLORS.blackAlpha90,
+    position:         'relative',
+  },
+  imageFallback: { alignItems: 'center', justifyContent: 'center' },
+  playBadge: {
+    position:        'absolute',
+    top:             '50%', left: '50%',
+    marginTop:       -22, marginLeft: -22,
+    width:           44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems:      'center', justifyContent: 'center',
+    borderWidth:     1.5,
+    borderColor:     'rgba(255,255,255,0.35)',
+  },
+  dateBadge: {
+    position:          'absolute',
+    bottom:            10, left: 10,
+    flexDirection:     'row', alignItems: 'center', gap: 5,
+    backgroundColor:   'rgba(226,62,62,0.9)',
+    borderRadius:      RADIUS.sm,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  dateBadgeText: {
+    color:         COLORS.white,
+    fontSize:      FONT_SIZE.xxs,
+    fontWeight:    FONT_WEIGHT.bold,
+    letterSpacing: 0.3,
+  },
+  info:  { padding: SPACING.md, gap: 4 },
+  title: { fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold, lineHeight: 21, letterSpacing: -0.2 },
+  desc:  { fontSize: FONT_SIZE.xs, lineHeight: 17 },
+});
+
+// ─── Carrousel "À ne pas manquer" — défilement horizontal automatique ────────
+
+const CAROUSEL_CARD_W = Math.round(SCREEN.W * 0.78);
+const CAROUSEL_CARD_H = Math.round(CAROUSEL_CARD_W * 3 / 4);
+const CAROUSEL_SNAP   = CAROUSEL_CARD_W + SPACING.md;
+const CAROUSEL_AUTO_DELAY = 4500;
+
+interface HighlightCarouselProps {
+  items:   ApiLiveHighlight[];
+  theme:   any;
+  onPress: (item: ApiLiveHighlight) => void;
+}
+
+function HighlightCarousel({ items, theme, onPress }: HighlightCarouselProps) {
+  const flatRef   = useRef<FlatList>(null);
+  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  const goTo = useCallback((idx: number) => {
+    if (!items.length) return;
+    const next = idx % items.length;
+    setActiveIdx(next);
+    flatRef.current?.scrollToOffset({ offset: next * CAROUSEL_SNAP, animated: true });
+  }, [items.length]);
+
+  // Défilement automatique — même logique que le HeroSlider de l'accueil
+  useEffect(() => {
+    if (items.length <= 1) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => goTo(activeIdx + 1), CAROUSEL_AUTO_DELAY);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [activeIdx, items.length, goTo]);
+
+  return (
+    <View style={carouselStyles.root}>
+      <FlatList
+        ref={flatRef}
+        data={items}
+        keyExtractor={item => item.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={CAROUSEL_SNAP}
+        decelerationRate="fast"
+        style={{ height: CAROUSEL_CARD_H }}
+        contentContainerStyle={carouselStyles.content}
+        onMomentumScrollEnd={e => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / CAROUSEL_SNAP);
+          setActiveIdx(idx % Math.max(items.length, 1));
+        }}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[carouselStyles.card, { backgroundColor: theme.surface, shadowColor: '#000' }]}
+            onPress={() => onPress(item)}
+            activeOpacity={0.9}
+          >
+            <View style={carouselStyles.poster}>
+              <ImageWithSkeleton
+                uri={item.image_url}
+                style={StyleSheet.absoluteFill}
+                fallback={
+                  <View style={[StyleSheet.absoluteFill, highlightStyles.imageFallback, { backgroundColor: theme.bg3 }]}>
+                    <Icon name="film-outline" size={34} color={COLORS.redAlpha50} />
+                  </View>
+                }
+              />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.8)']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0.4 }}
+                end={{ x: 0, y: 1 }}
+                pointerEvents="none"
+              />
+              {item.video_url ? (
+                <View style={highlightStyles.playBadge}>
+                  <Icon name="play" size={18} color={COLORS.white} style={{ marginLeft: 2 }} />
+                </View>
+              ) : null}
+              {formatHighlightDate(item.event_date) ? (
+                <View style={highlightStyles.dateBadge}>
+                  <Icon name="calendar-outline" size={11} color={COLORS.white} />
+                  <Text style={highlightStyles.dateBadgeText}>{formatHighlightDate(item.event_date)}</Text>
+                </View>
+              ) : null}
+              <View style={carouselStyles.overlayInfo} pointerEvents="none">
+                <Text style={carouselStyles.overlayTitle} numberOfLines={2}>{item.title}</Text>
+                {item.description ? (
+                  <Text style={carouselStyles.overlayDesc} numberOfLines={1}>{item.description}</Text>
+                ) : null}
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={
+          <View style={[carouselStyles.card, carouselStyles.emptyCard, { backgroundColor: theme.surface }]}>
+            <Icon name="film-outline" size={30} color={theme.text3} />
+          </View>
+        }
+      />
+
+      {/* Dots de pagination */}
+      {items.length > 1 && (
+        <View style={carouselStyles.dots}>
+          {items.map((item, i) => (
+            <View
+              key={item.id}
+              style={[
+                carouselStyles.dot,
+                { backgroundColor: i === activeIdx ? COLORS.primary : theme.border },
+                i === activeIdx && carouselStyles.dotActive,
+              ]}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const carouselStyles = StyleSheet.create({
+  root:    {},
+  content: { paddingHorizontal: SPACING.lg, gap: SPACING.md },
+  card: {
+    width:          CAROUSEL_CARD_W,
+    borderRadius:   RADIUS.xl,
+    overflow:       'hidden',
+    marginRight:    SPACING.md,
+    shadowOffset:   { width: 0, height: 4 },
+    shadowOpacity:  0.25,
+    shadowRadius:   8,
+    elevation:      5,
+  },
+  poster: {
+    width:           '100%',
+    aspectRatio:     4 / 3,
+    backgroundColor: COLORS.blackAlpha90,
+    position:        'relative',
+  },
+  overlayInfo: {
+    position: 'absolute',
+    left: 12, right: 12, bottom: 30,
+  },
+  overlayTitle: {
+    color:            COLORS.white,
+    fontSize:         FONT_SIZE.base,
+    fontWeight:       FONT_WEIGHT.bold,
+    lineHeight:       21,
+    textShadowColor:  'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  overlayDesc: {
+    color:            'rgba(255,255,255,0.85)',
+    fontSize:         FONT_SIZE.xs,
+    marginTop:        2,
+    textShadowColor:  'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  emptyCard: {
+    aspectRatio: 16 / 9,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dots: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: 6, marginTop: SPACING.md,
+  },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  dotActive: { width: 18 },
+});
 
 // ─── Carte programme (grille quotidienne) ────────────────────────────────────
 
@@ -233,35 +524,12 @@ export function LiveScreen() {
   const { isAuthenticated, user } = useAuthStore();
   const { showLoginModal }  = useUiStore();
   const navigateToLogin     = useLoginNavigation();
-  const pulseAnim           = useRef(new Animated.Value(1)).current;
-
-  const [activeTab,      setActiveTab]      = useState<ContentTab>('recent');
-  const [chatVisible,    setChatVisible]    = useState(false);
-  const [isFullscreen,   setIsFullscreen]   = useState(false);
-  const [reminderIds,    setReminderIds]    = useState<Set<string>>(new Set());
-  const [isPaused,       setIsPaused]       = useState(false);
-  const [webViewKey,     setWebViewKey]     = useState(0);
-  const webViewRef = useRef<any>(null);
+  const [activeTab,   setActiveTab]   = useState<ContentTab>('a_ne_pas_manquer');
+  const [chatVisible, setChatVisible] = useState(false);
+  const [reminderIds, setReminderIds] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList>(null);
 
-  const togglePause = useCallback(() => {
-    if (isPaused) {
-      webViewRef.current?.injectJavaScript(
-        'try{document.querySelectorAll("video").forEach(function(v){v.play();});}catch(e){}true;'
-      );
-      setIsPaused(false);
-    } else {
-      webViewRef.current?.injectJavaScript(
-        'try{document.querySelectorAll("video").forEach(function(v){v.pause();});}catch(e){}true;'
-      );
-      setIsPaused(true);
-    }
-  }, [isPaused]);
-
-  const refreshLive = useCallback(() => {
-    setIsPaused(false);
-    setWebViewKey(k => k + 1);
-  }, []);
+  const { setLiveData, isFullscreen, pendingFullscreen, consumeFullscreen } = useLiveStore();
 
   // Hook WebSocket chat — instancié ici pour afficher le compteur sur le bouton
   const chat = useLiveChat(user?.id ?? null);
@@ -282,6 +550,18 @@ export function LiveScreen() {
   const isOnAir   = !!liveData?.is_live;
   const viewers   = liveData?.viewers ?? 0;
   const playerUrl = buildPlayerUrl(liveData);
+
+  // Synchroniser vers le store global dès que les données live changent
+  useEffect(() => {
+    setLiveData(playerUrl, isOnAir, viewers);
+  }, [playerUrl, isOnAir, viewers]);
+
+  // Consommer le fullscreen différé dès que les données sont prêtes
+  useEffect(() => {
+    if (pendingFullscreen && playerUrl !== 'about:blank') {
+      consumeFullscreen();
+    }
+  }, [pendingFullscreen, playerUrl]);
 
   // ── Grille programme — sans filtre date, le backend retourne les prochains ──
   const { data: scheduleData, isLoading: lSchedule } = useQuery({
@@ -326,8 +606,8 @@ export function LiveScreen() {
   const { data: reportages    } = useQuery({ queryKey: ['reportages-live'],    queryFn: () => api.getReportages(0, 20) });
   const { data: teleRealite   } = useQuery({ queryKey: ['telerealite-live'],   queryFn: () => api.getTeleRealite(0, 20) });
 
-  // Contenu de chaque onglet (miroir exact de bf1_tv_mobile loadLive)
-  const allRecent = React.useMemo(() => {
+  // Contenu de l'onglet Émissions (miroir exact de bf1_tv_mobile loadLive)
+  const allEmissions = React.useMemo(() => {
     const merge = [
       ...(sports?.items        ?? []).map((i: any) => ({ ...i, _contentType: 'sport' })),
       ...(jtandmag?.items      ?? []).map((i: any) => ({ ...i, _contentType: 'jtandmag' })),
@@ -340,21 +620,15 @@ export function LiveScreen() {
       .slice(0, 15);
   }, [sports, jtandmag, divertissement, reportages, teleRealite]);
 
-  const allEpisodes = React.useMemo(() => {
-    return [
-      ...(jtandmag?.items      ?? []).map((i: any) => ({ ...i, _contentType: 'jtandmag' })),
-      ...(divertissement?.items?? []).map((i: any) => ({ ...i, _contentType: 'divertissement' })),
-    ].sort((a, b) => new Date(b.published_at ?? 0).getTime() - new Date(a.published_at ?? 0).getTime())
-     .slice(0, 15);
-  }, [jtandmag, divertissement]);
-
-  const allHighlights = React.useMemo(() => {
-    return [
-      ...(sports?.items    ?? []).map((i: any) => ({ ...i, _contentType: 'sport' })),
-      ...(reportages?.items?? []).map((i: any) => ({ ...i, _contentType: 'reportage' })),
-    ].sort((a, b) => new Date(b.published_at ?? 0).getTime() - new Date(a.published_at ?? 0).getTime())
-     .slice(0, 15);
-  }, [sports, reportages]);
+  // ── Mises en avant gérées depuis l'admin (À ne pas manquer / Moments forts) ──
+  const { data: aNePasManquer = [] } = useQuery({
+    queryKey: ['live-highlights', 'a_ne_pas_manquer'],
+    queryFn:  () => api.getLiveHighlights('a_ne_pas_manquer'),
+  });
+  const { data: momentsForts = [] } = useQuery({
+    queryKey: ['live-highlights', 'moments_forts'],
+    queryFn:  () => api.getLiveHighlights('moments_forts'),
+  });
 
   // ── Rappels programme — charge les IDs persistés ─────────────────────────
   useEffect(() => {
@@ -383,170 +657,62 @@ export function LiveScreen() {
     }
   }, [isAuthenticated, reminderIds]);
 
-  // ── Pulse animation live ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!isOnAir) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.6, duration: 600, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,   duration: 600, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [isOnAir]);
-
-  // ── Plein écran ──────────────────────────────────────────────────────────
-  const openFullscreen = useCallback(() => {
-    try { Orientation?.lockToLandscape?.(); } catch {}
-    setIsFullscreen(true);
-  }, []);
-
-  const closeFullscreen = useCallback(() => {
-    try { Orientation?.lockToPortrait?.(); } catch {}
-    setIsFullscreen(false);
-  }, []);
-
-  // Nettoyer l'orientation quand on quitte l'écran
-  useEffect(() => {
-    return () => {
-      try { Orientation?.lockToPortrait?.(); } catch {}
-    };
-  }, []);
-
   // ── Navigation vers détail ───────────────────────────────────────────────
   const handleEpisodePress = useCallback((item: any) => {
     navigation.navigate('ShowDetail', { id: item.id ?? item._id, type: item._contentType });
   }, [navigation]);
 
+  // ── "À ne pas manquer" : écran de détail dédié (vidéo ou affiche en hero) ──
+  const handleANePasManquerPress = useCallback((item: ApiLiveHighlight) => {
+    navigation.navigate('LiveHighlightDetail', { id: item.id });
+  }, [navigation]);
+
+  // ── "Moments forts" : réutilise l'écran de détail standard des émissions ──
+  const handleMomentsFortsPress = useCallback((item: ApiLiveHighlight) => {
+    navigation.navigate('ShowDetail', { id: item.id, type: 'live_highlight' });
+  }, [navigation]);
+
   // ── Onglets ──────────────────────────────────────────────────────────────
   const tabs: { key: ContentTab; label: string }[] = [
-    { key: 'recent',     label: t.live.tabRecent },
-    { key: 'episodes',   label: t.live.tabEpisodes },
-    { key: 'highlights', label: t.live.tabHighlights },
-    { key: 'schedule',   label: t.live.tabSchedule },
+    { key: 'a_ne_pas_manquer', label: t.live.tabRecent },
+    { key: 'schedule',         label: t.live.tabSchedule },
+    { key: 'moments_forts',    label: t.live.tabHighlights },
+    { key: 'emissions',        label: t.live.tabEpisodes },
   ];
 
+  // Moments forts seul reste en liste verticale — À ne pas manquer utilise le carrousel horizontal
+  const isHighlightListTab = activeTab === 'moments_forts';
+
   const currentItems =
-    activeTab === 'recent'     ? allRecent :
-    activeTab === 'episodes'   ? allEpisodes :
-    activeTab === 'highlights' ? allHighlights :
+    activeTab === 'a_ne_pas_manquer' ? aNePasManquer :
+    activeTab === 'moments_forts'    ? momentsForts :
+    activeTab === 'emissions'        ? allEmissions :
     scheduleItems;
 
   const isContentLoading =
     activeTab === 'schedule' ? lSchedule :
-    !sports && !jtandmag;
+    activeTab === 'emissions' ? (!sports && !jtandmag) :
+    false;
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" hidden={isFullscreen} />
 
-      {/* ── Player 16:9 (haut fixe) ── */}
-      <View style={[styles.playerWrapper, { marginTop: insets.top }]}>
-        {liveLoading ? (
-          <View style={styles.playerLoader}>
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          </View>
-        ) : isOnAir && playerUrl !== 'about:blank' ? (
-          <WebView
-            key={webViewKey}
-            ref={webViewRef}
-            source={{ uri: playerUrl }}
-            style={StyleSheet.absoluteFill}
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            javaScriptEnabled
-            domStorageEnabled
-            allowsFullscreenVideo
-            originWhitelist={['*']}
-          />
-        ) : (
-          <View style={styles.offAirWrap}>
-            <Icon name="wifi-outline" size={32} color={theme.text3} />
-            <Text style={[styles.offAirText, { color: theme.text3 }]}>
-              {isOnAir ? t.live.noStream : t.live.offAir}
-            </Text>
-          </View>
-        )}
-
-        {/* Badge EN DIRECT */}
-        {isOnAir && (
-          <View style={styles.liveBadge}>
-            <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-            <Text style={styles.liveText}>{t.player.live}</Text>
-          </View>
-        )}
-
-        {/* Compteur spectateurs */}
-        {viewers > 0 && (
-          <View style={styles.viewersBadge}>
-            <Icon name="eye" size={11} color="rgba(255,255,255,0.85)" />
-            <Text style={styles.viewersText}>{formatViews(viewers)}</Text>
-          </View>
-        )}
-
-        {/* Barre de contrôles */}
-        {isOnAir && playerUrl !== 'about:blank' && (
-          <View style={styles.controlBar}>
-            <TouchableOpacity style={styles.ctrlBtn} onPress={togglePause} activeOpacity={0.8}>
-              <Icon name={isPaused ? 'play' : 'pause'} size={20} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.ctrlBtn} onPress={refreshLive} activeOpacity={0.8}>
-              <Icon name="refresh" size={20} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.ctrlSpacer} />
-            <TouchableOpacity style={styles.ctrlBtn} onPress={openFullscreen} activeOpacity={0.8}>
-              <Icon name="expand-outline" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* ── Modal plein écran paysage ── */}
-      <Modal
-        visible={isFullscreen}
-        transparent={false}
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={closeFullscreen}
-        supportedOrientations={['landscape']}
-      >
-        <View style={styles.fsContainer}>
-          <StatusBar hidden />
-          <WebView
-            key={webViewKey}
-            ref={webViewRef}
-            source={{ uri: playerUrl }}
-            style={StyleSheet.absoluteFill}
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            javaScriptEnabled
-            domStorageEnabled
-            allowsFullscreenVideo
-            originWhitelist={['*']}
-          />
-          {/* Badge EN DIRECT */}
-          {isOnAir && (
-            <View style={styles.liveBadge}>
-              <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-              <Text style={styles.liveText}>{t.player.live}</Text>
+      {/* ── Zone player 16:9 — réserve l'espace, les contrôles sont dans GlobalLivePlayer ── */}
+      {!isFullscreen && (
+        <View style={[styles.playerWrapper, { marginTop: insets.top }]}>
+          {liveLoading ? (
+            <View style={styles.playerLoader}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
             </View>
-          )}
-          {/* Barre de contrôles plein écran */}
-          <View style={styles.fsControlBar}>
-            <TouchableOpacity style={styles.ctrlBtn} onPress={togglePause} activeOpacity={0.8}>
-              <Icon name={isPaused ? 'play' : 'pause'} size={20} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.ctrlBtn} onPress={refreshLive} activeOpacity={0.8}>
-              <Icon name="refresh" size={20} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.ctrlSpacer} />
-            <TouchableOpacity style={styles.ctrlBtn} onPress={closeFullscreen} activeOpacity={0.8}>
-              <Icon name="contract-outline" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          ) : !isOnAir ? (
+            <View style={styles.offAirWrap}>
+              <Icon name="wifi-outline" size={32} color={theme.text3} />
+              <Text style={[styles.offAirText, { color: theme.text3 }]}>{t.live.offAir}</Text>
+            </View>
+          ) : null}
         </View>
-      </Modal>
+      )}
 
       {/* ── Section scrollable (style bf1_tv_mobile #live-sections) ── */}
       <View style={[styles.sections, { backgroundColor: theme.bg }]}>
@@ -599,10 +765,18 @@ export function LiveScreen() {
           })}
         </ScrollView>
 
-        {/* Liste d'épisodes */}
+        {/* Contenu de l'onglet */}
         {isContentLoading ? (
           <View style={styles.contentLoader}>
             <ActivityIndicator color={COLORS.primary} />
+          </View>
+        ) : activeTab === 'a_ne_pas_manquer' ? (
+          <View style={styles.carouselWrap}>
+            <HighlightCarousel
+              items={aNePasManquer}
+              theme={theme}
+              onPress={handleANePasManquerPress}
+            />
           </View>
         ) : (
           <FlatList
@@ -619,6 +793,8 @@ export function LiveScreen() {
                   onToggleReminder={toggleReminder}
                   theme={theme}
                 />
+              ) : isHighlightListTab ? (
+                <HighlightCard item={item} theme={theme} onPress={handleMomentsFortsPress} />
               ) : (
                 <EpisodeCard item={item} theme={theme} onPress={handleEpisodePress} />
               )
@@ -672,51 +848,6 @@ const styles = StyleSheet.create({
   offAirWrap:   { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.sm },
   offAirText:   { fontSize: FONT_SIZE.sm },
 
-  liveBadge: {
-    position: 'absolute', top: 10, left: 10,
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(226,62,62,0.92)',
-    borderRadius: RADIUS.sm, paddingHorizontal: 10, paddingVertical: 5, zIndex: 10,
-  },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.white },
-  liveText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, color: COLORS.white, letterSpacing: 0.5 },
-
-  viewersBadge: {
-    position: 'absolute', top: 10, right: 10,
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(0,0,0,0.65)', borderRadius: RADIUS.full,
-    paddingHorizontal: 10, paddingVertical: 5, zIndex: 10,
-  },
-  viewersText: { fontSize: FONT_SIZE.xs, color: 'rgba(255,255,255,0.85)', fontWeight: FONT_WEIGHT.semibold },
-
-  // Barre de contrôles
-  controlBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 10, paddingVertical: 8,
-    backgroundColor: 'rgba(0,0,0,0.50)',
-    zIndex: 10,
-  },
-  ctrlBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    marginRight: 6,
-  },
-  ctrlSpacer: { flex: 1 },
-
-  // Plein écran
-  fsContainer: {
-    flex: 1, backgroundColor: '#000',
-  },
-  fsControlBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: 'rgba(0,0,0,0.50)',
-    zIndex: 20,
-  },
-
   // Sections
   sections: {
     flex: 1, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl,
@@ -764,6 +895,7 @@ const styles = StyleSheet.create({
   // Episodes list
   contentLoader: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   list:          { flex: 1 },
+  carouselWrap:  { flex: 1, justifyContent: 'center' },
 
   episodeCard: {
     flexDirection: 'row', gap: SPACING.md, borderRadius: RADIUS.md,

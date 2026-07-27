@@ -187,6 +187,16 @@ export async function getNewsById(id: string | number) {
 }
 
 export async function getShowById(id: string | number, type?: string) {
+  // Mise en avant Live ("Moments forts") — champs adaptés au format attendu par ShowDetailScreen
+  if (type === 'live_highlight') {
+    const data = await http.get<any>(`/live-highlights/${id}`);
+    return {
+      ...data,
+      created_at: data?.event_date ?? data?.created_at,
+      subscription: null,
+    };
+  }
+
   const map: Record<string, string> = {
     sport:          '/sports',
     jtandmag:       '/jtandmag',
@@ -266,6 +276,28 @@ export async function getLiveStreamUrl(): Promise<string> {
     }
     return url;
   } catch { return LIVE_STREAM_URL; }
+}
+
+// ─── Live Highlights (À ne pas manquer / Moments forts) ─────────────────────
+export interface LiveHighlight {
+  id: string;
+  section: 'a_ne_pas_manquer' | 'moments_forts';
+  title: string;
+  description?: string | null;
+  image_url: string;
+  video_url?: string | null;
+  event_date?: string | null;
+  order: number;
+  is_active: boolean;
+}
+
+export async function getLiveHighlights(section: 'a_ne_pas_manquer' | 'moments_forts') {
+  const res = await http.get<LiveHighlight[]>(`/live-highlights?section=${section}`).catch(() => []);
+  return Array.isArray(res) ? res : [];
+}
+
+export async function getLiveHighlightById(id: string) {
+  return http.get<LiveHighlight>(`/live-highlights/${id}`);
 }
 
 // ─── Recherche ────────────────────────────────────────────────────────────────

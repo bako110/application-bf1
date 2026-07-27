@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
@@ -16,8 +16,7 @@ import { MissedCard } from '../components/ui/MissedCard';
 import { EmissionCard } from '../components/ui/EmissionCard';
 import { Toast } from '../components/ui/Toast';
 import { HomeHeader } from '../components/home/HomeHeader';
-import { LivePlaceholder, LiveWebView, HERO_HEIGHT } from '../components/home/LivePlayer';
-import type { LiveWebViewHandle } from '../components/home/LivePlayer';
+import { HeroSlider } from '../components/home/HeroSlider';
 import * as api from '../services/api';
 import { useEmissionSection } from '../hooks/useEmissionSection';
 import { PremiumModal } from '../components/profile/PremiumModal';
@@ -27,6 +26,21 @@ import type { HomeStackParams } from '../navigation/types';
 type Nav = StackNavigationProp<HomeStackParams, 'Home'>;
 
 const HEADER_H = 70;
+
+// Émissions du hero slider (ordre affiché)
+const HERO_CATS = [
+  { label: 'Le 13H',                 api: 'LE 13H'                },
+  { label: 'Le 19H30',               api: 'LE 19H30'              },
+  { label: '7INFOS',                 api: '7INFOS'                },
+  { label: 'La Télé S\'amuz',        api: 'LA TÉLÉ S\'AMUZ'       },
+  { label: 'Reem Wakato',            api: 'REEM WAKATO '          },
+  { label: 'Pépites d\'entreprises', api: 'PÉPITES D\'ENTREPRISES' },
+  { label: 'Le Loft',                api: 'Le Loft'               },
+  { label: 'Bâtisseurs de cités',    api: 'BATISSEURS DE CITÉS'   },
+  { label: 'Au cœur du sport',       api: 'AU CŒUR DU SPORT'      },
+  { label: 'Sport Time',             api: 'SPORT TIME'            },
+  { label: 'Leçons de vie',          api: 'Leçons de vie'         },
+];
 
 const JT_CATS = [
   { label: 'Le 13H',        api: 'LE 13H' },
@@ -68,17 +82,12 @@ export function HomeScreen() {
   const { canAccess }      = useAuthStore();
   const insets             = useSafeAreaInsets();
   const { isFav, toggleFav } = useFavorites();
-  const isScreenFocused    = useIsFocused();
-
   const [refreshing,  setRefreshing]  = useState(false);
-  const [miniClosed,  setMiniClosed]  = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [premiumCat,  setPremiumCat]  = useState<string | null>(null);
 
-  const scrollY        = useRef(new Animated.Value(0)).current;
-  const scrollViewRef  = useRef<any>(null);
-  const placeholderRef = useRef<View>(null);
-  const livePlayerRef  = useRef<LiveWebViewHandle>(null);
+  const scrollY       = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<any>(null);
 
   // ─── Live ─────────────────────────────────────────────────────────────────
   const { data: liveData, refetch: rLive } = useQuery({
@@ -102,6 +111,7 @@ export function HomeScreen() {
   const { data: archives,   isLoading: lArchives, refetch: rArchives } = useQuery({ queryKey: ['archive'],    queryFn: () => api.getArchive()    });
 
   // ─── Entries par section — construites depuis /emission-categories uniquement ─
+  const heroEntries     = useEmissionSection({ sectionCats, orderedCats: HERO_CATS });
   const jtMagEntries    = useEmissionSection({ sectionCats, section: 'jtandmag',       orderedCats: JT_CATS       });
   const magazineEntries = useEmissionSection({ sectionCats, section: 'magazine',       orderedCats: MAGAZINE_CATS });
   const divertEntries   = useEmissionSection({ sectionCats, section: 'divertissement', orderedCats: DIVERT_CATS   });
@@ -111,9 +121,8 @@ export function HomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([rLive(), rMissed(), rReport(), rArchives(), rCats()]);
-    livePlayerRef.current?.refreshPlayer();
     setRefreshing(false);
-  }, [rLive]);
+  }, [rLive, rMissed, rReport, rArchives, rCats]);
 
   const goDetail = useCallback((item: any, sectionType?: string) =>
     navigation.navigate('ShowDetail', { id: item.id, type: item.type ?? sectionType }), [navigation]);
@@ -123,24 +132,10 @@ export function HomeScreen() {
     setPremiumOpen(true);
   }, []);
 
-  const scrollToHero = useCallback(() => {
-    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    // Reset dismiss après le scroll pour que le player réapparaisse en hero
-    setTimeout(() => setMiniClosed(false), 350);
-  }, []);
-
   const handleScroll = useCallback(
     Animated.event(
       [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-      {
-        useNativeDriver: false,
-        listener: (e: any) => {
-          // Reset miniClosed dès qu'on revient tout en haut
-          if (e.nativeEvent.contentOffset.y < 10) {
-            setMiniClosed(false);
-          }
-        },
-      },
+      { useNativeDriver: false },
     ),
     [],
   );
@@ -184,7 +179,11 @@ export function HomeScreen() {
         }
         contentContainerStyle={{ paddingTop: insets.top + HEADER_H, paddingBottom: 20 }}
       >
-        <LivePlaceholder ref={placeholderRef} isOnAir={isOnAir} />
+        <HeroSlider
+          entries={heroEntries}
+          isOnAir={isOnAir}
+          isLoading={lEmissions}
+        />
 
         {/* ── Vous l'avez raté ── */}
         <SectionRow
@@ -386,18 +385,6 @@ export function HomeScreen() {
           const tabNav = navigation.getParent<any>();
           tabNav?.navigate('ProfileTab', screen ? { screen, params: {} } : undefined);
         }}
-      />
-
-      <LiveWebView
-        ref={livePlayerRef}
-        liveData={liveData}
-        isOnAir={isOnAir}
-        scrollY={scrollY}
-        miniDismissed={miniClosed}
-        onDismiss={() => setMiniClosed(true)}
-        onExpand={scrollToHero}
-        placeholderRef={placeholderRef}
-        isScreenFocused={isScreenFocused}
       />
 
       <Toast />

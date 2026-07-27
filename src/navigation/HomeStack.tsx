@@ -17,6 +17,7 @@ import { TeleRealiteScreen }    from '../screens/content/TeleRealiteScreen';
 import { SearchScreen }              from '../screens/SearchScreen';
 import { EmissionCategoryScreen }   from '../screens/EmissionCategoryScreen';
 import { ProgramsScreen }           from '../screens/ProgramsScreen';
+import { LiveWatchScreen }          from '../screens/LiveWatchScreen';
 
 const Stack = createStackNavigator<HomeStackParams>();
 
@@ -38,6 +39,7 @@ export function HomeStack() {
       <Stack.Screen name="EmissionCategory" component={EmissionCategoryScreen} />
       <Stack.Screen name="Programs"         component={ProgramsScreen} />
       <Stack.Screen name="Search"           component={SearchScreen} />
+      <Stack.Screen name="LiveWatch"        component={LiveWatchScreen} />
     </Stack.Navigator>
   );
 }

@@ -458,7 +458,7 @@ export default {
     onAir:             'EN COURS',
     tabSchedule:       'Programme',
     tabRecent:         'À ne pas manquer',
-    tabEpisodes:       'Émissions entières',
+    tabEpisodes:       'Émissions',
     tabHighlights:     'Moments forts',
     joinChat:          'Rejoindre la discussion',
     reminderLogin:     'Connectez-vous pour activer les rappels',

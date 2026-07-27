@@ -436,7 +436,7 @@ export default {
     onAir:             'ON AIR',
     tabSchedule:       'Schedule',
     tabRecent:         'Not to miss',
-    tabEpisodes:       'Full episodes',
+    tabEpisodes:       'Shows',
     tabHighlights:     'Highlights',
     joinChat:          'Join the discussion',
     reminderLogin:     'Sign in to set reminders',

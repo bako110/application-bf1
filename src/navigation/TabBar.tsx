@@ -5,6 +5,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
+import { useLiveStore } from '../stores';
 import { COLORS, FONT_WEIGHT } from '../constants';
 
 type TabConfig = {
@@ -23,9 +24,18 @@ const TABS: TabConfig[] = [
 ];
 
 export function TabBar({ state, navigation }: BottomTabBarProps) {
-  const { theme } = useTheme();
-  const { t }     = useTranslation();
-  const insets    = useSafeAreaInsets();
+  const { theme }                    = useTheme();
+  const { t }                        = useTranslation();
+  const insets                       = useSafeAreaInsets();
+  const { isFullscreen, isWatchScreenOpen, setOnLiveTab } = useLiveStore();
+
+  const activeTabName = state.routes[state.index]?.name;
+
+  React.useEffect(() => {
+    setOnLiveTab(activeTabName === 'LiveTab');
+  }, [activeTabName, setOnLiveTab]);
+
+  if (isFullscreen || isWatchScreenOpen) return null;
 
   return (
     <View style={[
@@ -41,8 +51,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
           const route     = state.routes.find(r => r.name === tab.key);
           if (!route) return null;
           const isFocused = state.routes[state.index]?.name === tab.key;
-          const isLive    = tab.key === 'LiveTab';
-          const color     = (isFocused && !isLive) ? COLORS.primary : theme.tabBar.inactive;
+          const color     = isFocused ? COLORS.primary : theme.tabBar.inactive;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -63,7 +72,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
               style={styles.tabItem}
             >
               <Icon
-                name={isFocused && !isLive ? tab.iconActive : tab.icon}
+                name={isFocused ? tab.iconActive : tab.icon}
                 size={22}
                 color={color}
               />

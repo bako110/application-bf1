@@ -98,7 +98,7 @@ export function RegisterScreen() {
     if (!validate()) return;
     try {
       await register(username.trim(), email.trim(), password);
-      navigation.goBack();
+      navigation.reset({ index: 0, routes: [{ name: 'Profile' as never }] });
     } catch (err: any) {
       setErrors({ general: err?.message || t.errors.unknown });
     }

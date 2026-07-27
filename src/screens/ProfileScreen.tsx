@@ -337,7 +337,7 @@ export function ProfileScreen() {
               <TouchableOpacity style={[styles.registerBtn, { borderColor: COLORS.primary }]} onPress={() => navigation.navigate('Register')} activeOpacity={0.85}>
                 <Text style={[styles.registerBtnText, { color: COLORS.primary }]}>{t.profile.createAccount}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
+              <TouchableOpacity onPress={() => (navigation as any).getParent?.()?.navigate('HomeTab')}>
                 <Text style={[styles.guestLink, { color: theme.text3 }]}>{t.profile.continueGuest}</Text>
               </TouchableOpacity>
             </View>

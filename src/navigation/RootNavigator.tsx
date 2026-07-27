@@ -4,8 +4,8 @@ import type { RootTabParams } from './types';
 
 import { HomeStack }      from './HomeStack';
 import { EmissionsStack } from './EmissionsStack';
+import { LiveStack }      from './LiveStack';
 import { ProfileStack }   from './ProfileStack';
-import { LiveScreen }     from '../screens/LiveScreen';
 import { ReelsScreen }    from '../screens/ReelsScreen';
 import { TabBar }         from './TabBar';
 
@@ -19,7 +19,7 @@ export function RootNavigator() {
     >
       <Tab.Screen name="HomeTab"      component={HomeStack} />
       <Tab.Screen name="EmissionsTab" component={EmissionsStack} />
-      <Tab.Screen name="LiveTab"      component={LiveScreen} />
+      <Tab.Screen name="LiveTab"      component={LiveStack} />
       <Tab.Screen name="ReelsTab"     component={ReelsScreen} />
       <Tab.Screen name="ProfileTab"   component={ProfileStack} />
     </Tab.Navigator>

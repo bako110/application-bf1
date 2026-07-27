@@ -1,26 +1,52 @@
 {
   "project_info": {
-    "project_number": "1059019203717",
-    "project_id": "bf1ap-8b0c6",
-    "storage_bucket": "bf1ap-8b0c6.firebasestorage.app"
+    "project_number": "726626343005",
+    "project_id": "bf1app",
+    "storage_bucket": "bf1app.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1059019203717:android:cef8bfb398e142984575ec",
+        "mobilesdk_app_id": "1:726626343005:android:7566b75f4da3fda03095b4",
         "android_client_info": {
           "package_name": "com.bf1app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "726626343005-rrl35kt78cepi46tuek8fvddf27u8knb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bf1app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "726626343005-si34qnucaback0uc6i8op32hsuglckue.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bf1app",
+            "certificate_hash": "0fe018c87042afd112188066c153e9e0dae75da4"
+          }
+        },
+        {
+          "client_id": "726626343005-3pm4efn4tuaj67s80timeo018rdnv89d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyBxZZa1zP8DKc9KFFiXwImowWTL5HIn8CM"
+          "current_key": "AIzaSyAQC-QaXRljvinViXTgW8DkGYpDaHPfkc0"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "726626343005-3pm4efn4tuaj67s80timeo018rdnv89d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
