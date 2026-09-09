@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { StatusBar, LogBox, View, TouchableOpacity, StyleSheet } from 'react-native';
-import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import { useAuthStore }  from './stores';
 import { useUiStore }    from './stores';
 import { useLiveStore }  from './stores';
 import { RootNavigator }      from './navigation/RootNavigator';
+import { navigationRef }      from './navigation/navigationRef';
 import { SplashScreen }       from './components/SplashScreen';
 import { LoginRequiredModal } from './components/ui/LoginRequiredModal';
 import { useLoginNavigation } from './hooks/useLoginNavigation';
@@ -25,7 +26,7 @@ LogBox.ignoreLogs([
   'ViewPropTypes will be removed',
 ]);
 
-export const navigationRef = createNavigationContainerRef<any>();
+export { navigationRef };
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,7 +42,7 @@ const queryClient = new QueryClient({
 const HIDE_DELAY = 3000;
 
 function GlobalLivePlayer() {
-  const { playerUrl, isOnAir, isFullscreen, isOnLiveTab, isWatchScreenOpen, webViewKey, closeFullscreen, openFullscreen, refreshPlayer, fullscreenOrigin } = useLiveStore();
+  const { playerUrl, isOnAir, isFullscreen, isOnLiveTab, isWatchScreenOpen, isPlayerHidden, webViewKey, closeFullscreen, openFullscreen, refreshPlayer, fullscreenOrigin } = useLiveStore();
 
   const handleClose = useCallback(() => {
     closeFullscreen();
@@ -96,6 +97,7 @@ function GlobalLivePlayer() {
 
   if (!isOnAir || playerUrl === 'about:blank') return null;
   if (!isOnLiveTab && !isFullscreen) return null;
+  if (isPlayerHidden && !isFullscreen) return null;
 
   // Écran "regarder le direct" seul (pas de TabBar, pas de contenu sous le player)
   // → centrer verticalement le bloc 16:9 dans l'espace disponible au lieu de le coller en haut

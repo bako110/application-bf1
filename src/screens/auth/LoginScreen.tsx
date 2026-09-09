@@ -9,7 +9,7 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -19,8 +19,28 @@ import { useTranslation } from '../../hooks/useTranslation';
 import { useAuthStore } from '../../stores';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
 import type { ProfileStackParams } from '../../navigation/types';
+import type { LoginRedirect } from '../../hooks/useLoginNavigation';
+import { navigationRef } from '../../navigation/navigationRef';
 
-type Nav = StackNavigationProp<ProfileStackParams, 'Login'>;
+type Nav   = StackNavigationProp<ProfileStackParams, 'Login'>;
+type Route = RouteProp<ProfileStackParams, 'Login'>;
+
+/** Navigue vers l'écran d'où l'utilisateur venait, ou repli sur Profile si absent/invalide. */
+function goToRedirectOrProfile(redirectRaw: string | undefined) {
+  const nav = navigationRef as any;
+  if (redirectRaw) {
+    try {
+      const redirect: LoginRedirect = JSON.parse(redirectRaw);
+      if (redirect?.tab && nav.isReady()) {
+        nav.navigate(redirect.tab, { screen: redirect.screen, params: redirect.params });
+        return;
+      }
+    } catch {}
+  }
+  if (nav.isReady()) {
+    nav.navigate('ProfileTab', { screen: 'Profile' });
+  }
+}
 
 // ─── Overlay Google OAuth ──────────────────────────────────────────────────────
 
@@ -133,6 +153,7 @@ export function LoginScreen() {
   const { theme, isDark } = useTheme();
   const { t }             = useTranslation();
   const navigation        = useNavigation<Nav>();
+  const route             = useRoute<Route>();
   const insets            = useSafeAreaInsets();
   const { login, loginWithGoogle, loading } = useAuthStore();
 
@@ -155,7 +176,7 @@ export function LoginScreen() {
     if (!validate()) return;
     try {
       await login(email.trim(), password);
-      navigation.reset({ index: 0, routes: [{ name: 'Profile' as never }] });
+      goToRedirectOrProfile(route.params?.redirect);
     } catch (err: any) {
       setErrors({ general: err?.message || t.auth.invalidCredentials });
     }
@@ -194,7 +215,7 @@ export function LoginScreen() {
 
       setGoogleOverlay(false);
       setGoogleLoading(false);
-      navigation.reset({ index: 0, routes: [{ name: 'Profile' as never }] });
+      goToRedirectOrProfile(route.params?.redirect);
     } catch (err: any) {
       setGoogleOverlay(false);
       setGoogleLoading(false);
@@ -208,7 +229,7 @@ export function LoginScreen() {
         setErrors({ general: err?.message || 'Erreur de connexion Google' });
       }
     }
-  }, [loginWithGoogle, navigation]);
+  }, [loginWithGoogle, route.params?.redirect]);
 
   const handleCancelGoogle = useCallback(() => {
     setGoogleOverlay(false);

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
-  FlatList, Image, ActivityIndicator, ScrollView,
+  FlatList, Image, ActivityIndicator, ScrollView, RefreshControl, Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -113,121 +113,15 @@ function EpisodeCard({ item, theme, onPress }: EpisodeCardProps) {
   );
 }
 
-// ─── Carte mise en avant (À ne pas manquer / Moments forts) ──────────────────
+// ─── Carrousel "À ne pas manquer" — édition premium ──────────────────────────
+// Cartes cinématographiques plein cadre : poster 16:9, dégradé profond, titre en
+// surimpression, badges glassmorphism, barre de progression segmentée animée.
 
-interface HighlightCardProps {
-  item:    ApiLiveHighlight;
-  theme:   any;
-  onPress: (item: ApiLiveHighlight) => void;
-}
-
-function HighlightCard({ item, theme, onPress }: HighlightCardProps) {
-  return (
-    <TouchableOpacity
-      style={[highlightStyles.card, { backgroundColor: theme.surface, shadowColor: '#000' }]}
-      onPress={() => onPress(item)}
-      activeOpacity={0.9}
-    >
-      <View style={highlightStyles.poster}>
-        <ImageWithSkeleton
-          uri={item.image_url}
-          style={StyleSheet.absoluteFill}
-          fallback={
-            <View style={[StyleSheet.absoluteFill, highlightStyles.imageFallback, { backgroundColor: theme.bg3 }]}>
-              <Icon name="film-outline" size={34} color={COLORS.redAlpha50} />
-            </View>
-          }
-        />
-
-        {/* Dégradé bas — assure la lisibilité du badge date sur toute image */}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.75)']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0.45 }}
-          end={{ x: 0, y: 1 }}
-          pointerEvents="none"
-        />
-
-        {item.video_url ? (
-          <View style={highlightStyles.playBadge}>
-            <Icon name="play" size={18} color={COLORS.white} style={{ marginLeft: 2 }} />
-          </View>
-        ) : null}
-
-        {formatHighlightDate(item.event_date) ? (
-          <View style={highlightStyles.dateBadge}>
-            <Icon name="calendar-outline" size={11} color={COLORS.white} />
-            <Text style={highlightStyles.dateBadgeText}>{formatHighlightDate(item.event_date)}</Text>
-          </View>
-        ) : null}
-      </View>
-
-      <View style={highlightStyles.info}>
-        <Text style={[highlightStyles.title, { color: theme.text }]} numberOfLines={2}>
-          {item.title}
-        </Text>
-        {item.description ? (
-          <Text style={[highlightStyles.desc, { color: theme.text3 }]} numberOfLines={2}>
-            {item.description}
-          </Text>
-        ) : null}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const highlightStyles = StyleSheet.create({
-  card: {
-    borderRadius:   RADIUS.xl,
-    marginBottom:   SPACING.lg,
-    overflow:       'hidden',
-    shadowOffset:   { width: 0, height: 4 },
-    shadowOpacity:  0.25,
-    shadowRadius:   8,
-    elevation:      5,
-  },
-  poster: {
-    width:            '100%',
-    aspectRatio:      16 / 9,
-    backgroundColor:  COLORS.blackAlpha90,
-    position:         'relative',
-  },
-  imageFallback: { alignItems: 'center', justifyContent: 'center' },
-  playBadge: {
-    position:        'absolute',
-    top:             '50%', left: '50%',
-    marginTop:       -22, marginLeft: -22,
-    width:           44, height: 44, borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems:      'center', justifyContent: 'center',
-    borderWidth:     1.5,
-    borderColor:     'rgba(255,255,255,0.35)',
-  },
-  dateBadge: {
-    position:          'absolute',
-    bottom:            10, left: 10,
-    flexDirection:     'row', alignItems: 'center', gap: 5,
-    backgroundColor:   'rgba(226,62,62,0.9)',
-    borderRadius:      RADIUS.sm,
-    paddingHorizontal: 8, paddingVertical: 4,
-  },
-  dateBadgeText: {
-    color:         COLORS.white,
-    fontSize:      FONT_SIZE.xxs,
-    fontWeight:    FONT_WEIGHT.bold,
-    letterSpacing: 0.3,
-  },
-  info:  { padding: SPACING.md, gap: 4 },
-  title: { fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold, lineHeight: 21, letterSpacing: -0.2 },
-  desc:  { fontSize: FONT_SIZE.xs, lineHeight: 17 },
-});
-
-// ─── Carrousel "À ne pas manquer" — défilement horizontal automatique ────────
-
-const CAROUSEL_CARD_W = Math.round(SCREEN.W * 0.78);
-const CAROUSEL_CARD_H = Math.round(CAROUSEL_CARD_W * 3 / 4);
-const CAROUSEL_SNAP   = CAROUSEL_CARD_W + SPACING.md;
-const CAROUSEL_AUTO_DELAY = 4500;
+const CAROUSEL_H_MARGIN  = SPACING.lg;
+const CAROUSEL_CARD_W     = Math.round(SCREEN.W - CAROUSEL_H_MARGIN * 2);
+const CAROUSEL_POSTER_H   = Math.round(CAROUSEL_CARD_W * 9 / 16);
+const CAROUSEL_SNAP       = CAROUSEL_CARD_W + SPACING.md;
+const CAROUSEL_AUTO_DELAY = 5000;
 
 interface HighlightCarouselProps {
   items:   ApiLiveHighlight[];
@@ -240,14 +134,26 @@ function HighlightCarousel({ items, theme, onPress }: HighlightCarouselProps) {
   const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeIdx, setActiveIdx] = useState(0);
 
+  // Pastille "live" qui pulse
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
   const goTo = useCallback((idx: number) => {
     if (!items.length) return;
-    const next = idx % items.length;
+    const next = ((idx % items.length) + items.length) % items.length;
     setActiveIdx(next);
     flatRef.current?.scrollToOffset({ offset: next * CAROUSEL_SNAP, animated: true });
   }, [items.length]);
 
-  // Défilement automatique — même logique que le HeroSlider de l'accueil
   useEffect(() => {
     if (items.length <= 1) return;
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -255,8 +161,18 @@ function HighlightCarousel({ items, theme, onPress }: HighlightCarouselProps) {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [activeIdx, items.length, goTo]);
 
+  if (!items.length) {
+    return (
+      <View style={cs.emptyCard}>
+        <View style={[cs.emptyInner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Icon name="sparkles-outline" size={26} color={theme.text3} />
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={carouselStyles.root}>
+    <View style={cs.root}>
       <FlatList
         ref={flatRef}
         data={items}
@@ -264,73 +180,91 @@ function HighlightCarousel({ items, theme, onPress }: HighlightCarouselProps) {
         horizontal
         showsHorizontalScrollIndicator={false}
         snapToInterval={CAROUSEL_SNAP}
+        snapToAlignment="start"
         decelerationRate="fast"
-        style={{ height: CAROUSEL_CARD_H }}
-        contentContainerStyle={carouselStyles.content}
+        contentContainerStyle={cs.content}
         onMomentumScrollEnd={e => {
           const idx = Math.round(e.nativeEvent.contentOffset.x / CAROUSEL_SNAP);
-          setActiveIdx(idx % Math.max(items.length, 1));
+          setActiveIdx(Math.max(0, Math.min(idx, items.length - 1)));
         }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[carouselStyles.card, { backgroundColor: theme.surface, shadowColor: '#000' }]}
-            onPress={() => onPress(item)}
-            activeOpacity={0.9}
-          >
-            <View style={carouselStyles.poster}>
+        renderItem={({ item }) => {
+          const date = formatHighlightDate(item.event_date);
+          return (
+            <TouchableOpacity
+              style={[cs.card, { shadowColor: COLORS.primary }]}
+              onPress={() => onPress(item)}
+              activeOpacity={0.92}
+            >
               <ImageWithSkeleton
                 uri={item.image_url}
                 style={StyleSheet.absoluteFill}
                 fallback={
-                  <View style={[StyleSheet.absoluteFill, highlightStyles.imageFallback, { backgroundColor: theme.bg3 }]}>
+                  <View style={[StyleSheet.absoluteFill, cs.fallback, { backgroundColor: theme.bg3 }]}>
                     <Icon name="film-outline" size={34} color={COLORS.redAlpha50} />
                   </View>
                 }
               />
+
+              {/* Dégradé cinématographique */}
               <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.8)']}
+                colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.92)']}
+                locations={[0, 0.45, 1]}
                 style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0.4 }}
-                end={{ x: 0, y: 1 }}
                 pointerEvents="none"
               />
-              {item.video_url ? (
-                <View style={highlightStyles.playBadge}>
-                  <Icon name="play" size={18} color={COLORS.white} style={{ marginLeft: 2 }} />
+
+              {/* Rangée haute : badge "À ne pas manquer" + date */}
+              <View style={cs.topRow}>
+                <View style={cs.tagPill}>
+                  <Animated.View
+                    style={[
+                      cs.tagDot,
+                      { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] }) }],
+                        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] }) },
+                    ]}
+                  />
+                  <View style={cs.tagDotCore} />
+                  <Text style={cs.tagText}>À NE PAS MANQUER</Text>
                 </View>
-              ) : null}
-              {formatHighlightDate(item.event_date) ? (
-                <View style={highlightStyles.dateBadge}>
-                  <Icon name="calendar-outline" size={11} color={COLORS.white} />
-                  <Text style={highlightStyles.dateBadgeText}>{formatHighlightDate(item.event_date)}</Text>
-                </View>
-              ) : null}
-              <View style={carouselStyles.overlayInfo} pointerEvents="none">
-                <Text style={carouselStyles.overlayTitle} numberOfLines={2}>{item.title}</Text>
-                {item.description ? (
-                  <Text style={carouselStyles.overlayDesc} numberOfLines={1}>{item.description}</Text>
+                {date ? (
+                  <View style={cs.datePill}>
+                    <Icon name="calendar-outline" size={11} color="#fff" />
+                    <Text style={cs.dateText}>{date}</Text>
+                  </View>
                 ) : null}
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={[carouselStyles.card, carouselStyles.emptyCard, { backgroundColor: theme.surface }]}>
-            <Icon name="film-outline" size={30} color={theme.text3} />
-          </View>
-        }
+
+              {/* Bouton play glassmorphism */}
+              {item.video_url ? (
+                <View style={cs.playWrap}>
+                  <View style={cs.playGlass}>
+                    <Icon name="play" size={22} color="#fff" style={{ marginLeft: 3 }} />
+                  </View>
+                </View>
+              ) : null}
+
+              {/* Bas : titre + description en surimpression */}
+              <View style={cs.bottom}>
+                <Text style={cs.title} numberOfLines={2}>{item.title}</Text>
+                {item.description ? (
+                  <Text style={cs.desc} numberOfLines={2}>{item.description}</Text>
+                ) : null}
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
 
-      {/* Dots de pagination */}
+      {/* Barre de progression segmentée */}
       {items.length > 1 && (
-        <View style={carouselStyles.dots}>
-          {items.map((item, i) => (
+        <View style={cs.progress}>
+          {items.map((it, i) => (
             <View
-              key={item.id}
+              key={it.id}
               style={[
-                carouselStyles.dot,
-                { backgroundColor: i === activeIdx ? COLORS.primary : theme.border },
-                i === activeIdx && carouselStyles.dotActive,
+                cs.segment,
+                { backgroundColor: theme.border },
+                i === activeIdx && { backgroundColor: COLORS.primary, flex: 2.4 },
               ]}
             />
           ))}
@@ -340,56 +274,80 @@ function HighlightCarousel({ items, theme, onPress }: HighlightCarouselProps) {
   );
 }
 
-const carouselStyles = StyleSheet.create({
-  root:    {},
-  content: { paddingHorizontal: SPACING.lg, gap: SPACING.md },
+const cs = StyleSheet.create({
+  root:    { paddingTop: SPACING.sm },
+  content: { paddingHorizontal: CAROUSEL_H_MARGIN },
   card: {
-    width:          CAROUSEL_CARD_W,
-    borderRadius:   RADIUS.xl,
-    overflow:       'hidden',
-    marginRight:    SPACING.md,
-    shadowOffset:   { width: 0, height: 4 },
-    shadowOpacity:  0.25,
-    shadowRadius:   8,
-    elevation:      5,
-  },
-  poster: {
-    width:           '100%',
-    aspectRatio:     4 / 3,
+    width:        CAROUSEL_CARD_W,
+    height:       CAROUSEL_POSTER_H,
+    marginRight:  SPACING.md,
+    borderRadius: RADIUS.xxl,
+    overflow:     'hidden',
     backgroundColor: COLORS.blackAlpha90,
-    position:        'relative',
+    shadowOffset:  { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius:  16,
+    elevation:     8,
   },
-  overlayInfo: {
-    position: 'absolute',
-    left: 12, right: 12, bottom: 30,
+  fallback: { alignItems: 'center', justifyContent: 'center' },
+
+  topRow: {
+    position: 'absolute', top: 12, left: 12, right: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  overlayTitle: {
-    color:            COLORS.white,
-    fontSize:         FONT_SIZE.base,
-    fontWeight:       FONT_WEIGHT.bold,
-    lineHeight:       21,
-    textShadowColor:  'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+  tagPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: 'rgba(226,62,62,0.92)',
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: RADIUS.full,
   },
-  overlayDesc: {
-    color:            'rgba(255,255,255,0.85)',
-    fontSize:         FONT_SIZE.xs,
-    marginTop:        2,
-    textShadowColor:  'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+  tagDot:     { position: 'absolute', left: 10, width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  tagDotCore: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  tagText:    { color: '#fff', fontSize: 9.5, fontWeight: FONT_WEIGHT.extrabold, letterSpacing: 0.7 },
+  datePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)',
+    paddingHorizontal: 9, paddingVertical: 4,
+    borderRadius: RADIUS.full,
   },
-  emptyCard: {
-    aspectRatio: 16 / 9,
+  dateText: { color: '#fff', fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.bold, letterSpacing: 0.2 },
+
+  playWrap: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center', justifyContent: 'center',
   },
-  dots: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    gap: 6, marginTop: SPACING.md,
+  playGlass: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  dotActive: { width: 18 },
+
+  bottom: {
+    position: 'absolute', left: 16, right: 16, bottom: 16, gap: 5,
+  },
+  title: {
+    color: '#fff', fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.extrabold,
+    lineHeight: 22, letterSpacing: -0.3,
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
+  },
+  desc: {
+    color: 'rgba(255,255,255,0.82)', fontSize: FONT_SIZE.xs,
+    lineHeight: 17, letterSpacing: 0.1,
+  },
+
+  progress: {
+    flexDirection: 'row', gap: 5, alignSelf: 'center',
+    marginTop: SPACING.md, paddingHorizontal: SPACING.lg,
+  },
+  segment: { flex: 1, height: 3, borderRadius: 2, maxWidth: 40 },
+
+  emptyCard: { paddingHorizontal: CAROUSEL_H_MARGIN, paddingTop: SPACING.sm },
+  emptyInner: {
+    height: CAROUSEL_POSTER_H, borderRadius: RADIUS.xxl, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
 });
 
 // ─── Carte programme (grille quotidienne) ────────────────────────────────────
@@ -527,6 +485,7 @@ export function LiveScreen() {
   const [activeTab,   setActiveTab]   = useState<ContentTab>('a_ne_pas_manquer');
   const [chatVisible, setChatVisible] = useState(false);
   const [reminderIds, setReminderIds] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const { setLiveData, isFullscreen, pendingFullscreen, consumeFullscreen } = useLiveStore();
@@ -542,7 +501,7 @@ export function LiveScreen() {
   }, [chat.chatOpen, chatVisible]);
 
   // ── Status live ──────────────────────────────────────────────────────────
-  const { data: liveData, isLoading: liveLoading } = useQuery({
+  const { data: liveData, isLoading: liveLoading, refetch: refetchLiveStatus } = useQuery({
     queryKey:        ['live-status'],
     queryFn:         () => api.getLive(),
     refetchInterval: 30_000,
@@ -564,7 +523,7 @@ export function LiveScreen() {
   }, [pendingFullscreen, playerUrl]);
 
   // ── Grille programme — sans filtre date, le backend retourne les prochains ──
-  const { data: scheduleData, isLoading: lSchedule } = useQuery({
+  const { data: scheduleData, isLoading: lSchedule, refetch: refetchSchedule } = useQuery({
     queryKey:        ['program-grid-today'],
     queryFn:         () => api.getProgramGrid(),
     staleTime:       5 * 60_000,
@@ -600,11 +559,11 @@ export function LiveScreen() {
   };
 
   // ── Contenus pour les onglets ────────────────────────────────────────────
-  const { data: sports        } = useQuery({ queryKey: ['sports-live'],        queryFn: () => api.getSports(0, 20) });
-  const { data: jtandmag      } = useQuery({ queryKey: ['jtandmag-live'],      queryFn: () => api.getJTandMag(0, 20) });
-  const { data: divertissement} = useQuery({ queryKey: ['divertissement-live'],queryFn: () => api.getDivertissement(0, 20) });
-  const { data: reportages    } = useQuery({ queryKey: ['reportages-live'],    queryFn: () => api.getReportages(0, 20) });
-  const { data: teleRealite   } = useQuery({ queryKey: ['telerealite-live'],   queryFn: () => api.getTeleRealite(0, 20) });
+  const { data: sports,         refetch: refetchSports }         = useQuery({ queryKey: ['sports-live'],        queryFn: () => api.getSports(0, 20) });
+  const { data: jtandmag,       refetch: refetchJtandmag }       = useQuery({ queryKey: ['jtandmag-live'],      queryFn: () => api.getJTandMag(0, 20) });
+  const { data: divertissement, refetch: refetchDivertissement } = useQuery({ queryKey: ['divertissement-live'],queryFn: () => api.getDivertissement(0, 20) });
+  const { data: reportages,     refetch: refetchReportages }     = useQuery({ queryKey: ['reportages-live'],    queryFn: () => api.getReportages(0, 20) });
+  const { data: teleRealite,    refetch: refetchTeleRealite }    = useQuery({ queryKey: ['telerealite-live'],   queryFn: () => api.getTeleRealite(0, 20) });
 
   // Contenu de l'onglet Émissions (miroir exact de bf1_tv_mobile loadLive)
   const allEmissions = React.useMemo(() => {
@@ -621,13 +580,17 @@ export function LiveScreen() {
   }, [sports, jtandmag, divertissement, reportages, teleRealite]);
 
   // ── Mises en avant gérées depuis l'admin (À ne pas manquer / Moments forts) ──
-  const { data: aNePasManquer = [] } = useQuery({
-    queryKey: ['live-highlights', 'a_ne_pas_manquer'],
-    queryFn:  () => api.getLiveHighlights('a_ne_pas_manquer'),
+  const { data: aNePasManquer = [], refetch: refetchANePasManquer } = useQuery({
+    queryKey:        ['live-highlights', 'a_ne_pas_manquer'],
+    queryFn:         () => api.getLiveHighlights('a_ne_pas_manquer'),
+    staleTime:       60_000,
+    refetchInterval: 60_000,
   });
-  const { data: momentsForts = [] } = useQuery({
-    queryKey: ['live-highlights', 'moments_forts'],
-    queryFn:  () => api.getLiveHighlights('moments_forts'),
+  const { data: momentsForts = [], refetch: refetchMomentsForts } = useQuery({
+    queryKey:        ['live-highlights', 'moments_forts'],
+    queryFn:         () => api.getLiveHighlights('moments_forts'),
+    staleTime:       60_000,
+    refetchInterval: 60_000,
   });
 
   // ── Rappels programme — charge les IDs persistés ─────────────────────────
@@ -671,6 +634,30 @@ export function LiveScreen() {
   const handleMomentsFortsPress = useCallback((item: ApiLiveHighlight) => {
     navigation.navigate('ShowDetail', { id: item.id, type: 'live_highlight' });
   }, [navigation]);
+
+  // ── Pull-to-refresh — recharge toutes les données de l'écran Live ────────
+  const handleRefreshAll = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        refetchLiveStatus(),
+        refetchSchedule(),
+        refetchSports(),
+        refetchJtandmag(),
+        refetchDivertissement(),
+        refetchReportages(),
+        refetchTeleRealite(),
+        refetchANePasManquer(),
+        refetchMomentsForts(),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [
+    refetchLiveStatus, refetchSchedule, refetchSports, refetchJtandmag,
+    refetchDivertissement, refetchReportages, refetchTeleRealite,
+    refetchANePasManquer, refetchMomentsForts,
+  ]);
 
   // ── Onglets ──────────────────────────────────────────────────────────────
   const tabs: { key: ContentTab; label: string }[] = [
@@ -771,19 +758,29 @@ export function LiveScreen() {
             <ActivityIndicator color={COLORS.primary} />
           </View>
         ) : activeTab === 'a_ne_pas_manquer' ? (
-          <View style={styles.carouselWrap}>
+          <ScrollView
+            style={styles.list}
+            contentContainerStyle={styles.carouselWrap}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={isRefreshing} onRefresh={handleRefreshAll} tintColor={COLORS.primary} />
+            }
+          >
             <HighlightCarousel
               items={aNePasManquer}
               theme={theme}
               onPress={handleANePasManquerPress}
             />
-          </View>
+          </ScrollView>
         ) : (
           <FlatList
             ref={flatListRef}
             data={currentItems}
             keyExtractor={(item, i) => String(item.id ?? item._id ?? i)}
             scrollEventThrottle={16}
+            refreshControl={
+              <RefreshControl refreshing={isRefreshing} onRefresh={handleRefreshAll} tintColor={COLORS.primary} />
+            }
             renderItem={({ item }) =>
               activeTab === 'schedule' ? (
                 <ScheduleCard
@@ -794,7 +791,11 @@ export function LiveScreen() {
                   theme={theme}
                 />
               ) : isHighlightListTab ? (
-                <HighlightCard item={item} theme={theme} onPress={handleMomentsFortsPress} />
+                <EpisodeCard
+                  item={{ ...item, published_at: item.event_date }}
+                  theme={theme}
+                  onPress={handleMomentsFortsPress}
+                />
               ) : (
                 <EpisodeCard item={item} theme={theme} onPress={handleEpisodePress} />
               )
@@ -824,6 +825,9 @@ export function LiveScreen() {
         messages={chat.messages}
         chatOpen={chat.chatOpen}
         wsStatus={chat.wsStatus}
+        hasMoreOlder={chat.hasMoreOlder}
+        loadingOlder={chat.loadingOlder}
+        loadOlder={chat.loadOlder}
         sendMessage={chat.sendMessage}
         deleteMessage={chat.deleteMessage}
         editMessage={chat.editMessage}
@@ -895,7 +899,7 @@ const styles = StyleSheet.create({
   // Episodes list
   contentLoader: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
   list:          { flex: 1 },
-  carouselWrap:  { flex: 1, justifyContent: 'center' },
+  carouselWrap:  { flexGrow: 1, paddingTop: SPACING.md, paddingBottom: SPACING.xl },
 
   episodeCard: {
     flexDirection: 'row', gap: SPACING.md, borderRadius: RADIUS.md,

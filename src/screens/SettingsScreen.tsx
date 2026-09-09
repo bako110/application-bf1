@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, StatusBar,
   ScrollView,
@@ -12,6 +12,7 @@ import { useThemeStore, useUiStore } from '../stores';
 import type { ThemeMode } from '../theme';
 import type { Language } from '../i18n';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../constants';
+import { FeedbackModal } from '../components/profile/FeedbackModal';
 
 // ─── Composants locaux ────────────────────────────────────────────────────────
 
@@ -69,6 +70,7 @@ export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { preference: themeMode, setMode } = useThemeStore();
   const { language, setLanguage } = useUiStore();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   type ThemeOption = { label: string; icon: string; value: ThemeMode | 'auto' };
   const themeOptions: ThemeOption[] = [
@@ -147,6 +149,17 @@ export function SettingsScreen() {
         {/* ── À propos ── */}
         <SectionLabel label={t.settings.appSection} theme={theme} />
         <View style={[styles.card, { backgroundColor: theme.surface }]}>
+          <TouchableOpacity
+            style={[styles.optionRow, { borderBottomColor: theme.divider }]}
+            onPress={() => setFeedbackOpen(true)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.iconWrap, { backgroundColor: COLORS.redAlpha12 }]}>
+              <Icon name="chatbox-ellipses-outline" size={18} color={COLORS.primary} />
+            </View>
+            <Text style={[styles.optionLabel, { color: theme.text }]}>{t.settings.feedbackRow}</Text>
+            <Icon name="chevron-forward" size={16} color={theme.text3} />
+          </TouchableOpacity>
           <View style={[styles.infoRow, { borderBottomColor: theme.divider }]}>
             <Text style={[styles.infoLabel, { color: theme.text3 }]}>{t.settings.version}</Text>
             <Text style={[styles.infoValue, { color: theme.text }]}>1.0.0</Text>
@@ -158,6 +171,8 @@ export function SettingsScreen() {
         </View>
 
       </ScrollView>
+
+      <FeedbackModal visible={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </View>
   );
 }

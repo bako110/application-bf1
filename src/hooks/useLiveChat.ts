@@ -17,33 +17,62 @@ export interface ChatMessage {
 
 type ChatStatus = 'connecting' | 'connected' | 'fallback' | 'error';
 
+// Plafond RAM large : la fenêtre serveur est de 20 min, `loadOlder` va chercher
+// plus loin dans l'historique persisté (TTL 90 j côté backend).
+const MAX_RAM_MESSAGES = 1000;
+
 interface ChatState {
-  messages:  ChatMessage[];
-  chatOpen:  boolean;
-  viewers:   number;
-  wsStatus:  ChatStatus;
+  messages:      ChatMessage[];
+  chatOpen:      boolean;
+  viewers:       number;
+  wsStatus:      ChatStatus;
+  hasMoreOlder:  boolean;
+  loadingOlder:  boolean;
 }
 
 type ChatAction =
   | { type: 'INIT';    messages: ChatMessage[]; chatOpen: boolean; viewers: number }
   | { type: 'APPEND';  message: ChatMessage }
+  | { type: 'PREPEND'; messages: ChatMessage[]; hasMore: boolean }
   | { type: 'REMOVE';  id: string }
   | { type: 'EDIT';    id: string; text: string }
   | { type: 'STATUS';  chatOpen: boolean }
   | { type: 'CLEARED' }
   | { type: 'VIEWERS'; count: number }
   | { type: 'WS_STATUS'; wsStatus: ChatStatus }
+  | { type: 'LOADING_OLDER'; value: boolean }
   | { type: 'FALLBACK_MSGS'; messages: ChatMessage[] };
+
+/** Fusionne deux listes triées chrono en dédupliquant par id. */
+function mergeById(older: ChatMessage[], current: ChatMessage[]): ChatMessage[] {
+  const seen = new Set(current.map(m => m.id));
+  const merged = [...older.filter(m => !seen.has(m.id)), ...current];
+  return merged.length > MAX_RAM_MESSAGES ? merged.slice(-MAX_RAM_MESSAGES) : merged;
+}
 
 function reducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case 'INIT':
-      return { ...state, messages: action.messages.slice(-200), chatOpen: action.chatOpen, viewers: action.viewers };
+      return {
+        ...state,
+        messages: action.messages.slice(-MAX_RAM_MESSAGES),
+        chatOpen: action.chatOpen,
+        viewers:  action.viewers,
+        hasMoreOlder: action.messages.length > 0,
+      };
     case 'APPEND': {
+      if (state.messages.some(m => m.id === action.message.id)) return state;
       const msgs = [...state.messages, action.message];
-      if (msgs.length > 200) msgs.shift();
+      if (msgs.length > MAX_RAM_MESSAGES) msgs.shift();
       return { ...state, messages: msgs };
     }
+    case 'PREPEND':
+      return {
+        ...state,
+        messages: mergeById(action.messages, state.messages),
+        hasMoreOlder: action.hasMore,
+        loadingOlder: false,
+      };
     case 'REMOVE':
       return { ...state, messages: state.messages.filter(m => m.id !== action.id) };
     case 'EDIT':
@@ -56,29 +85,35 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
     case 'STATUS':
       return { ...state, chatOpen: action.chatOpen };
     case 'CLEARED':
-      return { ...state, messages: [] };
+      return { ...state, messages: [], hasMoreOlder: false };
     case 'VIEWERS':
       return { ...state, viewers: action.count };
     case 'WS_STATUS':
       return { ...state, wsStatus: action.wsStatus };
+    case 'LOADING_OLDER':
+      return { ...state, loadingOlder: action.value };
     case 'FALLBACK_MSGS':
-      return { ...state, messages: action.messages.slice(-200) };
+      return { ...state, messages: action.messages.slice(-MAX_RAM_MESSAGES) };
     default:
       return state;
   }
 }
 
 const INITIAL: ChatState = {
-  messages:  [],
-  chatOpen:  true,
-  viewers:   0,
-  wsStatus:  'connecting',
+  messages:      [],
+  chatOpen:      true,
+  viewers:       0,
+  wsStatus:      'connecting',
+  hasMoreOlder:  true,
+  loadingOlder:  false,
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useLiveChat(userId?: string | number | null) {
   const [state, dispatch] = useReducer(reducer, INITIAL);
+  const stateRef          = useRef(state);
+  stateRef.current        = state;
   const wsRef             = useRef<WebSocket | null>(null);
   const wsReadyRef        = useRef(false);
   const destroyedRef      = useRef(false);
@@ -104,6 +139,24 @@ export function useLiveChat(userId?: string | number | null) {
 
   const stopFallback = useCallback(() => {
     if (fallbackTimer.current) { clearInterval(fallbackTimer.current); fallbackTimer.current = null; }
+  }, []);
+
+  // ── Charger les messages plus anciens (pagination vers le passé) ──────────
+  const loadingOlderRef = useRef(false);
+  const loadOlder = useCallback(async () => {
+    if (loadingOlderRef.current) return;
+    loadingOlderRef.current = true;
+    dispatch({ type: 'LOADING_OLDER', value: true });
+    try {
+      // skip = nombre de messages déjà chargés → on récupère la tranche d'avant
+      const skip = stateRef.current.messages.length;
+      const { comments, hasMore } = await api.getLiveCommentsPage(skip, 50);
+      dispatch({ type: 'PREPEND', messages: comments as ChatMessage[], hasMore });
+    } catch {
+      dispatch({ type: 'LOADING_OLDER', value: false });
+    } finally {
+      loadingOlderRef.current = false;
+    }
   }, []);
 
   // ── Message WS entrant ────────────────────────────────────────────────────
@@ -274,6 +327,9 @@ export function useLiveChat(userId?: string | number | null) {
     chatOpen:      state.chatOpen,
     viewers:       state.viewers,
     wsStatus:      state.wsStatus,
+    hasMoreOlder:  state.hasMoreOlder,
+    loadingOlder:  state.loadingOlder,
+    loadOlder,
     sendMessage,
     deleteMessage,
     editMessage,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, Image, TouchableOpacity,
   StyleSheet, StatusBar, ActivityIndicator,
@@ -11,6 +11,7 @@ import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 import { useTheme } from '../hooks/useTheme';
+import { useLiveStore } from '../stores';
 import * as api from '../services/api';
 import { getImageUrl } from '../utils';
 import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SCREEN } from '../constants';
@@ -20,10 +21,11 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 type Nav   = StackNavigationProp<LiveStackParams>;
 type Route = RouteProp<LiveStackParams, 'LiveHighlightDetail'>;
 
-const SW = SCREEN.W;
-const HERO_H = SW * 9 / 16;
+const SW      = SCREEN.W;
+const HERO_H  = Math.round(SCREEN.H / 2);
+const VIDEO_H = Math.round(SW * 9 / 16);
 
-function formatEventDate(dt?: string | null): string | null {
+function formatEventDate(dt?: string | null): { day: string; time: string } | null {
   if (!dt) return null;
   const d = new Date(dt);
   if (isNaN(d.getTime())) return null;
@@ -32,18 +34,25 @@ function formatEventDate(dt?: string | null): string | null {
   const year  = d.getFullYear();
   const hours = String(d.getHours()).padStart(2, '0');
   const mins  = String(d.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} à ${hours}:${mins}`;
+  return { day: `${day}/${month}/${year}`, time: `${hours}:${mins}` };
 }
 
 export function LiveHighlightDetailScreen() {
   const { theme, isDark } = useTheme();
-  const navigation        = useNavigation<Nav>();
+  const navigation         = useNavigation<Nav>();
   const route              = useRoute<Route>();
   const insets             = useSafeAreaInsets();
   const { id }             = route.params;
+  const { setPlayerHidden } = useLiveStore();
 
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused]         = useState(false);
   const [showControls, setShowControls] = useState(true);
+
+  // Le lecteur global du direct ne doit jamais recouvrir cet écran de détail
+  useEffect(() => {
+    setPlayerHidden(true);
+    return () => setPlayerHidden(false);
+  }, [setPlayerHidden]);
 
   const { data: item, isLoading } = useQuery({
     queryKey: ['live-highlight', id],
@@ -73,6 +82,7 @@ export function LiveHighlightDetailScreen() {
   }
 
   const hasVideo = !!item.video_url;
+  const dateInfo = formatEventDate(item.event_date);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -80,14 +90,14 @@ export function LiveHighlightDetailScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
 
-        {/* ── HERO : vidéo si disponible, sinon affiche ────────────────────── */}
+        {/* ── HERO : vidéo si disponible, sinon affiche immersive ──────────── */}
         {hasVideo ? (
           <View style={{ backgroundColor: '#000' }}>
             <View style={{ height: insets.top + 12, backgroundColor: '#000', width: '100%' }} />
             <TouchableOpacity
               activeOpacity={1}
               onPress={() => setShowControls(v => !v)}
-              style={{ width: SW, height: HERO_H }}
+              style={{ width: SW, height: VIDEO_H }}
             >
               <Video
                 source={{ uri: item.video_url! }}
@@ -99,10 +109,10 @@ export function LiveHighlightDetailScreen() {
               />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.iconBtn, { position: 'absolute', top: insets.top + 8, left: SPACING.lg, zIndex: 99 }]}
+              style={[styles.glassBtn, { position: 'absolute', top: insets.top + 8, left: SPACING.lg, zIndex: 99 }]}
               onPress={() => navigation.goBack()}
             >
-              <Icon name="arrow-back" size={22} color="#fff" />
+              <Icon name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         ) : (
@@ -113,23 +123,33 @@ export function LiveHighlightDetailScreen() {
               <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0d0008' }]} />
             )}
             <LinearGradient
-              colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.88)']}
+              colors={['rgba(0,0,0,0.55)', 'transparent', 'transparent', 'rgba(0,0,0,0.92)']}
+              locations={[0, 0.25, 0.55, 1]}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
             />
+
             <View style={[styles.heroTopBar, { paddingTop: insets.top + 8 }]}>
-              <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-                <Icon name="arrow-back" size={22} color="#fff" />
+              <TouchableOpacity style={styles.glassBtn} onPress={() => navigation.goBack()}>
+                <Icon name="arrow-back" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
+
             <View style={styles.heroBottom}>
-              {formatEventDate(item.event_date) ? (
+              <View style={styles.brandRow}>
+                <View style={styles.brandDot} />
+                <Text style={styles.brandLabel}>À NE PAS MANQUER</Text>
+              </View>
+              <Text style={styles.heroTitle} numberOfLines={3}>{item.title}</Text>
+              {dateInfo ? (
                 <View style={styles.dateBadge}>
-                  <Icon name="calendar-outline" size={11} color="#fff" />
-                  <Text style={styles.dateBadgeText}>{formatEventDate(item.event_date)}</Text>
+                  <Icon name="calendar-outline" size={12} color={COLORS.white} />
+                  <Text style={styles.dateBadgeText}>{dateInfo.day}</Text>
+                  <View style={styles.dateBadgeSep} />
+                  <Icon name="time-outline" size={12} color={COLORS.white} />
+                  <Text style={styles.dateBadgeText}>{dateInfo.time}</Text>
                 </View>
               ) : null}
-              <Text style={styles.heroTitle} numberOfLines={3}>{item.title}</Text>
             </View>
           </View>
         )}
@@ -139,21 +159,34 @@ export function LiveHighlightDetailScreen() {
           {hasVideo && (
             <>
               <Text style={[styles.title, { color: theme.text }]} numberOfLines={3}>{item.title}</Text>
-              {formatEventDate(item.event_date) ? (
+              {dateInfo ? (
                 <View style={styles.dateRow}>
-                  <Icon name="calendar-outline" size={14} color={theme.text3} />
-                  <Text style={[styles.dateRowText, { color: theme.text3 }]}>{formatEventDate(item.event_date)}</Text>
+                  <View style={[styles.dateChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                    <Icon name="calendar-outline" size={13} color={COLORS.primary} />
+                    <Text style={[styles.dateChipText, { color: theme.text2 }]}>{dateInfo.day}</Text>
+                  </View>
+                  <View style={[styles.dateChip, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                    <Icon name="time-outline" size={13} color={COLORS.primary} />
+                    <Text style={[styles.dateChipText, { color: theme.text2 }]}>{dateInfo.time}</Text>
+                  </View>
                 </View>
               ) : null}
             </>
           )}
 
           {item.description ? (
-            <View style={[styles.descCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.descLabel, { color: COLORS.primary }]}>Description</Text>
+            <View style={styles.descSection}>
+              <View style={styles.descHeader}>
+                <View style={styles.descIconWrap}>
+                  <Icon name="document-text-outline" size={14} color={COLORS.primary} />
+                </View>
+                <Text style={[styles.descLabel, { color: theme.text }]}>À propos</Text>
+              </View>
               <Text style={[styles.descText, { color: theme.text2 }]}>{item.description}</Text>
             </View>
           ) : null}
+
+          <View style={{ height: insets.bottom + SPACING.xl }} />
         </View>
       </ScrollView>
     </View>
@@ -166,59 +199,85 @@ const styles = StyleSheet.create({
   notFoundText: { fontSize: FONT_SIZE.sm },
   backAbsolute: { position: 'absolute', left: SPACING.lg, zIndex: 10, padding: 6 },
 
-  // Hero image (sans vidéo)
+  // Hero image (sans vidéo) — immersif, style éditorial
   hero: {
     width:           '100%',
-    height:          HERO_H + 70,
+    height:          HERO_H,
     backgroundColor: '#000',
     justifyContent:  'flex-end',
   },
   heroTopBar: {
     position:          'absolute',
     top: 0, left: 0, right: 0,
+    flexDirection:      'row',
+    justifyContent:     'space-between',
     paddingHorizontal:  SPACING.lg,
     zIndex:             10,
   },
   heroBottom: {
     paddingHorizontal: SPACING.lg,
     paddingBottom:     SPACING.xl,
-    gap:               10,
+    gap:               12,
   },
-  iconBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  glassBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(20,20,20,0.55)',
     alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  dateBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(226,62,62,0.9)',
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: 8, paddingVertical: 4,
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  brandDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: COLORS.primary,
   },
-  dateBadgeText: { color: '#fff', fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.bold, letterSpacing: 0.3 },
+  brandLabel: {
+    color: COLORS.primary,
+    fontSize: FONT_SIZE.xxs,
+    fontWeight: FONT_WEIGHT.extrabold,
+    letterSpacing: 1.5,
+  },
   heroTitle: {
     color: '#fff',
-    fontSize: FONT_SIZE.xl,
+    fontSize: 26,
     fontWeight: FONT_WEIGHT.extrabold,
-    lineHeight: 28,
-    letterSpacing: -0.4,
+    lineHeight: 32,
+    letterSpacing: -0.6,
     textShadowColor: 'rgba(0,0,0,0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
   },
+  dateBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(20,20,20,0.6)',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    marginTop: 4,
+  },
+  dateBadgeText: { color: '#fff', fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold },
+  dateBadgeSep: { width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 2 },
 
   // Corps
-  body: { flex: 1, padding: SPACING.lg, gap: SPACING.md },
-  title: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, lineHeight: 25 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -4 },
-  dateRowText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium },
-  descCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    padding: SPACING.md,
-    gap: 6,
+  body: { flex: 1, padding: SPACING.lg, gap: SPACING.lg },
+  title: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.extrabold, lineHeight: 29, letterSpacing: -0.4 },
+  dateRow: { flexDirection: 'row', gap: 8, marginTop: -8 },
+  dateChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: RADIUS.full, borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 6,
   },
-  descLabel: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, letterSpacing: 0.5, textTransform: 'uppercase' },
-  descText: { fontSize: FONT_SIZE.sm, lineHeight: 21 },
+  dateChipText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold },
+
+  descSection: { gap: 10 },
+  descHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  descIconWrap: {
+    width: 24, height: 24, borderRadius: 8,
+    backgroundColor: COLORS.redAlpha12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  descLabel: { fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold, letterSpacing: -0.2 },
+  descText: { fontSize: FONT_SIZE.sm, lineHeight: 23 },
 });

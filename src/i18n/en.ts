@@ -130,6 +130,20 @@ export default {
     logoutConfirmMsg:   'Are you sure you want to sign out?',
     logoutConfirm:  'Sign out',
     version:        'BF1 TV © 2026  ·  Version 1.0.0',
+    // Sections
+    sectionAccount:   'Account',
+    sectionPrefs:     'Preferences',
+    editProfileCta:   'Edit profile',
+    // Feedback
+    usernameSaved:    'Username updated',
+    emailSaved:       'Email updated',
+    avatarSaved:      'Profile photo updated',
+    // Subscription card — states
+    subLoadError:     'Unable to load your subscription',
+    retry:            'Retry',
+    // Guest
+    guestHeadline:    'Sign in to your account',
+    guestBody:        'Comment on live streams, manage your favorites and get notifications.',
   },
 
   subscription: {
@@ -216,6 +230,11 @@ export default {
     paywallSubReq:  '{cat} required for this content.',
     paywallDefault: 'A subscription is required to access this content.',
     unlockContent:  'Unlock this content',
+    // Maintenance
+    maintenanceTitle: 'Subscriptions under maintenance',
+    maintenanceBody:  'Our subscription system is temporarily unavailable while we roll out an update. Please try again shortly — thanks for your patience.',
+    maintenanceStatus:'Service temporarily unavailable',
+    maintenanceCta:   'Got it',
   },
 
   favorites: {
@@ -288,6 +307,8 @@ export default {
     premiumSub:       'Subscribe to access this exclusive content.',
     seeOffers:        'See plans',
     notFound:         'Content not found',
+    addedToFavorites:    'Added to favorites',
+    removedFromFavorites:'Removed from favorites',
   },
 
   // ─── Reels ────────────────────────────────────────────────────────────────
@@ -320,6 +341,29 @@ export default {
     appSection:        'Application',
     version:           'Version',
     platform:          'Platform',
+    feedbackRow:       'Send feedback',
+  },
+
+  // ─── Feedback ─────────────────────────────────────────────────────────────
+  feedback: {
+    title:        'Your feedback',
+    subtitle:     'Help us improve BF1 TV. Tell us what you like or what could be better.',
+    ratingLabel:  'Your rating',
+    categoryLabel:'Feedback type',
+    catBug:       'Problem',
+    catIdea:      'Suggestion',
+    catCompliment:'Compliment',
+    catOther:     'Other',
+    placeholder:  'Describe your experience, a bug you hit, or an idea…',
+    emailLabel:   'Email (optional)',
+    emailPh:      'So we can get back to you',
+    send:         'Send',
+    sending:      'Sending…',
+    successTitle: 'Thanks for your feedback!',
+    successBody:  'Your message has been sent to our team.',
+    close:        'Close',
+    errorEmpty:   'Please write a few words before sending.',
+    errorSend:    'Could not send. Check your connection and try again.',
   },
 
   content: {

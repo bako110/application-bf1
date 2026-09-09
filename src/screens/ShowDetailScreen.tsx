@@ -12,7 +12,7 @@ import YoutubePlayer from 'react-native-youtube-iframe';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
-import { useAuthStore, useUiStore } from '../stores';
+import { useAuthStore, useUiStore, useLiveStore } from '../stores';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useContentComments } from '../hooks/useContentComments';
 import * as api from '../services/api';
@@ -301,7 +301,7 @@ export function ShowDetailScreen() {
   const route             = useRoute<Route>();
   const insets            = useSafeAreaInsets();
   const { isAuthenticated, canAccess, user } = useAuthStore();
-  const { showLoginModal } = useUiStore();
+  const { showLoginModal, showToast } = useUiStore();
   const navigateToLogin    = useLoginNavigation();
   const qc                = useQueryClient();
 
@@ -313,6 +313,13 @@ export function ShowDetailScreen() {
   const [premiumOpen,   setPremiumOpen]   = useState(false);
   const [ytPlaying,     setYtPlaying]     = useState(true);
   const [ytReady,       setYtReady]       = useState(false);
+
+  // Le lecteur global du direct ne doit jamais recouvrir cet écran (cas: ouvert depuis LiveTab)
+  const { setPlayerHidden } = useLiveStore();
+  useEffect(() => {
+    setPlayerHidden(true);
+    return () => setPlayerHidden(false);
+  }, [setPlayerHidden]);
 
   // ─── Show ──────────────────────────────────────────────────────────────────
   const { data: show, isLoading, error } = useQuery({
@@ -362,6 +369,7 @@ export function ShowDetailScreen() {
       qc.invalidateQueries({ queryKey: ['liked', contentType, idStr] });
       qc.invalidateQueries({ queryKey: ['likes-count', contentType, idStr] });
     },
+    onError: () => showToast(t.errors?.unknown ?? 'Une erreur est survenue'),
   });
   const favMutation = useMutation({
     mutationFn: () => isFavorited
@@ -369,7 +377,9 @@ export function ShowDetailScreen() {
       : api.addFavorite(contentType, idStr),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['favorited', contentType, idStr] });
+      showToast(isFavorited ? (t.show?.removedFromFavorites ?? 'Retiré des favoris') : (t.show?.addedToFavorites ?? 'Ajouté aux favoris'));
     },
+    onError: () => showToast(t.errors?.unknown ?? 'Une erreur est survenue'),
   });
   const commentMutation = useMutation({
     mutationFn: (text: string) => api.addComment(contentType, idStr, text),
@@ -388,6 +398,7 @@ export function ShowDetailScreen() {
     },
     onError: (_err, _text, ctx) => {
       if (ctx?.tempId) removeOptimistic(ctx.tempId);
+      showToast(t.errors?.unknown ?? 'Impossible d\'envoyer le commentaire');
     },
   });
 
@@ -499,7 +510,12 @@ export function ShowDetailScreen() {
         </TouchableOpacity>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} bounces={false} disableScrollViewPanResponder>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+      >
 
         {/* ── HERO ──────────────────────────────────────────────────────────── */}
         {hasVideo ? (
@@ -514,7 +530,7 @@ export function ShowDetailScreen() {
                 videoId={ytId!}
                 play={ytPlaying}
                 onReady={() => setYtReady(true)}
-                onChangeState={state => {
+                onChangeState={(state: string) => {
                   if (state === 'playing') setYtPlaying(true);
                   if (state === 'paused' || state === 'ended') setYtPlaying(false);
                 }}
@@ -537,6 +553,12 @@ export function ShowDetailScreen() {
                     <Icon name="play" size={32} color="#fff" />
                   </View>
                 </TouchableOpacity>
+              )}
+              {/* Loader tant que le lecteur YouTube n'est pas prêt */}
+              {ytPlaying && !ytReady && (
+                <View style={[styles.ytOverlay, { backgroundColor: 'rgba(0,0,0,0.35)' }]} pointerEvents="none">
+                  <ActivityIndicator size="large" color="#fff" />
+                </View>
               )}
             </View>
           </View>
@@ -745,24 +767,25 @@ export function ShowDetailScreen() {
             </View>
           )}
 
-          {/* Vidéos similaires */}
+          {/* Vidéos similaires — ScrollView horizontal (plus fiable qu'une FlatList imbriquée) */}
           {(related as any[]).length > 0 && (
             <>
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               <Text style={[styles.sectionTitle, { color: theme.text }]}>{t.show.similar}</Text>
-              <FlatList
-                data={related as any[]}
+              <ScrollView
                 horizontal
-                keyExtractor={(item: any) => item.id}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.relScroll}
-                renderItem={({ item }: { item: any }) => (
+                nestedScrollEnabled
+              >
+                {(related as any[]).map((item: any) => (
                   <RelatedCard
+                    key={String(item.id)}
                     item={item}
                     onPress={() => navigation.push('ShowDetail', { id: item.id, type: item.type ?? contentType })}
                   />
-                )}
-              />
+                ))}
+              </ScrollView>
             </>
           )}
 
@@ -899,7 +922,6 @@ const styles = StyleSheet.create({
     elevation:       8,
   },
   body: {
-    flex: 1,
     paddingTop: 4,
   },
   statsBar: {
@@ -1075,11 +1097,11 @@ const styles = StyleSheet.create({
   relScroll: {
     paddingHorizontal: SPACING.lg,
     paddingBottom:     8,
-    gap:               12,
   },
   relCard: {
-    width:      REL_W,
-    flexShrink: 0,
+    width:       REL_W,
+    flexShrink:  0,
+    marginRight: 12,
   },
   relThumb: {
     width:        REL_W,

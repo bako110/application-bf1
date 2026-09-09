@@ -9,14 +9,16 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, Animated,
   ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView,
-  Platform,
+  Platform, StatusBar,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useAuthStore } from '../../stores';
 import * as api from '../../services/api';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../../constants';
+import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SUBSCRIPTIONS_MAINTENANCE } from '../../constants';
+import LinearGradient from 'react-native-linear-gradient';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -221,6 +223,7 @@ const pc = StyleSheet.create({
 export function PremiumModal({ visible, onClose, requiredCategory = null, onSuccess }: Props) {
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { user, isAuthenticated, setUser } = useAuthStore() as any;
 
   const [step,          setStep]          = useState<Step>(1);
@@ -248,7 +251,7 @@ export function PremiumModal({ visible, onClose, requiredCategory = null, onSucc
       setStep(1); setError(''); setSelectedPlan(null); setPayMethod(null);
       setPhone(''); setOtp(''); setCardNum(''); setExpiry(''); setCvv(''); setCardName('');
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
-      loadPlans();
+      if (!SUBSCRIPTIONS_MAINTENANCE) loadPlans();
     } else {
       Animated.timing(slideAnim, { toValue: 600, duration: 280, useNativeDriver: true }).start();
     }
@@ -320,6 +323,12 @@ export function PremiumModal({ visible, onClose, requiredCategory = null, onSucc
     if (step === 3) { setPayMethod(null); setStep(2); }
     else if (step === 2) { setSelectedPlan(null); setStep(1); }
   }, [step]);
+
+  // Retour physique Android : revient d'une étape dans le tunnel, sinon ferme.
+  const handleRequestClose = useCallback(() => {
+    if (step === 2 || step === 3) { handleBack(); return; }
+    onClose();
+  }, [step, handleBack, onClose]);
 
   const handleSubmit = useCallback(async () => {
     setError('');
@@ -600,8 +609,52 @@ export function PremiumModal({ visible, onClose, requiredCategory = null, onSucc
     4: '',
   };
 
+  // ── Mode maintenance : court-circuite tout le tunnel de souscription ────────
+  if (SUBSCRIPTIONS_MAINTENANCE) {
+    return (
+      <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+        {visible && <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />}
+        <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose} />
+        <Animated.View style={[s.sheetMaint, { backgroundColor: theme.surface, transform: [{ translateY: slideAnim }] }]}>
+          <View style={s.handleWrap}>
+            <View style={[s.handle, { backgroundColor: theme.border }]} />
+          </View>
+          <TouchableOpacity onPress={onClose} style={mt.close} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <Icon name="close" size={20} color={theme.text3} />
+          </TouchableOpacity>
+
+          <View style={[mt.body, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
+            <View style={mt.haloOuter}>
+              <LinearGradient
+                colors={['rgba(226,62,62,0.18)', 'rgba(226,62,62,0.02)']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
+              />
+              <View style={[mt.haloInner, { borderColor: theme.border }]}>
+                <Icon name="construct-outline" size={34} color={COLORS.primary} />
+              </View>
+            </View>
+
+            <Text style={[mt.title, { color: theme.text }]}>{t.subscription.maintenanceTitle}</Text>
+            <Text style={[mt.text, { color: theme.text3 }]}>{t.subscription.maintenanceBody}</Text>
+
+            <View style={[mt.statusRow, { backgroundColor: theme.bg3, borderColor: theme.border }]}>
+              <View style={mt.pulseDot} />
+              <Text style={[mt.statusText, { color: theme.text2 }]}>{t.subscription.maintenanceStatus}</Text>
+            </View>
+
+            <TouchableOpacity style={mt.cta} onPress={onClose} activeOpacity={0.88}>
+              <Text style={mt.ctaText}>{t.subscription.maintenanceCta}</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </Modal>
+    );
+  }
+
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={handleRequestClose} statusBarTranslucent>
+      {visible && <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />}
       <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={step < 4 ? onClose : undefined} />
 
       <Animated.View style={[s.sheet, { backgroundColor: theme.surface, transform: [{ translateY: slideAnim }] }]}>
@@ -635,7 +688,7 @@ export function PremiumModal({ visible, onClose, requiredCategory = null, onSucc
           {/* Corps */}
           <ScrollView
             style={{ flex: 1 }}
-            contentContainerStyle={{ padding: SPACING.lg, paddingBottom: 32 }}
+            contentContainerStyle={{ padding: SPACING.lg, paddingBottom: Math.max(insets.bottom, 16) + 24 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
@@ -675,11 +728,43 @@ const ps = StyleSheet.create({
   dur:   { fontSize: 11 },
 });
 
+// ─── Styles écran maintenance ─────────────────────────────────────────────────
+
+const mt = StyleSheet.create({
+  close:     { position: 'absolute', top: 12, right: 16, padding: 4, zIndex: 2 },
+  body:      { alignItems: 'center', paddingHorizontal: 28, paddingTop: 12, gap: 14 },
+  haloOuter: {
+    width: 104, height: 104, borderRadius: 52, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  haloInner: {
+    width: 72, height: 72, borderRadius: 36, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(226,62,62,0.06)',
+  },
+  title: { fontSize: 20, fontWeight: FONT_WEIGHT.bold, textAlign: 'center' },
+  text:  { fontSize: FONT_SIZE.sm, lineHeight: 20, textAlign: 'center', maxWidth: 320 },
+  statusRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 9,
+    borderRadius: RADIUS.full, borderWidth: 1, marginTop: 2,
+  },
+  pulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.warning },
+  statusText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, letterSpacing: 0.2 },
+  cta: {
+    marginTop: 10, alignSelf: 'stretch',
+    backgroundColor: COLORS.primary, borderRadius: RADIUS.lg,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  ctaText: { color: '#fff', fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold },
+});
+
 // ─── Styles sheet ─────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
   overlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.75)' },
   sheet:    { position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '92%', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+  sheetMaint: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
   handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 2 },
   handle:     { width: 36, height: 4, borderRadius: 2 },
 

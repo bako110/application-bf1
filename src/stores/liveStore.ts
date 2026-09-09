@@ -7,6 +7,7 @@ interface LiveStore {
   isFullscreen:      boolean;
   isOnLiveTab:       boolean;
   isWatchScreenOpen: boolean;
+  isPlayerHidden:    boolean;
   webViewKey:        number;
   pendingFullscreen: boolean;
   fullscreenOrigin:  'home' | 'live' | null;
@@ -14,6 +15,7 @@ interface LiveStore {
   setLiveData:       (url: string, isOnAir: boolean, viewers: number) => void;
   setOnLiveTab:      (val: boolean) => void;
   setWatchScreenOpen: (val: boolean) => void;
+  setPlayerHidden:   (val: boolean) => void;
   openFullscreen:    () => void;
   closeFullscreen:   () => void;
   refreshPlayer:     () => void;
@@ -28,6 +30,7 @@ export const useLiveStore = create<LiveStore>((set) => ({
   isFullscreen:      false,
   isOnLiveTab:       false,
   isWatchScreenOpen: false,
+  isPlayerHidden:    false,
   webViewKey:        0,
   pendingFullscreen: false,
   fullscreenOrigin:  null,
@@ -42,6 +45,10 @@ export const useLiveStore = create<LiveStore>((set) => ({
 
   setWatchScreenOpen(val) {
     set({ isWatchScreenOpen: val });
+  },
+
+  setPlayerHidden(val) {
+    set({ isPlayerHidden: val });
   },
 
   openFullscreen() {

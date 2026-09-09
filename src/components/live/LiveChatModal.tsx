@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   FlatList, Image, Modal, Animated, KeyboardAvoidingView,
-  Platform, Alert,
+  Platform, Alert, ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../hooks/useTheme';
@@ -88,6 +88,9 @@ interface LiveChatModalProps {
   messages:        ChatMessage[];
   chatOpen:        boolean;
   wsStatus:        'connecting' | 'connected' | 'fallback' | 'error';
+  hasMoreOlder?:   boolean;
+  loadingOlder?:   boolean;
+  loadOlder?:      () => void;
   sendMessage:     (text: string, user: any) => Promise<boolean>;
   deleteMessage:   (id: string) => Promise<boolean>;
   editMessage:     (id: string, text: string) => Promise<boolean>;
@@ -97,7 +100,8 @@ interface LiveChatModalProps {
 
 export function LiveChatModal({
   visible, onClose, currentUser, isAuthenticated, onLoginPress,
-  messages, chatOpen, wsStatus, sendMessage, deleteMessage, editMessage,
+  messages, chatOpen, wsStatus, hasMoreOlder, loadingOlder, loadOlder,
+  sendMessage, deleteMessage, editMessage,
 }: LiveChatModalProps) {
   const { theme } = useTheme();
   const { t }     = useTranslation();
@@ -119,12 +123,20 @@ export function LiveChatModal({
     }
   }, [visible]);
 
-  // Scroll vers le haut quand nouveau message (liste inversée)
+  // Scroll vers le haut quand nouveau message (récents en haut).
+  // On ne le fait pas pendant un chargement "plus ancien" pour ne pas sauter.
+  const prevLenRef = useRef(messages.length);
   useEffect(() => {
-    if (visible && messages.length) {
+    const grew = messages.length > prevLenRef.current;
+    prevLenRef.current = messages.length;
+    if (visible && grew && !loadingOlder) {
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
     }
-  }, [messages.length, visible]);
+  }, [messages.length, visible, loadingOlder]);
+
+  const handleEndReached = useCallback(() => {
+    if (hasMoreOlder && !loadingOlder && loadOlder) loadOlder();
+  }, [hasMoreOlder, loadingOlder, loadOlder]);
 
   const handleSend = useCallback(async () => {
     if (!text.trim() || sending) return;
@@ -174,7 +186,7 @@ export function LiveChatModal({
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
 
       {/* Sheet */}
-      <Animated.View style={[styles.sheet, { backgroundColor: theme.bg2 ?? theme.surface, transform: [{ translateY: slideAnim }] }]}>
+      <Animated.View style={[styles.sheet, { backgroundColor: theme.bg2, transform: [{ translateY: slideAnim }] }]}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
           {/* Drag handle */}
@@ -209,6 +221,15 @@ export function LiveChatModal({
               contentContainerStyle={{ paddingVertical: SPACING.sm }}
               showsVerticalScrollIndicator={false}
               inverted={false}
+              onEndReached={handleEndReached}
+              onEndReachedThreshold={0.4}
+              ListFooterComponent={
+                loadingOlder ? (
+                  <View style={styles.olderLoader}>
+                    <ActivityIndicator size="small" color={theme.text3} />
+                  </View>
+                ) : null
+              }
             />
           )}
 
@@ -248,7 +269,7 @@ export function LiveChatModal({
           {!editingId && isAuthenticated && chatOpen && (
             <View style={[styles.inputRow, { borderTopColor: theme.divider }]}>
               <TextInput
-                style={[styles.input, { backgroundColor: theme.bg3 ?? theme.surface, color: theme.text, borderColor: theme.border }]}
+                style={[styles.input, { backgroundColor: theme.bg3, color: theme.text, borderColor: theme.border }]}
                 value={text}
                 onChangeText={t => setText(t.slice(0, 300))}
                 placeholder={t.chat.placeholder}
@@ -311,6 +332,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: FONT_SIZE.sm, textAlign: 'center' },
 
   list: { flex: 1 },
+  olderLoader: { paddingVertical: SPACING.md, alignItems: 'center' },
 
   msgRow: { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
   avatar: {

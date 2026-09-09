@@ -388,6 +388,14 @@ export async function getLiveComments(skip = 0, limit = 50) {
   return res.comments ?? [];
 }
 
+/** Variante paginée : renvoie aussi has_more pour "charger plus ancien". */
+export async function getLiveCommentsPage(skip = 0, limit = 50): Promise<{ comments: any[]; hasMore: boolean }> {
+  const res = await http
+    .get<any>(`/livestream/comments?skip=${skip}&limit=${limit}`)
+    .catch(() => ({ comments: [], has_more: false }));
+  return { comments: res?.comments ?? [], hasMore: !!res?.has_more };
+}
+
 export async function addLiveComment(text: string) {
   return http.post('/livestream/comments', { text });
 }
@@ -490,6 +498,29 @@ export async function checkArchiveAccess(id: string) {
 // ─── Support / Contact ────────────────────────────────────────────────────────
 export async function sendContactMessage(data: { name: string; email: string; subject: string; message: string }) {
   return http.post('/contact', data);
+}
+
+// ─── Feedback (retour d'expérience) ──────────────────────────────────────────
+export type FeedbackCategory = 'bug' | 'idea' | 'compliment' | 'other';
+
+export async function sendFeedback(data: {
+  message: string;
+  rating?: number | null;
+  category?: FeedbackCategory;
+  email?: string | null;
+  app_version?: string | null;
+  platform?: string | null;
+  device_info?: string | null;
+}) {
+  return http.post('/feedback', {
+    message: data.message,
+    rating: data.rating ?? null,
+    category: data.category ?? 'other',
+    email: data.email ?? null,
+    app_version: data.app_version ?? null,
+    platform: data.platform ?? null,
+    device_info: data.device_info ?? null,
+  });
 }
 
 // ─── Programmes ───────────────────────────────────────────────────────────────

@@ -1,12 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  StatusBar, Image, Alert, Modal, TextInput, ActivityIndicator,
+  StatusBar, Image, Alert, Modal, TextInput, ActivityIndicator, Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -14,7 +13,6 @@ import {
   launchCamera,
   type ImagePickerResponse,
 } from 'react-native-image-picker';
-import { BF1Logo } from '../components/ui/BF1Logo';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../stores';
@@ -28,10 +26,10 @@ type Nav = StackNavigationProp<ProfileStackParams, 'Profile'>;
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function subBadgeStyle(cat?: string) {
-  if (cat === 'premium')  return { bg: 'rgba(255,111,0,0.18)',  text: '#FF6F00', icon: 'star'         as const };
-  if (cat === 'standard') return { bg: 'rgba(156,39,176,0.18)', text: '#9C27B0', icon: 'star-half'    as const };
-  if (cat === 'basic')    return { bg: 'rgba(33,150,243,0.18)', text: '#2196F3', icon: 'star-outline'  as const };
-  return                         { bg: 'rgba(76,175,80,0.18)',  text: '#4CAF50', icon: 'gift-outline'  as const };
+  if (cat === 'premium')  return { bg: 'rgba(255,111,0,0.15)',  text: '#FF6F00', icon: 'star'          as const };
+  if (cat === 'standard') return { bg: 'rgba(156,39,176,0.15)', text: '#9C27B0', icon: 'star-half'     as const };
+  if (cat === 'basic')    return { bg: 'rgba(33,150,243,0.15)', text: '#2196F3', icon: 'star-outline'  as const };
+  return                         { bg: 'rgba(52,199,89,0.15)',  text: '#34C759', icon: 'gift-outline'  as const };
 }
 
 function fmtDate(d?: string | null, lang = 'fr') {
@@ -49,7 +47,67 @@ function fmtPrice(n?: number | null) {
   return n.toLocaleString('fr-FR') + ' XOF';
 }
 
-// ─── Ligne info abonnement ────────────────────────────────────────────────────
+// ─── Bandeau de feedback (succès / erreur, auto-dismiss) ──────────────────────
+
+type Feedback = { kind: 'success' | 'error'; message: string } | null;
+
+function FeedbackBanner({ feedback, onHide }: { feedback: Feedback; onHide: () => void }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const timer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (feedback) {
+      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+      timer.current && clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }).start(({ finished }) => {
+          if (finished) onHide();
+        });
+      }, 2600);
+    }
+    return () => { timer.current && clearTimeout(timer.current); };
+  }, [feedback]);
+
+  if (!feedback) return null;
+  const ok  = feedback.kind === 'success';
+  const bg  = ok ? 'rgba(52,199,89,0.14)'  : 'rgba(255,59,48,0.14)';
+  const bd  = ok ? 'rgba(52,199,89,0.45)'  : 'rgba(255,59,48,0.45)';
+  const fg  = ok ? COLORS.success : COLORS.error;
+  const ico = ok ? 'checkmark-circle' : 'alert-circle';
+
+  return (
+    <Animated.View style={[styles.banner, { backgroundColor: bg, borderColor: bd, opacity }]}>
+      <Icon name={ico as any} size={16} color={fg} />
+      <Text style={[styles.bannerText, { color: fg }]} numberOfLines={2}>{feedback.message}</Text>
+    </Animated.View>
+  );
+}
+
+// ─── Petits blocs ────────────────────────────────────────────────────────────
+
+function SectionLabel({ children, theme }: { children: string; theme: any }) {
+  return <Text style={[styles.sectionLabel, { color: theme.text3 }]}>{children.toUpperCase()}</Text>;
+}
+
+function InfoRow({
+  label, value, onPress, theme, last = false,
+}: { label: string; value: string; onPress?: () => void; theme: any; last?: boolean }) {
+  return (
+    <TouchableOpacity
+      style={[styles.infoRow, { borderBottomColor: theme.border }, last && { borderBottomWidth: 0 }]}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.6 : 1}
+      disabled={!onPress}
+    >
+      <Text style={[styles.infoLabel, { color: theme.text3 }]}>{label}</Text>
+      <View style={styles.infoRight}>
+        <Text style={[styles.infoValue, { color: theme.text }]} numberOfLines={1}>{value}</Text>
+        {onPress && <Icon name="chevron-forward" size={15} color={theme.text3} />}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function SubRow({ label, value, theme }: { label: string; value: string; theme: any }) {
   return (
     <View style={[styles.subRow, { borderTopColor: theme.border }]}>
@@ -59,7 +117,6 @@ function SubRow({ label, value, theme }: { label: string; value: string; theme: 
   );
 }
 
-// ─── Item de menu ─────────────────────────────────────────────────────────────
 function MenuItem({
   icon, iconColor = COLORS.primary, label, onPress, theme, last = false,
 }: {
@@ -73,12 +130,16 @@ function MenuItem({
       activeOpacity={0.7}
     >
       <View style={[styles.menuIconWrap, { backgroundColor: `${iconColor}18` }]}>
-        <Icon name={icon as any} size={20} color={iconColor} />
+        <Icon name={icon as any} size={19} color={iconColor} />
       </View>
       <Text style={[styles.menuLabel, { color: theme.text }]}>{label}</Text>
       <Icon name="chevron-forward" size={16} color={theme.text3} />
     </TouchableOpacity>
   );
+}
+
+function SkeletonLine({ w, theme }: { w: number | string; theme: any }) {
+  return <View style={[styles.skelLine, { width: w as any, backgroundColor: theme.skeletonBg ?? theme.border }]} />;
 }
 
 // ─── Modal texte générique ────────────────────────────────────────────────────
@@ -99,7 +160,7 @@ function EditModal({
         <View style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.modalTitle, { color: theme.text }]}>{title}</Text>
           <TextInput
-            style={[styles.modalInput, { backgroundColor: theme.bg, borderColor: error ? COLORS.primary : theme.border, color: theme.text }]}
+            style={[styles.modalInput, { backgroundColor: theme.bg, borderColor: error ? COLORS.error : theme.border, color: theme.text }]}
             value={value}
             onChangeText={v => onChange(v)}
             placeholder={placeholder}
@@ -110,7 +171,7 @@ function EditModal({
           />
           {!!error && <Text style={styles.modalErr}>{error}</Text>}
           <View style={styles.modalBtns}>
-            <TouchableOpacity style={[styles.modalBtnCancel, { borderColor: theme.border }]} onPress={onClose}>
+            <TouchableOpacity style={[styles.modalBtnCancel, { borderColor: theme.border }]} onPress={onClose} disabled={loading}>
               <Text style={{ color: theme.text2, fontSize: FONT_SIZE.sm }}>{cancelLabel ?? 'Annuler'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.modalBtnSave, { backgroundColor: COLORS.primary }]} onPress={onSave} disabled={loading}>
@@ -132,7 +193,12 @@ export function ProfileScreen() {
   const { t, lang }  = useTranslation();
   const navigation   = useNavigation<Nav>();
   const insets       = useSafeAreaInsets();
-  const { user, isAuthenticated, logout, setUser } = useAuthStore() as any;
+  const { user, isAuthenticated, loading: authLoading, logout, setUser } = useAuthStore() as any;
+
+  // Feedback centralisé (bandeau inline)
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const notifySuccess = useCallback((m: string) => setFeedback({ kind: 'success', message: m }), []);
+  const notifyError   = useCallback((m: string) => setFeedback({ kind: 'error',   message: m }), []);
 
   // Édition username
   const [usernameOpen,    setUsernameOpen]    = useState(false);
@@ -153,12 +219,18 @@ export function ProfileScreen() {
   // PremiumModal
   const [premiumOpen, setPremiumOpen] = useState(false);
 
-  // Abonnement
-  const { data: subData } = useQuery({
+  // Abonnement — 3 états explicites (loading / error / data)
+  const {
+    data: subData,
+    isLoading: subLoading,
+    isError: subError,
+    refetch: refetchSub,
+  } = useQuery({
     queryKey:  ['my-subscription'],
     queryFn:   api.getMySubscription,
     enabled:   isAuthenticated,
     staleTime: 5 * 60_000,
+    retry:     1,
   });
   const subscription: any = Array.isArray(subData)
     ? (subData.find((s: any) => s.is_active) ?? subData[0] ?? null)
@@ -175,19 +247,19 @@ export function ProfileScreen() {
     if (!asset?.uri) return;
     setAvatarLoading(true);
     try {
-      // Build base64 or use URI directly
       const base64 = asset.base64 ? `data:${asset.type};base64,${asset.base64}` : null;
       const payload = base64 ? { avatar: base64 } : { avatar_url: asset.uri };
       const updated = await api.updateProfile(payload);
       const newUri  = base64 ?? asset.uri;
       setLocalAvatar(newUri);
       if (setUser) setUser({ ...user, ...(updated ?? {}), avatar_url: newUri });
+      notifySuccess(t.profile.avatarSaved);
     } catch {
-      Alert.alert(t.errors.unknown, t.profile.avatarError);
+      notifyError(t.profile.avatarError);
     } finally {
       setAvatarLoading(false);
     }
-  }, [user, setUser]);
+  }, [user, setUser, notifySuccess, notifyError, t]);
 
   const handleAvatarPress = useCallback(() => {
     Alert.alert(t.profile.photoTitle, '', [
@@ -203,7 +275,7 @@ export function ProfileScreen() {
       },
       { text: t.common.cancel, style: 'cancel' },
     ]);
-  }, [pickAvatarFromResponse]);
+  }, [pickAvatarFromResponse, t]);
 
   // ── Username ──────────────────────────────────────────────────────────────
   const openUsernameEdit = useCallback(() => {
@@ -215,14 +287,16 @@ export function ProfileScreen() {
   const saveUsername = useCallback(async () => {
     const v = newUsername.trim();
     if (!v || v.length < 3) { setUsernameError(t.profile.minChars); return; }
+    if (v === user?.username) { setUsernameOpen(false); return; }
     setUsernameLoading(true);
     try {
       const updated = await api.updateProfile({ username: v });
       if (setUser) setUser({ ...user, ...(updated ?? { username: v }) });
       setUsernameOpen(false);
+      notifySuccess(t.profile.usernameSaved);
     } catch { setUsernameError(t.profile.saveError); }
     finally  { setUsernameLoading(false); }
-  }, [newUsername, user, setUser]);
+  }, [newUsername, user, setUser, notifySuccess, t]);
 
   // ── Email ─────────────────────────────────────────────────────────────────
   const openEmailEdit = useCallback(() => {
@@ -234,42 +308,64 @@ export function ProfileScreen() {
   const saveEmail = useCallback(async () => {
     const v = newEmail.trim();
     if (!v || !v.includes('@')) { setEmailError(t.profile.invalidEmail); return; }
+    if (v === user?.email) { setEmailOpen(false); return; }
     setEmailLoading(true);
     try {
       const updated = await api.updateProfile({ email: v });
       if (setUser) setUser({ ...user, ...(updated ?? { email: v }) });
       setEmailOpen(false);
+      notifySuccess(t.profile.emailSaved);
     } catch { setEmailError(t.profile.saveError); }
     finally  { setEmailLoading(false); }
-  }, [newEmail, user, setUser]);
+  }, [newEmail, user, setUser, notifySuccess, t]);
 
   // ── Déconnexion ───────────────────────────────────────────────────────────
   const handleLogout = useCallback(() => {
     Alert.alert(t.profile.logoutConfirmTitle, t.profile.logoutConfirmMsg, [
       { text: t.common.cancel,         style: 'cancel' },
-      { text: t.profile.logoutConfirm, style: 'destructive', onPress: () => logout() },
+      {
+        text: t.profile.logoutConfirm, style: 'destructive',
+        onPress: async () => {
+          await logout();
+          setLocalAvatar(null);
+        },
+      },
     ]);
-  }, [logout]);
+  }, [logout, t]);
+
+  // ── État: initialisation auth en cours ───────────────────────────────────
+  if (authLoading) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.bg }]}>
+        <StatusBar translucent backgroundColor="transparent" barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  const displayName = user?.username ?? user?.name ?? t.profile.userFallback;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}>
 
-        {/* ── HEADER GRADIENT ────────────────────────────────────────────── */}
-        <LinearGradient
-          colors={isDark ? ['#1a0505', '#0d0d0d'] : ['#fff0f0', theme.bg]}
-          start={{ x: 0.1, y: 0 }} end={{ x: 1, y: 1 }}
-          style={[styles.header, { paddingTop: Math.max(insets.top + 12, 32) }]}
-        >
-          {isAuthenticated && user ? (
-            <View style={styles.userRow}>
-              {/* ── Avatar cliquable ── */}
+        {/* En-tête simple */}
+        <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 10, 28) }]}>
+          <Text style={[styles.topTitle, { color: theme.text }]}>{t.profile.title}</Text>
+        </View>
+
+        <FeedbackBanner feedback={feedback} onHide={() => setFeedback(null)} />
+
+        {isAuthenticated && user ? (
+          <>
+            {/* ── CARTE IDENTITÉ ────────────────────────────────────────── */}
+            <View style={[styles.identityCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <TouchableOpacity
-                style={[styles.avatarWrap, { borderColor: COLORS.primary, backgroundColor: theme.surface }]}
+                style={[styles.avatarWrap, { borderColor: theme.border, backgroundColor: theme.bg }]}
                 onPress={handleAvatarPress}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 disabled={avatarLoading}
               >
                 {avatarLoading ? (
@@ -277,59 +373,154 @@ export function ProfileScreen() {
                 ) : avatarUri ? (
                   <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
                 ) : (
-                  <Icon name="person" size={36} color={theme.text} />
+                  <Icon name="person" size={40} color={theme.text3} />
                 )}
-                <View style={styles.cameraOverlay}>
+                <View style={[styles.cameraBadge, { backgroundColor: COLORS.primary, borderColor: theme.surface }]}>
                   <Icon name="camera" size={12} color="#fff" />
                 </View>
               </TouchableOpacity>
 
-              {/* ── Infos ── */}
-              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-                {/* Username + crayon */}
-                <View style={styles.usernameRow}>
-                  <Text style={[styles.userName, { color: isDark ? '#fff' : theme.text }]} numberOfLines={1}>
-                    {user.username ?? user.name ?? t.profile.userFallback}
-                  </Text>
-                  <TouchableOpacity onPress={openUsernameEdit} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                    <Icon name="pencil" size={13} color={COLORS.primary} />
-                  </TouchableOpacity>
-                </View>
+              <Text style={[styles.identName, { color: theme.text }]} numberOfLines={1}>{displayName}</Text>
+              {!!user.email && (
+                <Text style={[styles.identEmail, { color: theme.text3 }]} numberOfLines={1}>{user.email}</Text>
+              )}
 
-                {/* Email + crayon */}
-                <View style={styles.emailRow}>
-                  <Text style={[styles.userEmail, { color: isDark ? '#A0A0A0' : theme.text3 }]} numberOfLines={1}>
-                    {user.email ?? ''}
-                  </Text>
-                  <TouchableOpacity onPress={openEmailEdit} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                    <Icon name="pencil" size={11} color={theme.text3} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Badge abonnement */}
-                <View style={[styles.badgeWrap, { backgroundColor: badge.bg }]}>
-                  <Icon name={badge.icon as any} size={11} color={badge.text} />
-                  <Text style={[styles.badgeText, { color: badge.text }]}>
-                    {isPremium ? t.subscription.premium : t.profile.free}
-                  </Text>
-                </View>
+              <View style={[styles.badgeWrap, { backgroundColor: badge.bg }]}>
+                <Icon name={badge.icon as any} size={11} color={badge.text} />
+                <Text style={[styles.badgeText, { color: badge.text }]}>
+                  {isPremium ? t.subscription.premium : t.profile.free}
+                </Text>
               </View>
+
+              <TouchableOpacity
+                style={[styles.editCta, { borderColor: theme.border }]}
+                onPress={openUsernameEdit}
+                activeOpacity={0.7}
+              >
+                <Icon name="create-outline" size={15} color={theme.text2} />
+                <Text style={[styles.editCtaText, { color: theme.text2 }]}>{t.profile.editProfileCta}</Text>
+              </TouchableOpacity>
             </View>
-          ) : (
-            /* ── Non connecté ── */
-            <View style={styles.guestBox}>
-              <View style={styles.logoWrap}><BF1Logo size="xl" /></View>
-              <Text style={[styles.guestSlogan, { color: theme.text3 }]}>{t.profile.welcomeSlogan}</Text>
-              <Text style={[styles.guestTitle,  { color: theme.text }]}>{t.profile.welcomeTitle}</Text>
-              <Text style={[styles.guestSub,    { color: theme.text3 }]}>{t.profile.welcomeSub}</Text>
-              <View style={[styles.benefitRow, { backgroundColor: COLORS.redAlpha12 }]}>
-                <Icon name="chatbubbles" size={22} color={COLORS.primary} />
-                <Text style={[styles.benefitText, { color: theme.text }]}>{t.profile.benefitComment}</Text>
+
+            {/* ── SECTION COMPTE ────────────────────────────────────────── */}
+            <SectionLabel theme={theme}>{t.profile.sectionAccount}</SectionLabel>
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, padding: 0 }]}>
+              <InfoRow label={t.profile.editUsername} value={displayName}          onPress={openUsernameEdit} theme={theme} />
+              <InfoRow label={t.profile.editEmail}    value={user.email ?? '—'}    onPress={openEmailEdit}    theme={theme} last />
+            </View>
+
+            {/* ── SECTION ABONNEMENT ────────────────────────────────────── */}
+            <SectionLabel theme={theme}>{t.profile.subscription}</SectionLabel>
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <View style={styles.cardHeader}>
+                <Icon name={isPremium ? 'card' : 'star-outline'} size={17} color={COLORS.primary} />
+                <Text style={[styles.cardTitle, { color: theme.text }]}>
+                  {isPremium ? t.profile.mySubscription : t.profile.discoverPlans}
+                </Text>
               </View>
-              <View style={[styles.benefitRow, { backgroundColor: COLORS.redAlpha12 }]}>
-                <Icon name="notifications" size={22} color={COLORS.primary} />
-                <Text style={[styles.benefitText, { color: theme.text }]}>{t.profile.benefitNotif}</Text>
+
+              {subLoading ? (
+                <View style={{ gap: 12, paddingVertical: 4 }}>
+                  <SkeletonLine w="55%" theme={theme} />
+                  <SkeletonLine w="80%" theme={theme} />
+                  <SkeletonLine w="40%" theme={theme} />
+                </View>
+              ) : subError ? (
+                <View style={styles.subErrorBox}>
+                  <Icon name="cloud-offline-outline" size={20} color={theme.text3} />
+                  <Text style={[styles.subErrorText, { color: theme.text3 }]}>{t.profile.subLoadError}</Text>
+                  <TouchableOpacity style={[styles.retryBtn, { borderColor: theme.border }]} onPress={() => refetchSub()}>
+                    <Icon name="refresh" size={14} color={COLORS.primary} />
+                    <Text style={[styles.retryText, { color: COLORS.primary }]}>{t.profile.retry}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : isPremium && subscription ? (
+                <View>
+                  {subscription.category && (
+                    <View style={[styles.subBadgeRow, { backgroundColor: `${badge.text}18` }]}>
+                      <Icon name={badge.icon as any} size={14} color={badge.text} />
+                      <Text style={[styles.subBadgeLbl, { color: badge.text }]}>
+                        {(t.subscription as any)[subscription.category] ?? subscription.category}
+                      </Text>
+                    </View>
+                  )}
+                  <SubRow label={t.profile.planLabel}  value={fmtOffer(subscription.offer, t)}         theme={theme} />
+                  <SubRow label={t.profile.startDate}  value={fmtDate(subscription.start_date, lang)}  theme={theme} />
+                  <SubRow label={t.profile.endDate}    value={subscription.end_date ? fmtDate(subscription.end_date, lang) : t.profile.unlimited} theme={theme} />
+                  {fmtPrice(subscription.final_price) && (
+                    <SubRow label={t.profile.pricePaid} value={fmtPrice(subscription.final_price)!} theme={theme} />
+                  )}
+                  <View style={[styles.subRow, { borderTopColor: theme.border }]}>
+                    <Text style={[styles.subRowLabel, { color: theme.text3 }]}>{t.profile.status}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Icon
+                        name={subscription.is_active ? 'checkmark-circle' : 'close-circle'}
+                        size={14}
+                        color={subscription.is_active ? COLORS.success : COLORS.error}
+                      />
+                      <Text style={{ color: subscription.is_active ? COLORS.success : COLORS.error, fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold }}>
+                        {subscription.is_active ? t.profile.active : t.profile.expired}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View>
+                  <View style={styles.freeRow}>
+                    <View style={[styles.freeBadge, { backgroundColor: 'rgba(52,199,89,0.15)' }]}>
+                      <Icon name="gift-outline" size={12} color={COLORS.success} />
+                      <Text style={[styles.freeBadgeText, { color: COLORS.success }]}>{t.profile.free}</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.freeDesc, { color: theme.text3 }]}>{t.profile.freePlan}</Text>
+                  {[
+                    { ok: true,  label: t.profile.freeContent  },
+                    { ok: false, label: t.profile.premiumAccess },
+                    { ok: false, label: t.profile.hdQuality     },
+                  ].map(row => (
+                    <View key={row.label} style={styles.featureRow}>
+                      <Icon name={row.ok ? 'checkmark-circle' : 'close-circle'} size={16} color={row.ok ? COLORS.success : theme.text3} />
+                      <Text style={[styles.featureText, { color: row.ok ? theme.text : theme.text3 }]}>{row.label}</Text>
+                    </View>
+                  ))}
+                  <TouchableOpacity style={styles.premiumBtn} activeOpacity={0.85} onPress={() => setPremiumOpen(true)}>
+                    <Icon name="arrow-up" size={14} color="#fff" />
+                    <Text style={styles.premiumBtnText}>{t.profile.upgradePremium}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* ── SECTION PRÉFÉRENCES ───────────────────────────────────── */}
+            <SectionLabel theme={theme}>{t.profile.sectionPrefs}</SectionLabel>
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, padding: 0 }]}>
+              <MenuItem icon="heart-outline"              label={t.profile.menuFavorites} onPress={() => navigation.navigate('Favorites')}     theme={theme} />
+              <MenuItem icon="notifications-outline"      label={t.profile.menuNotif}     onPress={() => navigation.navigate('Notifications')} theme={theme} />
+              <MenuItem icon="settings-outline"          label={t.profile.menuSettings}  onPress={() => navigation.navigate('Settings')}      theme={theme} />
+              <MenuItem icon="headset-outline"           label={t.profile.menuSupport}   onPress={() => navigation.navigate('Support')}       theme={theme} />
+              <MenuItem icon="information-circle-outline" label={t.profile.menuAbout}     onPress={() => navigation.navigate('About')}         theme={theme} last />
+            </View>
+
+            {/* ── DÉCONNEXION ───────────────────────────────────────────── */}
+            <TouchableOpacity
+              style={[styles.logoutCard, { backgroundColor: theme.surface, borderColor: 'rgba(255,59,48,0.25)' }]}
+              onPress={handleLogout}
+              activeOpacity={0.7}
+            >
+              <Icon name="log-out-outline" size={19} color={COLORS.error} />
+              <Text style={[styles.logoutText, { color: COLORS.error }]}>{t.profile.logout}</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {/* ── NON CONNECTÉ ─────────────────────────────────────────── */}
+            <View style={[styles.guestCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <View style={[styles.guestIconWrap, { backgroundColor: COLORS.redAlpha12 }]}>
+                <Icon name="person-circle-outline" size={40} color={COLORS.primary} />
               </View>
+              <Text style={[styles.guestHeadline, { color: theme.text }]}>{t.profile.guestHeadline}</Text>
+              <Text style={[styles.guestBody, { color: theme.text3 }]}>{t.profile.guestBody}</Text>
+
               <TouchableOpacity style={styles.loginBtn} onPress={() => navigation.navigate('Login', {})} activeOpacity={0.85}>
                 <Icon name="log-in-outline" size={16} color="#fff" />
                 <Text style={styles.loginBtnText}>{t.auth.login}</Text>
@@ -337,123 +528,31 @@ export function ProfileScreen() {
               <TouchableOpacity style={[styles.registerBtn, { borderColor: COLORS.primary }]} onPress={() => navigation.navigate('Register')} activeOpacity={0.85}>
                 <Text style={[styles.registerBtnText, { color: COLORS.primary }]}>{t.profile.createAccount}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => (navigation as any).getParent?.()?.navigate('HomeTab')}>
+              <TouchableOpacity onPress={() => (navigation as any).getParent?.()?.navigate('HomeTab')} style={{ paddingVertical: 6 }}>
                 <Text style={[styles.guestLink, { color: theme.text3 }]}>{t.profile.continueGuest}</Text>
               </TouchableOpacity>
             </View>
-          )}
-        </LinearGradient>
 
-        {/* ── ABONNEMENT ─────────────────────────────────────────────────── */}
-        {isAuthenticated && (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <View style={styles.cardHeader}>
-              <Icon name={isPremium ? 'card' : 'star-outline'} size={18} color={COLORS.primary} />
-              <Text style={[styles.cardTitle, { color: theme.text }]}>
-                {isPremium ? t.profile.mySubscription : t.profile.discoverPlans}
-              </Text>
+            {/* Menu invité */}
+            <SectionLabel theme={theme}>{t.profile.sectionPrefs}</SectionLabel>
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, padding: 0 }]}>
+              <MenuItem icon="settings-outline"          label={t.profile.menuSettings} onPress={() => navigation.navigate('Settings')} theme={theme} />
+              <MenuItem icon="headset-outline"           label={t.profile.menuSupport}  onPress={() => navigation.navigate('Support')}  theme={theme} />
+              <MenuItem icon="information-circle-outline" label={t.profile.menuAbout}    onPress={() => navigation.navigate('About')}    theme={theme} last />
             </View>
-            {isPremium && subscription ? (
-              <View>
-                {subscription.category && (
-                  <View style={[styles.subBadgeRow, { backgroundColor: `${badge.text}18` }]}>
-                    <Icon name={badge.icon as any} size={14} color={badge.text} />
-                    <Text style={[styles.subBadgeLbl, { color: badge.text }]}>
-                      {(t.subscription as any)[subscription.category] ?? subscription.category}
-                    </Text>
-                  </View>
-                )}
-                <SubRow label={t.profile.planLabel}  value={fmtOffer(subscription.offer, t)}         theme={theme} />
-                <SubRow label={t.profile.startDate}  value={fmtDate(subscription.start_date, lang)}  theme={theme} />
-                <SubRow label={t.profile.endDate}    value={subscription.end_date ? fmtDate(subscription.end_date, lang) : t.profile.unlimited} theme={theme} />
-                {fmtPrice(subscription.final_price) && (
-                  <SubRow label={t.profile.pricePaid} value={fmtPrice(subscription.final_price)!} theme={theme} />
-                )}
-                <View style={[styles.subRow, { borderTopColor: theme.border }]}>
-                  <Text style={[styles.subRowLabel, { color: theme.text3 }]}>{t.profile.status}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Icon
-                      name={subscription.is_active ? 'checkmark-circle' : 'close-circle'}
-                      size={14}
-                      color={subscription.is_active ? '#4CAF50' : COLORS.primary}
-                    />
-                    <Text style={{ color: subscription.is_active ? '#4CAF50' : COLORS.primary, fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold }}>
-                      {subscription.is_active ? t.profile.active : t.profile.expired}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ) : (
-              <View>
-                <View style={styles.freeRow}>
-                  <View style={[styles.freeBadge, { backgroundColor: 'rgba(76,175,80,0.15)' }]}>
-                    <Icon name="gift-outline" size={12} color="#4CAF50" />
-                    <Text style={[styles.freeBadgeText, { color: '#4CAF50' }]}>{t.profile.free}</Text>
-                  </View>
-                </View>
-                <Text style={[styles.freeDesc, { color: theme.text3 }]}>{t.profile.freePlan}</Text>
-                {[
-                  { ok: true,  label: t.profile.freeContent  },
-                  { ok: false, label: t.profile.premiumAccess },
-                  { ok: false, label: t.profile.hdQuality     },
-                ].map(row => (
-                  <View key={row.label} style={styles.featureRow}>
-                    <Icon name={row.ok ? 'checkmark-circle' : 'close-circle'} size={16} color={row.ok ? '#4CAF50' : COLORS.primary} />
-                    <Text style={[styles.featureText, { color: row.ok ? theme.text : theme.text3 }]}>{row.label}</Text>
-                  </View>
-                ))}
-                <TouchableOpacity style={styles.premiumBtn} activeOpacity={0.85} onPress={() => setPremiumOpen(true)}>
-                  <Icon name="arrow-up" size={14} color="#fff" />
-                  <Text style={styles.premiumBtnText}>{t.profile.upgradePremium}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ── MENU CONNECTÉ ──────────────────────────────────────────────── */}
-        {isAuthenticated && (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, padding: 0 }]}>
-            <MenuItem icon="heart"               label={t.profile.menuFavorites} onPress={() => navigation.navigate('Favorites')}    theme={theme} />
-            <MenuItem icon="notifications"       label={t.profile.menuNotif}     onPress={() => navigation.navigate('Notifications')} theme={theme} />
-            <MenuItem icon="settings-outline"    label={t.profile.menuSettings}  onPress={() => navigation.navigate('Settings')}     theme={theme} />
-            <MenuItem icon="headset-outline"     label={t.profile.menuSupport}   onPress={() => navigation.navigate('Support')}      theme={theme} />
-            <MenuItem icon="information-circle-outline" label={t.profile.menuAbout} onPress={() => navigation.navigate('About')}    theme={theme} last />
-          </View>
-        )}
-
-        {/* Menu invité */}
-        {!isAuthenticated && (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, padding: 0 }]}>
-            <MenuItem icon="settings-outline"    label={t.profile.menuSettings} onPress={() => navigation.navigate('Settings')} theme={theme} />
-            <MenuItem icon="headset-outline"     label={t.profile.menuSupport}  onPress={() => navigation.navigate('Support')}  theme={theme} />
-            <MenuItem icon="information-circle-outline" label={t.profile.menuAbout} onPress={() => navigation.navigate('About')}   theme={theme} last />
-          </View>
-        )}
-
-        {/* ── DÉCONNEXION ────────────────────────────────────────────────── */}
-        {isAuthenticated && (
-          <TouchableOpacity
-            style={[styles.logoutCard, { backgroundColor: theme.surface, borderColor: 'rgba(226,62,62,0.2)' }]}
-            onPress={handleLogout}
-            activeOpacity={0.7}
-          >
-            <Icon name="log-out-outline" size={20} color={COLORS.primary} />
-            <Text style={[styles.logoutText, { color: COLORS.primary }]}>{t.profile.logout}</Text>
-          </TouchableOpacity>
+          </>
         )}
 
         <Text style={[styles.version, { color: theme.text3 }]}>{t.profile.version}</Text>
       </ScrollView>
 
-      {/* ── PREMIUM MODAL ────────────────────────────────────────────────── */}
+      {/* ── MODALES ──────────────────────────────────────────────────────── */}
       <PremiumModal
         visible={premiumOpen}
         onClose={() => setPremiumOpen(false)}
-        onSuccess={() => setPremiumOpen(false)}
+        onSuccess={() => { setPremiumOpen(false); refetchSub(); }}
       />
 
-      {/* ── MODAL PSEUDO ─────────────────────────────────────────────────── */}
       <EditModal
         visible={usernameOpen}
         onClose={() => setUsernameOpen(false)}
@@ -470,7 +569,6 @@ export function ProfileScreen() {
         theme={theme}
       />
 
-      {/* ── MODAL EMAIL ──────────────────────────────────────────────────── */}
       <EditModal
         visible={emailOpen}
         onClose={() => setEmailOpen(false)}
@@ -494,52 +592,88 @@ export function ProfileScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  center:    { alignItems: 'center', justifyContent: 'center' },
 
-  header: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl },
+  topBar:   { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md },
+  topTitle: { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold },
 
-  userRow:    { flexDirection: 'row', alignItems: 'center', gap: SPACING.lg },
+  // Bandeau feedback
+  banner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: SPACING.lg, marginBottom: SPACING.sm,
+    paddingHorizontal: SPACING.md, paddingVertical: 10,
+    borderRadius: RADIUS.md, borderWidth: 1,
+  },
+  bannerText: { flex: 1, fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium },
+
+  // Carte identité
+  identityCard: {
+    marginHorizontal: SPACING.lg, marginTop: SPACING.xs,
+    borderRadius: RADIUS.xl, borderWidth: 1,
+    alignItems: 'center', paddingVertical: SPACING.xl, paddingHorizontal: SPACING.lg,
+    gap: 6,
+  },
   avatarWrap: {
-    width: 80, height: 80, borderRadius: 40, borderWidth: 2.5,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0,
+    width: 96, height: 96, borderRadius: 48, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    marginBottom: 6,
   },
-  avatarImg:     { width: '100%', height: '100%' },
-  cameraOverlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 26,
-    backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+  avatarImg:   { width: '100%', height: '100%' },
+  cameraBadge: {
+    position: 'absolute', bottom: 2, right: 2,
+    width: 26, height: 26, borderRadius: 13, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center',
   },
-
-  usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  userName:    { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, flex: 1 },
-  emailRow:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  userEmail:   { fontSize: FONT_SIZE.sm, flex: 1 },
-  badgeWrap:   {
-    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.full,
+  identName:  { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, maxWidth: '100%' },
+  identEmail: { fontSize: FONT_SIZE.sm, maxWidth: '100%' },
+  badgeWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full,
+    marginTop: 4,
   },
   badgeText: { fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold, letterSpacing: 0.5 },
+  editCta: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: SPACING.md, paddingHorizontal: SPACING.lg, paddingVertical: 9,
+    borderRadius: RADIUS.full, borderWidth: 1,
+  },
+  editCtaText: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium },
 
-  guestBox:    { alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.xl },
-  logoWrap:    { width: 120, height: 120, alignItems: 'center', justifyContent: 'center', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8 },
-  guestSlogan: { fontSize: FONT_SIZE.xs, fontStyle: 'italic', textAlign: 'center' },
-  guestTitle:  { fontSize: FONT_SIZE.xl, fontWeight: FONT_WEIGHT.bold, textAlign: 'center' },
-  guestSub:    { fontSize: FONT_SIZE.sm, textAlign: 'center', lineHeight: 20, maxWidth: 300 },
-  benefitRow:  { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderRadius: RADIUS.md, width: '100%' },
-  benefitText: { fontSize: FONT_SIZE.sm },
-  loginBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: RADIUS.lg, width: '100%' },
-  loginBtnText:    { color: '#fff', fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold },
-  registerBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: RADIUS.lg, borderWidth: 1.5, width: '100%' },
-  registerBtnText: { fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold },
-  guestLink:       { fontSize: FONT_SIZE.sm, textAlign: 'center' },
+  // Sections
+  sectionLabel: {
+    fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.semibold, letterSpacing: 0.8,
+    marginHorizontal: SPACING.lg + 4, marginTop: SPACING.xl, marginBottom: SPACING.xs,
+  },
 
-  card:       { marginHorizontal: SPACING.lg, marginTop: SPACING.md, borderRadius: RADIUS.xl, borderWidth: 1, overflow: 'hidden', padding: SPACING.md },
+  card: {
+    marginHorizontal: SPACING.lg, borderRadius: RADIUS.xl, borderWidth: 1,
+    overflow: 'hidden', padding: SPACING.md,
+  },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.md },
   cardTitle:  { fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold },
 
+  // InfoRow (compte)
+  infoRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg, paddingVertical: 15, borderBottomWidth: 0.5, gap: SPACING.md,
+  },
+  infoLabel: { fontSize: FONT_SIZE.sm },
+  infoRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  infoValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium, flexShrink: 1, textAlign: 'right' },
+
+  // Skeleton
+  skelLine: { height: 12, borderRadius: 6 },
+
+  // Abonnement
   subBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.full, marginBottom: SPACING.sm },
   subBadgeLbl: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold },
   subRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 0.5 },
   subRowLabel: { fontSize: FONT_SIZE.sm },
   subRowValue: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.medium },
+  subErrorBox:  { alignItems: 'center', gap: 8, paddingVertical: SPACING.md },
+  subErrorText: { fontSize: FONT_SIZE.sm, textAlign: 'center' },
+  retryBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: SPACING.md, paddingVertical: 8, borderRadius: RADIUS.full, borderWidth: 1, marginTop: 2 },
+  retryText:    { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold },
 
   freeRow:       { marginBottom: SPACING.sm },
   freeBadge:     { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.full },
@@ -550,19 +684,38 @@ const styles = StyleSheet.create({
   premiumBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, paddingVertical: 11, marginTop: SPACING.md },
   premiumBtnText:{ color: '#fff', fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold },
 
-  menuItem:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: 15, gap: SPACING.md, borderBottomWidth: 0.5 },
-  menuIconWrap:{ width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  // Menu
+  menuItem:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: 14, gap: SPACING.md, borderBottomWidth: 0.5 },
+  menuIconWrap:{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   menuLabel:   { flex: 1, fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.medium },
 
-  logoutCard:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, marginHorizontal: SPACING.lg, marginTop: SPACING.md, borderRadius: RADIUS.xl, paddingVertical: 14, borderWidth: 1 },
+  // Déconnexion
+  logoutCard:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, marginHorizontal: SPACING.lg, marginTop: SPACING.xl, borderRadius: RADIUS.xl, paddingVertical: 14, borderWidth: 1 },
   logoutText:  { fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.semibold },
-  version:     { textAlign: 'center', fontSize: 11, marginTop: SPACING.xl, marginBottom: 4 },
 
+  version: { textAlign: 'center', fontSize: 11, marginTop: SPACING.xl, marginBottom: 4 },
+
+  // Invité
+  guestCard: {
+    marginHorizontal: SPACING.lg, marginTop: SPACING.xs,
+    borderRadius: RADIUS.xl, borderWidth: 1,
+    alignItems: 'center', paddingVertical: SPACING.xl, paddingHorizontal: SPACING.lg, gap: SPACING.sm,
+  },
+  guestIconWrap: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.xs },
+  guestHeadline: { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, textAlign: 'center' },
+  guestBody:     { fontSize: FONT_SIZE.sm, textAlign: 'center', lineHeight: 20, maxWidth: 300, marginBottom: SPACING.sm },
+  loginBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: RADIUS.lg, width: '100%' },
+  loginBtnText:  { color: '#fff', fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold },
+  registerBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: RADIUS.lg, borderWidth: 1.5, width: '100%' },
+  registerBtnText: { fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold },
+  guestLink:       { fontSize: FONT_SIZE.sm, textAlign: 'center' },
+
+  // Modales
   overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center' },
   modalCard:      { width: '85%', maxWidth: 360, borderRadius: RADIUS.xl, padding: SPACING.xxl, borderWidth: 1 },
   modalTitle:     { fontSize: FONT_SIZE.lg, fontWeight: FONT_WEIGHT.bold, marginBottom: SPACING.lg },
   modalInput:     { borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.md, fontSize: FONT_SIZE.base, marginBottom: SPACING.sm },
-  modalErr:       { color: COLORS.primary, fontSize: FONT_SIZE.sm, marginBottom: SPACING.sm },
+  modalErr:       { color: COLORS.error, fontSize: FONT_SIZE.sm, marginBottom: SPACING.sm },
   modalBtns:      { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
   modalBtnCancel: { flex: 1, padding: 12, borderWidth: 1, borderRadius: RADIUS.lg, alignItems: 'center' },
   modalBtnSave:   { flex: 1, padding: 12, borderRadius: RADIUS.lg, alignItems: 'center' },

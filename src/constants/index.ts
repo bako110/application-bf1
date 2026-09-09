@@ -181,6 +181,12 @@ export const ROUTES = {
 } as const;
 
 // ─── Abonnements ─────────────────────────────────────────────────────────────
+
+// Mode maintenance global du système d'abonnement / paiement.
+// Quand `true`, PremiumModal affiche un écran de maintenance au lieu du tunnel
+// de souscription (plans, paiement…). Repasser à `false` pour réactiver.
+export const SUBSCRIPTIONS_MAINTENANCE = true;
+
 export const SUB_HIERARCHY: Record<string, number> = {
   basic:    1,
   standard: 2,

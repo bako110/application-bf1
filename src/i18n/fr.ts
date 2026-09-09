@@ -140,6 +140,20 @@ export default {
     logoutConfirmMsg:   'Voulez-vous vraiment vous déconnecter ?',
     logoutConfirm:  'Déconnecter',
     version:        'BF1 TV © 2026  ·  Version 1.0.0',
+    // Sections
+    sectionAccount:   'Compte',
+    sectionPrefs:     'Préférences',
+    editProfileCta:   'Modifier le profil',
+    // Feedback
+    usernameSaved:    'Pseudo mis à jour',
+    emailSaved:       'E-mail mis à jour',
+    avatarSaved:      'Photo de profil mise à jour',
+    // Carte abonnement — états
+    subLoadError:     'Impossible de charger votre abonnement',
+    retry:            'Réessayer',
+    // Guest
+    guestHeadline:    'Connectez-vous à votre compte',
+    guestBody:        'Commentez les lives, gérez vos favoris et recevez des notifications.',
   },
 
   // ─── Abonnements ──────────────────────────────────────────────────────────
@@ -233,6 +247,11 @@ export default {
     paywallSubReq:  '{cat} requis pour ce contenu.',
     paywallDefault: 'Un abonnement est requis pour accéder à ce contenu.',
     unlockContent:  'Débloquer ce contenu',
+    // Maintenance
+    maintenanceTitle: 'Abonnements en maintenance',
+    maintenanceBody:  'Notre système d\'abonnement est temporairement indisponible pendant une mise à jour. Réessayez dans quelques instants — merci de votre patience.',
+    maintenanceStatus:'Service momentanément indisponible',
+    maintenanceCta:   'Compris',
   },
 
   // ─── Favoris ──────────────────────────────────────────────────────────────
@@ -306,6 +325,8 @@ export default {
     premiumSub:       'Abonnez-vous pour accéder à ce contenu exclusif.',
     seeOffers:        'Voir les offres',
     notFound:         'Contenu introuvable',
+    addedToFavorites:   'Ajouté aux favoris',
+    removedFromFavorites:'Retiré des favoris',
   },
 
   // ─── Reels ────────────────────────────────────────────────────────────────
@@ -339,6 +360,29 @@ export default {
     appSection:       'Application',
     version:          'Version',
     platform:         'Plateforme',
+    feedbackRow:      'Envoyer un retour',
+  },
+
+  // ─── Feedback ─────────────────────────────────────────────────────────────
+  feedback: {
+    title:        'Votre retour',
+    subtitle:     'Aidez-nous à améliorer BF1 TV. Dites-nous ce qui vous plaît ou ce qui pourrait aller mieux.',
+    ratingLabel:  'Votre note',
+    categoryLabel:'Type de retour',
+    catBug:       'Problème',
+    catIdea:      'Suggestion',
+    catCompliment:'Compliment',
+    catOther:     'Autre',
+    placeholder:  'Décrivez votre expérience, un bug rencontré ou une idée…',
+    emailLabel:   'E-mail (facultatif)',
+    emailPh:      'Pour un retour de notre part',
+    send:         'Envoyer',
+    sending:      'Envoi…',
+    successTitle: 'Merci pour votre retour !',
+    successBody:  'Votre message a bien été transmis à notre équipe.',
+    close:        'Fermer',
+    errorEmpty:   'Merci d\'écrire quelques mots avant d\'envoyer.',
+    errorSend:    'Envoi impossible. Vérifiez votre connexion et réessayez.',
   },
 
   // ─── Contenu ──────────────────────────────────────────────────────────────
