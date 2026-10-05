@@ -139,7 +139,7 @@ export default {
     logoutConfirmTitle: 'Déconnexion',
     logoutConfirmMsg:   'Voulez-vous vraiment vous déconnecter ?',
     logoutConfirm:  'Déconnecter',
-    version:        'BF1 TV © 2026  ·  Version 1.0.0',
+    version:        'BF1 TV © 2026  ·  Version 1.0.8',
     // Sections
     sectionAccount:   'Compte',
     sectionPrefs:     'Préférences',
@@ -510,6 +510,13 @@ export default {
     reminderCancelled: 'Rappel annulé',
     reminderSet:       'Rappel activé — notification 5 min avant',
     reminderFail:      'Impossible de programmer ce rappel',
+    // Bandeau motivationnel (défile sous "À ne pas manquer")
+    tickerLive:      'Le direct BF1, au cœur de nos défis 🔥',
+    tickerExclu:     'Des contenus exclusifs, rien que pour vous ✨',
+    tickerCommunity: 'Rejoignez des milliers de téléspectateurs 👥',
+    tickerNotif:     'Activez les rappels, ne manquez plus rien 🔔',
+    tickerThanks:    'Merci de faire vivre BF1 avec nous ❤️',
+    tickerChallenge: 'La chaîne au cœur de nos défis 🏆',
   },
 
   // ─── Chat ─────────────────────────────────────────────────────────────────
@@ -521,6 +528,9 @@ export default {
     loginPrompt:   'Se connecter pour participer',
     deleteTitle:   'Supprimer',
     deleteConfirm: 'Supprimer ce message ?',
+    actionError:   'Action impossible pour le moment. Réessayez.',
+    disabledTitle: 'Commentaires désactivés',
+    disabledBody:  'L\'administrateur a désactivé les commentaires pour ce direct.',
   },
 
   // ─── Splash ───────────────────────────────────────────────────────────────

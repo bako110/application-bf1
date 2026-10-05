@@ -511,10 +511,11 @@ export function ShowDetailScreen() {
       )}
 
       <ScrollView
+        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 40 }}
         keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled
+        scrollEnabled
       >
 
         {/* ── HERO ──────────────────────────────────────────────────────────── */}
@@ -767,30 +768,27 @@ export function ShowDetailScreen() {
             </View>
           )}
 
-          {/* Vidéos similaires — ScrollView horizontal (plus fiable qu'une FlatList imbriquée) */}
+          {/* Vidéos similaires — FlatList horizontale (gère mieux le geste imbriqué) */}
           {(related as any[]).length > 0 && (
             <>
               <View style={[styles.divider, { backgroundColor: theme.border }]} />
               <Text style={[styles.sectionTitle, { color: theme.text }]}>{t.show.similar}</Text>
-              <ScrollView
+              <FlatList
+                data={related as any[]}
                 horizontal
+                keyExtractor={(item: any, i) => String(item.id ?? i)}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.relScroll}
-                nestedScrollEnabled
-              >
-                {(related as any[]).map((item: any) => (
+                removeClippedSubviews={false}
+                renderItem={({ item }: { item: any }) => (
                   <RelatedCard
-                    key={String(item.id)}
                     item={item}
                     onPress={() => navigation.push('ShowDetail', { id: item.id, type: item.type ?? contentType })}
                   />
-                ))}
-              </ScrollView>
+                )}
+              />
             </>
           )}
-
-
-          <View style={{ height: insets.bottom + 24 }} />
         </View>
       </ScrollView>
 

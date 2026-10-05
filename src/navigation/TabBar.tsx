@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { StackActions } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
@@ -59,9 +60,22 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
               target:            route.key,
               canPreventDefault: true,
             });
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
+            if (event.defaultPrevented) return;
+
+            if (isFocused) {
+              // Re-tap sur l'onglet déjà actif → ramener son stack à la racine
+              // (sinon on reste coincé sur Login / Notifications / Settings…).
+              const nested: any = route.state;
+              if (nested && Array.isArray(nested.routes) && nested.routes.length > 1) {
+                navigation.dispatch({
+                  ...StackActions.popToTop(),
+                  target: nested.key,
+                });
+              }
+              return;
             }
+
+            navigation.navigate(route.name);
           };
 
           return (

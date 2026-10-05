@@ -24,7 +24,7 @@ interface Props {
   onClose: () => void;
 }
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.8';
 
 export function FeedbackModal({ visible, onClose }: Props) {
   const { theme } = useTheme();

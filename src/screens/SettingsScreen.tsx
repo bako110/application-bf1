@@ -162,7 +162,7 @@ export function SettingsScreen() {
           </TouchableOpacity>
           <View style={[styles.infoRow, { borderBottomColor: theme.divider }]}>
             <Text style={[styles.infoLabel, { color: theme.text3 }]}>{t.settings.version}</Text>
-            <Text style={[styles.infoValue, { color: theme.text }]}>1.0.0</Text>
+            <Text style={[styles.infoValue, { color: theme.text }]}>1.0.8</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, { color: theme.text3 }]}>{t.settings.platform}</Text>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
-  FlatList, Image, ActivityIndicator, ScrollView, RefreshControl, Animated,
+  FlatList, Image, ActivityIndicator, ScrollView, RefreshControl, Animated, Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -350,6 +350,125 @@ const cs = StyleSheet.create({
   },
 });
 
+// ─── Bandeau de messages motivationnels défilants ───────────────────────────
+// Sous "À ne pas manquer" : une phrase à la fois, cross-fade + slide vertical,
+// barre de progression qui se remplit avant chaque transition, icône pulsée.
+
+const TICKER_INTERVAL = 4200;
+const TICKER_ITEMS: { icon: string; text: (t: any) => string }[] = [
+  { icon: 'flame',          text: t => t.live.tickerLive },
+  { icon: 'sparkles',       text: t => t.live.tickerExclu },
+  { icon: 'people',         text: t => t.live.tickerCommunity },
+  { icon: 'notifications',  text: t => t.live.tickerNotif },
+  { icon: 'heart',          text: t => t.live.tickerThanks },
+  { icon: 'trophy',         text: t => t.live.tickerChallenge },
+];
+
+function MotivationTicker({ theme, t }: { theme: any; t: any }) {
+  const [idx, setIdx] = useState(0);
+  const fade  = useRef(new Animated.Value(0)).current;   // 0 caché → 1 visible
+  const slide = useRef(new Animated.Value(12)).current;  // px vers le haut
+  const prog  = useRef(new Animated.Value(0)).current;   // 0 → 1 barre
+  const pulse = useRef(new Animated.Value(0)).current;
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Icône pulsée en continu
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 850, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 850, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  // Cycle d'affichage : entrée → attente (barre) → sortie → item suivant
+  useEffect(() => {
+    fade.setValue(0);
+    slide.setValue(12);
+    prog.setValue(0);
+
+    Animated.parallel([
+      Animated.timing(fade,  { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(slide, { toValue: 0, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+
+    Animated.timing(prog, {
+      toValue: 1,
+      duration: TICKER_INTERVAL - 700,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
+
+    timer.current = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(fade,  { toValue: 0, duration: 300, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(slide, { toValue: -12, duration: 300, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+      ]).start(({ finished }) => {
+        if (finished) setIdx(i => (i + 1) % TICKER_ITEMS.length);
+      });
+    }, TICKER_INTERVAL - 300);
+
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [idx, fade, slide, prog]);
+
+  const item = TICKER_ITEMS[idx];
+  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] });
+  const progW = prog.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+
+  return (
+    <View style={tk.wrap}>
+      <LinearGradient
+        colors={['rgba(226,62,62,0.14)', 'rgba(226,62,62,0.03)']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={tk.bg}
+      >
+        <Animated.View style={[tk.iconWrap, { transform: [{ scale: pulseScale }] }]}>
+          <Icon name={item.icon as any} size={15} color={COLORS.primary} />
+        </Animated.View>
+
+        <View style={tk.textClip}>
+          <Animated.Text
+            style={[tk.text, { color: theme.text, opacity: fade, transform: [{ translateY: slide }] }]}
+            numberOfLines={1}
+          >
+            {item.text(t)}
+          </Animated.Text>
+        </View>
+      </LinearGradient>
+
+      {/* Barre de progression */}
+      <View style={[tk.track, { backgroundColor: theme.border }]}>
+        <Animated.View style={[tk.fill, { width: progW }]} />
+      </View>
+    </View>
+  );
+}
+
+const tk = StyleSheet.create({
+  wrap: {
+    marginHorizontal: CAROUSEL_H_MARGIN,
+    marginTop: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+  },
+  bg: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: SPACING.md, paddingVertical: 11,
+  },
+  iconWrap: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: 'rgba(226,62,62,0.16)',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  textClip: { flex: 1, height: 20, justifyContent: 'center', overflow: 'hidden' },
+  text: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.semibold, letterSpacing: 0.1 },
+  track: { height: 2, width: '100%' },
+  fill:  { height: 2, backgroundColor: COLORS.primary },
+});
+
 // ─── Carte programme (grille quotidienne) ────────────────────────────────────
 
 interface ScheduleCardProps {
@@ -493,12 +612,9 @@ export function LiveScreen() {
   // Hook WebSocket chat — instancié ici pour afficher le compteur sur le bouton
   const chat = useLiveChat(user?.id ?? null);
 
-  // Fermer le modal automatiquement si l'admin ferme le chat
-  useEffect(() => {
-    if (!chat.chatOpen && chatVisible) {
-      setChatVisible(false);
-    }
-  }, [chat.chatOpen, chatVisible]);
+  // Note : si l'admin désactive le chat, on NE ferme PAS le modal —
+  // l'utilisateur peut toujours lire l'historique ; un bandeau explicite
+  // remplace la zone de saisie (voir LiveChatModal).
 
   // ── Status live ──────────────────────────────────────────────────────────
   const { data: liveData, isLoading: liveLoading, refetch: refetchLiveStatus } = useQuery({
@@ -711,11 +827,19 @@ export function LiveScreen() {
             onPress={() => setChatVisible(true)}
             activeOpacity={0.8}
           >
-            <Icon name="chatbubbles" size={17} color={COLORS.primary} />
+            <Icon
+              name={chat.chatOpen ? 'chatbubbles' : 'chatbubbles-outline'}
+              size={17}
+              color={chat.chatOpen ? COLORS.primary : theme.text3}
+            />
             <View style={styles.chatBtnText}>
               <Text style={[styles.chatBtnTitle, { color: theme.text }]}>Chat &amp; Commentaires</Text>
-              <Text style={[styles.chatBtnSub, { color: theme.text3 }]}>
-                {chat.messages.length > 0 ? `${chat.messages.length} message${chat.messages.length > 1 ? 's' : ''}` : t.live.joinChat}
+              <Text style={[styles.chatBtnSub, { color: chat.chatOpen ? theme.text3 : COLORS.error }]}>
+                {!chat.chatOpen
+                  ? t.chat.disabledTitle
+                  : chat.messages.length > 0
+                    ? `${chat.messages.length} message${chat.messages.length > 1 ? 's' : ''}`
+                    : t.live.joinChat}
               </Text>
             </View>
             <Icon name="chevron-up" size={13} color={theme.text3} />
@@ -771,6 +895,7 @@ export function LiveScreen() {
               theme={theme}
               onPress={handleANePasManquerPress}
             />
+            <MotivationTicker theme={theme} t={t} />
           </ScrollView>
         ) : (
           <FlatList

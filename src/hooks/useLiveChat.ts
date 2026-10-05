@@ -304,23 +304,33 @@ export function useLiveChat(userId?: string | number | null) {
 
   // ── Supprimer son message ─────────────────────────────────────────────────
   const deleteMessage = useCallback(async (msgId: string) => {
+    // Optimiste : on retire tout de suite, le broadcast confirmera
+    dispatch({ type: 'REMOVE', id: msgId });
     try {
       await api.deleteMyChatMessage(msgId);
-      dispatch({ type: 'REMOVE', id: msgId });
       return true;
-    } catch { return false; }
-  }, []);
+    } catch (e: any) {
+      // Échec : on recharge l'historique pour remettre le message s'il est encore là
+      if (!wsReadyRef.current) loadFallback();
+      console.warn('[chat] delete échec:', e?.status, e?.message);
+      return false;
+    }
+  }, [loadFallback]);
 
   // ── Modifier son message ──────────────────────────────────────────────────
   const editMessage = useCallback(async (msgId: string, newText: string) => {
     const trimmed = newText.trim();
     if (!trimmed) return false;
+    dispatch({ type: 'EDIT', id: msgId, text: trimmed });
     try {
       await api.editMyChatMessage(msgId, trimmed);
-      dispatch({ type: 'EDIT', id: msgId, text: trimmed });
       return true;
-    } catch { return false; }
-  }, []);
+    } catch (e: any) {
+      if (!wsReadyRef.current) loadFallback();
+      console.warn('[chat] edit échec:', e?.status, e?.message);
+      return false;
+    }
+  }, [loadFallback]);
 
   return {
     messages:      state.messages,

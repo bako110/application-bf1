@@ -129,7 +129,7 @@ export default {
     logoutConfirmTitle: 'Sign out',
     logoutConfirmMsg:   'Are you sure you want to sign out?',
     logoutConfirm:  'Sign out',
-    version:        'BF1 TV © 2026  ·  Version 1.0.0',
+    version:        'BF1 TV © 2026  ·  Version 1.0.8',
     // Sections
     sectionAccount:   'Account',
     sectionPrefs:     'Preferences',
@@ -488,6 +488,13 @@ export default {
     reminderCancelled: 'Reminder cancelled',
     reminderSet:       'Reminder set — notified 5 min before',
     reminderFail:      'Could not schedule this reminder',
+    // Motivational ticker (scrolls under "Not to miss")
+    tickerLive:      'BF1 live, at the heart of our challenges 🔥',
+    tickerExclu:     'Exclusive content, just for you ✨',
+    tickerCommunity: 'Join thousands of viewers 👥',
+    tickerNotif:     'Turn on reminders, never miss a thing 🔔',
+    tickerThanks:    'Thank you for making BF1 come alive ❤️',
+    tickerChallenge: 'The channel at the heart of our challenges 🏆',
   },
 
   // ─── Chat ─────────────────────────────────────────────────────────────────
@@ -499,6 +506,9 @@ export default {
     loginPrompt:   'Sign in to participate',
     deleteTitle:   'Delete',
     deleteConfirm: 'Delete this message?',
+    actionError:   'Action failed for now. Please try again.',
+    disabledTitle: 'Comments disabled',
+    disabledBody:  'The administrator has disabled comments for this live stream.',
   },
 
   splash: {

@@ -61,11 +61,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   async login(identifier, password) {
     const res = await api.login(identifier, password);
+    // Applique l'état tout de suite (temps réel pour l'UI abonnée au store)…
     set({
       token:           res.access_token,
       user:            res.user,
       isAuthenticated: true,
     });
+    // …puis complète en arrière-plan avec le profil complet (/users/me)
+    api.refreshUser().then(u => { if (u) set({ user: u }); }).catch(() => {});
   },
 
   async register(username, email, password) {
@@ -75,6 +78,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       user:            res.user,
       isAuthenticated: true,
     });
+    api.refreshUser().then(u => { if (u) set({ user: u }); }).catch(() => {});
   },
 
   async loginWithGoogle(idToken, _user) {

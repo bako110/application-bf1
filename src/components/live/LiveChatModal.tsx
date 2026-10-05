@@ -149,7 +149,13 @@ export function LiveChatModal({
   const handleDelete = useCallback((id: string) => {
     Alert.alert(t.chat.deleteTitle, t.chat.deleteConfirm, [
       { text: t.common.cancel, style: 'cancel' },
-      { text: t.chat.deleteTitle, style: 'destructive', onPress: () => deleteMessage(id) },
+      {
+        text: t.chat.deleteTitle, style: 'destructive',
+        onPress: async () => {
+          const ok = await deleteMessage(id);
+          if (!ok) Alert.alert('', t.chat.actionError ?? 'Action impossible. Réessayez.');
+        },
+      },
     ]);
   }, [deleteMessage, t]);
 
@@ -160,10 +166,11 @@ export function LiveChatModal({
 
   const handleSaveEdit = useCallback(async () => {
     if (!editingId || !editText.trim()) return;
-    await editMessage(editingId, editText);
+    const ok = await editMessage(editingId, editText);
     setEditingId(null);
     setEditText('');
-  }, [editingId, editText, editMessage]);
+    if (!ok) Alert.alert('', t.chat.actionError ?? 'Modification impossible. Réessayez.');
+  }, [editingId, editText, editMessage, t]);
 
   const wsDot = wsStatus === 'connected' ? COLORS.success : wsStatus === 'fallback' ? COLORS.warning : theme.text3;
 
@@ -233,11 +240,17 @@ export function LiveChatModal({
             />
           )}
 
-          {/* Chat fermé par admin */}
+          {/* Chat désactivé par l'admin — bandeau explicite */}
           {!chatOpen && (
-            <View style={[styles.closedBanner, { backgroundColor: theme.surface }]}>
-              <Icon name="lock-closed-outline" size={13} color={theme.text3} />
-              <Text style={[styles.closedText, { color: theme.text3 }]}>{t.chat.closed}</Text>
+            <View style={[styles.closedBanner, { backgroundColor: 'rgba(255,59,48,0.10)', borderTopColor: 'rgba(255,59,48,0.35)' }]}>
+              <View style={styles.closedIconWrap}>
+                <Icon name="chatbubbles-outline" size={16} color={COLORS.error} />
+                <Icon name="close" size={11} color={COLORS.error} style={styles.closedSlash} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.closedTitle, { color: COLORS.error }]}>{t.chat.disabledTitle}</Text>
+                <Text style={[styles.closedText, { color: theme.text3 }]}>{t.chat.disabledBody}</Text>
+              </View>
             </View>
           )}
 
@@ -352,10 +365,18 @@ const styles = StyleSheet.create({
   msgText:    { fontSize: FONT_SIZE.sm, lineHeight: 18 },
 
   closedBanner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, padding: SPACING.sm,
+    flexDirection: 'row', alignItems: 'center',
+    gap: 10, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
+    borderTopWidth: 1,
   },
-  closedText: { fontSize: FONT_SIZE.sm, fontStyle: 'italic' },
+  closedIconWrap: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: 'rgba(255,59,48,0.14)',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  closedSlash: { position: 'absolute', right: 4, bottom: 4 },
+  closedTitle: { fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.bold, marginBottom: 1 },
+  closedText:  { fontSize: FONT_SIZE.xs, lineHeight: 16 },
 
   editArea: {
     padding: SPACING.md, borderTopWidth: 0.5,

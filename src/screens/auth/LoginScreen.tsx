@@ -9,7 +9,7 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, StackActions, type RouteProp } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -25,20 +25,31 @@ import { navigationRef } from '../../navigation/navigationRef';
 type Nav   = StackNavigationProp<ProfileStackParams, 'Login'>;
 type Route = RouteProp<ProfileStackParams, 'Login'>;
 
-/** Navigue vers l'écran d'où l'utilisateur venait, ou repli sur Profile si absent/invalide. */
-function goToRedirectOrProfile(redirectRaw: string | undefined) {
-  const nav = navigationRef as any;
+/**
+ * Après connexion : soit on ramène l'utilisateur là d'où il venait (redirect),
+ * soit on dépile simplement Login pour révéler l'écran Profile.
+ * `stackNav` = la navigation du ProfileStack (celle de LoginScreen).
+ */
+function goToRedirectOrProfile(redirectRaw: string | undefined, stackNav: any) {
   if (redirectRaw) {
     try {
       const redirect: LoginRedirect = JSON.parse(redirectRaw);
-      if (redirect?.tab && nav.isReady()) {
-        nav.navigate(redirect.tab, { screen: redirect.screen, params: redirect.params });
+      const rootNav = navigationRef as any;
+      if (redirect?.tab && rootNav.isReady()) {
+        // On revient sur l'onglet d'origine ; on nettoie d'abord le ProfileStack
+        try { stackNav?.dispatch?.(StackActions.popToTop()); } catch {}
+        rootNav.navigate(redirect.tab, { screen: redirect.screen, params: redirect.params });
         return;
       }
     } catch {}
   }
-  if (nav.isReady()) {
-    nav.navigate('ProfileTab', { screen: 'Profile' });
+  // Pas de redirect → on retire Login de la pile, Profile réapparaît dessous
+  try {
+    if (stackNav?.canGoBack?.()) stackNav.dispatch(StackActions.popToTop());
+    else stackNav?.navigate?.('Profile');
+  } catch {
+    const rootNav = navigationRef as any;
+    if (rootNav.isReady()) rootNav.navigate('ProfileTab', { screen: 'Profile' });
   }
 }
 
@@ -176,7 +187,7 @@ export function LoginScreen() {
     if (!validate()) return;
     try {
       await login(email.trim(), password);
-      goToRedirectOrProfile(route.params?.redirect);
+      goToRedirectOrProfile(route.params?.redirect, navigation);
     } catch (err: any) {
       setErrors({ general: err?.message || t.auth.invalidCredentials });
     }
@@ -215,7 +226,7 @@ export function LoginScreen() {
 
       setGoogleOverlay(false);
       setGoogleLoading(false);
-      goToRedirectOrProfile(route.params?.redirect);
+      goToRedirectOrProfile(route.params?.redirect, navigation);
     } catch (err: any) {
       setGoogleOverlay(false);
       setGoogleLoading(false);

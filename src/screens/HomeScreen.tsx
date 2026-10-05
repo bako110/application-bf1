@@ -17,6 +17,7 @@ import { EmissionCard } from '../components/ui/EmissionCard';
 import { Toast } from '../components/ui/Toast';
 import { HomeHeader } from '../components/home/HomeHeader';
 import { HeroSlider } from '../components/home/HeroSlider';
+import { AppearOnMount } from '../components/ui/AppearOnMount';
 import * as api from '../services/api';
 import { useEmissionSection } from '../hooks/useEmissionSection';
 import { PremiumModal } from '../components/profile/PremiumModal';
@@ -179,13 +180,16 @@ export function HomeScreen() {
         }
         contentContainerStyle={{ paddingTop: insets.top + HEADER_H, paddingBottom: 20 }}
       >
-        <HeroSlider
-          entries={heroEntries}
-          isOnAir={isOnAir}
-          isLoading={lEmissions}
-        />
+        <AppearOnMount index={0}>
+          <HeroSlider
+            entries={heroEntries}
+            isOnAir={isOnAir}
+            isLoading={lEmissions}
+          />
+        </AppearOnMount>
 
         {/* ── Vous l'avez raté ── */}
+        <AppearOnMount index={1}>
         <SectionRow
           title={t.home.missed}
           isLoading={lMissed}
@@ -209,8 +213,10 @@ export function HomeScreen() {
             />
           ))}
         </SectionRow>
+        </AppearOnMount>
 
         {/* ── JT & Magazines ── */}
+        <AppearOnMount index={2}>
         <SectionRow
           title={t.home.jtMag}
           isLoading={!emissionReady(jtMagEntries)}
@@ -232,8 +238,10 @@ export function HomeScreen() {
             />
           ))}
         </SectionRow>
+        </AppearOnMount>
 
         {/* ── Reportages ── */}
+        <AppearOnMount index={3}>
         <SectionRow
           title={t.home.reportages}
           isLoading={lReport}
@@ -257,8 +265,10 @@ export function HomeScreen() {
             />
           ))}
         </SectionRow>
+        </AppearOnMount>
 
         {/* ── Magazine ── */}
+        <AppearOnMount index={4}>
         <SectionRow
           title={t.home.magazine}
           isLoading={!emissionReady(magazineEntries)}
@@ -280,8 +290,10 @@ export function HomeScreen() {
             />
           ))}
         </SectionRow>
+        </AppearOnMount>
 
         {/* ── Divertissement ── */}
+        <AppearOnMount index={5}>
         <SectionRow
           title={t.home.divertissement}
           isLoading={!emissionReady(divertEntries)}
@@ -303,8 +315,10 @@ export function HomeScreen() {
             />
           ))}
         </SectionRow>
+        </AppearOnMount>
 
         {/* ── Télé réalité ── */}
+        <AppearOnMount index={6}>
         <SectionRow
           title={t.home.teleRealite}
           isLoading={!emissionReady(teleEntries)}
@@ -326,8 +340,10 @@ export function HomeScreen() {
             />
           ))}
         </SectionRow>
+        </AppearOnMount>
 
         {/* ── Sports ── */}
+        <AppearOnMount index={7}>
         <SectionRow
           title={t.home.sports}
           isLoading={!emissionReady(sportsEntries)}
@@ -349,8 +365,10 @@ export function HomeScreen() {
             />
           ))}
         </SectionRow>
+        </AppearOnMount>
 
         {/* ── Archives ── */}
+        <AppearOnMount index={8}>
         <SectionRow
           title={t.home.archives}
           isLoading={lArchives}
@@ -376,6 +394,7 @@ export function HomeScreen() {
             );
           })}
         </SectionRow>
+        </AppearOnMount>
       </Animated.ScrollView>
 
       <HomeHeader
