@@ -73,3 +73,12 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# iOS signing secrets
+*.key
+*.p12
+*.cer
+*.csr
+*.mobileprovision
+ios_p12_password.txt
+*.b64
