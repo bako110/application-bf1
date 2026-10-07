@@ -33,6 +33,13 @@ target 'Bf1App' do
       # :ccache_enabled => true
     )
 
+    # Force FMT_USE_CONSTEVAL=0 directement dans les en-têtes de fmt (le define seul ne suffit pas)
+    Dir.glob(File.join(installer.sandbox.root.to_s, 'fmt', 'include', 'fmt', '*.h')).each do |header|
+      content = File.read(header)
+      patched = content.gsub(/(#\s*define\s+FMT_USE_CONSTEVAL\s+)1\b/, '\10')
+      File.write(header, patched) if patched != content
+    end
+
     # fmt (dep. de React Native) ne compile pas avec le clang de Xcode récent (consteval)
     installer.pods_project.targets.each do |target|
       next unless target.name == 'fmt'
