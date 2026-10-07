@@ -3,38 +3,62 @@ workflows:
     name: iOS TestFlight
     max_build_duration: 60
     instance_type: mac_mini_m2
+
     integrations:
       app_store_connect: codemagic
+
     environment:
       groups:
-        - firebase # GOOGLE_SERVICE_INFO_PLIST_BASE64
+        - Secret
+
       node: 20
       xcode: latest
       cocoapods: default
+
       vars:
         BUNDLE_ID: com.bf1app
         XCODE_WORKSPACE: Bf1App.xcworkspace
         XCODE_SCHEME: Bf1App
+
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.bf1app
+
     scripts:
       - name: Install JS dependencies
-        script: npm ci
-      - name: GoogleService-Info.plist
-        script: echo "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 --decode > ios/Bf1App/GoogleService-Info.plist
+        script: |
+          npm ci
+
+      - name: Create GoogleService-Info.plist
+        script: |
+          echo "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 --decode > ios/Bf1App/GoogleService-Info.plist
+
+      - name: Verify GoogleService-Info.plist
+        script: |
+          if [ ! -f "ios/Bf1App/GoogleService-Info.plist" ]; then
+            echo "ERROR: GoogleService-Info.plist not found!"
+            exit 1
+          fi
+
       - name: Install CocoaPods
-        script: cd ios && pod install
+        script: |
+          cd ios
+          pod install
+
       - name: Set up code signing
-        script: xcode-project use-profiles
+        script: |
+          xcode-project use-profiles
+
       - name: Build IPA
         script: |
           xcode-project build-ipa \
             --workspace "ios/$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"
+
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+
     publishing:
       app_store_connect:
         auth: integration
