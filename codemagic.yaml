@@ -29,26 +29,13 @@ workflows:
         script: |
           npm ci
 
-      - name: Create GoogleService-Info.plist
-        script: |
-          if [ -z "$GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
-            echo "ERROR: GOOGLE_SERVICE_INFO_PLIST_BASE64 est vide ou absente (groupe 'Secret' non lié à ce workflow ?)"
-            exit 1
-          fi
-          # Supprime espaces/retours ligne/guillemets parasites avant décodage
-          CLEAN=$(printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | tr -d ' \r\n"')
-          printf '%s' "$CLEAN" | base64 --decode > ios/Bf1App/GoogleService-Info.plist || {
-            echo "ERROR: base64 invalide. Régénérer avec: base64 -i GoogleService-Info.plist | tr -d '\n'"
-            exit 1
-          }
-          plutil -lint ios/Bf1App/GoogleService-Info.plist
-
       - name: Verify GoogleService-Info.plist
         script: |
           if [ ! -f "ios/Bf1App/GoogleService-Info.plist" ]; then
             echo "ERROR: GoogleService-Info.plist not found!"
             exit 1
           fi
+          plutil -lint ios/Bf1App/GoogleService-Info.plist
 
       - name: Install CocoaPods
         script: |
