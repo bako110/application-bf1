@@ -50,7 +50,11 @@ workflows:
         script: |
           xcode-project build-ipa \
             --workspace "ios/$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
+            --scheme "$XCODE_SCHEME" || {
+            echo "=========== ERREURS XCODE ==========="
+            grep -h -B3 -A10 "error:" /tmp/xcodebuild_logs/*.log | head -120
+            exit 1
+          }
 
     artifacts:
       - build/ios/ipa/*.ipa
