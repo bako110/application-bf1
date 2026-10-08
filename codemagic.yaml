@@ -46,6 +46,11 @@ workflows:
         script: |
           xcode-project use-profiles
 
+      - name: Set build number
+        script: |
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/" ios/Bf1App.xcodeproj/project.pbxproj
+          grep CURRENT_PROJECT_VERSION ios/Bf1App.xcodeproj/project.pbxproj
+
       - name: Build IPA
         script: |
           xcode-project build-ipa \
