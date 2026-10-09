@@ -3,7 +3,7 @@ import React, {
 } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Animated,
+  Animated, Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import {
   SCREEN, MINI_PLAYER_W, MINI_PLAYER_H,
 } from '../../constants';
 import { useTranslation } from '../../hooks/useTranslation';
+import { FORCE_PLAY_JS } from '../../utils/playerSource';
 
 const W        = SCREEN.W;
 const SCREEN_H = SCREEN.H;
@@ -339,6 +340,7 @@ export const LiveWebView = forwardRef<LiveWebViewHandle, WebViewProps>(function 
             key={webViewKey}
             ref={webViewRef}
             source={{ uri: buildUrl(liveData) }}
+            injectedJavaScript={Platform.OS === 'ios' ? FORCE_PLAY_JS : undefined}
             style={StyleSheet.absoluteFill}
             allowsInlineMediaPlayback
             mediaPlaybackRequiresUserAction={false}
@@ -368,7 +370,10 @@ export const LiveWebView = forwardRef<LiveWebViewHandle, WebViewProps>(function 
         {!isMini && (
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-            onPress={showThenHide}
+            onPress={() => {
+              showThenHide();
+              if (Platform.OS === 'ios' && !isPaused) webViewRef.current?.injectJavaScript(FORCE_PLAY_JS);
+            }}
             activeOpacity={1}
           />
         )}

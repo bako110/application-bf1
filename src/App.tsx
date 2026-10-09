@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { StatusBar, LogBox, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { StatusBar, LogBox, View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -20,6 +20,7 @@ import { SplashScreen }       from './components/SplashScreen';
 import { LoginRequiredModal } from './components/ui/LoginRequiredModal';
 import { useLoginNavigation } from './hooks/useLoginNavigation';
 import { SCREEN } from './constants';
+import { FORCE_PLAY_JS } from './utils/playerSource';
 
 LogBox.ignoreLogs([
   'Non-serializable values were found in the navigation state',
@@ -56,6 +57,16 @@ function GlobalLivePlayer() {
   const [isPaused,     setIsPaused]     = useState(false);
   const [isMuted,      setIsMuted]      = useState(false);
   const hideTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+
+  // iOS : état réel de la vidéo remonté par FORCE_PLAY_JS → boutons toujours justes
+  const onWebViewMessage = useCallback((e: any) => {
+    try {
+      const m = JSON.parse(e.nativeEvent.data);
+      setVideoPlaying(!!m.playing);
+      if (m.playing) { setIsMuted(!!m.muted); setIsPaused(false); }
+    } catch {}
+  }, []);
 
   const showThenHide = useCallback(() => {
     setShowControls(true);
@@ -124,6 +135,7 @@ function GlobalLivePlayer() {
         allowsFullscreenVideo
         originWhitelist={['*']}
         scrollEnabled={false}
+        onMessage={onWebViewMessage}
         injectedJavaScript={`
           (function() {
             var style = document.createElement('style');
@@ -136,15 +148,31 @@ function GlobalLivePlayer() {
             document.head.appendChild(style);
           })();
           true;
-        `}
+        ` + (Platform.OS === 'ios' ? FORCE_PLAY_JS : '')}
       />
 
       {/* Zone de tap — couvre toute la vidéo, affiche les contrôles au toucher */}
       <TouchableOpacity
         style={StyleSheet.absoluteFill}
-        onPress={showThenHide}
+        onPress={() => {
+          showThenHide();
+          if (Platform.OS === 'ios' && !isPaused) webViewRef.current?.injectJavaScript(FORCE_PLAY_JS);
+        }}
         activeOpacity={1}
       />
+
+      {/* iOS : gros bouton lecture tant que la vidéo ne tourne pas (et n'est pas en pause volontaire) */}
+      {Platform.OS === 'ios' && !videoPlaying && !isPaused && (
+        <TouchableOpacity
+          style={glStyles.bigPlay}
+          activeOpacity={0.8}
+          onPress={() => webViewRef.current?.injectJavaScript(FORCE_PLAY_JS)}
+        >
+          <View style={glStyles.bigPlayCircle}>
+            <Icon name="play" size={34} color="#fff" style={{ marginLeft: 4 }} />
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Contrôles — visibles seulement après un tap, disparaissent après 3s */}
       {showControls && (
@@ -176,6 +204,11 @@ function GlobalLivePlayer() {
 
 const glStyles = StyleSheet.create({
   player: { backgroundColor: '#000', overflow: 'hidden' },
+  bigPlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  bigPlayCircle: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center',
+  },
   normal: {
     position: 'absolute',
     top: 0, left: 0, right: 0,
