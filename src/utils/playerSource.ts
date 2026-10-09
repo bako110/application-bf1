@@ -15,6 +15,7 @@ export const FORCE_PLAY_JS = `
         vids.forEach(function(v) { if (!v.paused) playing = true; });
         if (playing) {
           clearInterval(t);
+          if (window.__hideUi) window.__hideUi();
           vids.forEach(function(v) {
             v.muted = false;
             setTimeout(function() {

@@ -138,6 +138,8 @@ function GlobalLivePlayer() {
         onMessage={onWebViewMessage}
         injectedJavaScript={`
           (function() {
+            window.__hideUi = function() {
+            if (window.__uiHidden) return; window.__uiHidden = true;
             var style = document.createElement('style');
             style.textContent = [
               '.dmp-player-controller','.dmp-controls','.dmp-fullscreen-btn',
@@ -146,6 +148,9 @@ function GlobalLivePlayer() {
               '[class*="playerUi"]','[class*="player-ui"]','[class*="player_ui"]',
             ].join(',') + '{ display:none !important; pointer-events:none !important; }';
             document.head.appendChild(style);
+            };
+            // iOS : on garde l'UI Dailymotion cliquable tant que la vidéo ne lit pas
+            if (${Platform.OS !== 'ios'}) window.__hideUi();
           })();
           true;
         ` + (Platform.OS === 'ios' ? FORCE_PLAY_JS : '')}
