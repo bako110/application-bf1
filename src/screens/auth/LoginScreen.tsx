@@ -202,9 +202,13 @@ export function LoginScreen() {
       // Web Client ID — à récupérer dans Firebase console →
       // Paramètres du projet → Général → ton app Web → OAuth 2.0 client ID
       // ou dans Google Cloud Console → APIs → Identifiants → Client OAuth Web
-      webClientId: '726626343005-3pm4efn4tuaj67s80timeo018rdnv89d.apps.googleusercontent.com',
-      iosClientId: '1059019203717-1ldr5t9h7sf3sqgpth1mdr7lis48pun8.apps.googleusercontent.com',
-      offlineAccess: true,
+      // iOS : pas de webClientId (il vient d'un autre projet Google que le client iOS => erreur de connexion)
+      ...(Platform.OS === 'ios'
+        ? { iosClientId: '1059019203717-1ldr5t9h7sf3sqgpth1mdr7lis48pun8.apps.googleusercontent.com' }
+        : {
+            webClientId: '726626343005-3pm4efn4tuaj67s80timeo018rdnv89d.apps.googleusercontent.com',
+            offlineAccess: true,
+          }),
     });
   }, []);
 
