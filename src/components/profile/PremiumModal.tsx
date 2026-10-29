@@ -17,7 +17,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useAuthStore } from '../../stores';
 import * as api from '../../services/api';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SUBSCRIPTIONS_MAINTENANCE } from '../../constants';
+import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, SUBSCRIPTIONS_MAINTENANCE, PAYMENTS_ENABLED } from '../../constants';
 import LinearGradient from 'react-native-linear-gradient';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -220,7 +220,7 @@ const pc = StyleSheet.create({
 
 // ─── Modal principal ──────────────────────────────────────────────────────────
 
-export function PremiumModal({ visible, onClose, requiredCategory = null, onSuccess }: Props) {
+function PremiumModalInner({ visible, onClose, requiredCategory = null, onSuccess }: Props) {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -822,3 +822,9 @@ const s = StyleSheet.create({
   successBtn:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#22C55E', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 36, marginTop: 4 },
   successBtnText: { color: '#000', fontSize: FONT_SIZE.base, fontWeight: FONT_WEIGHT.bold },
 });
+
+// Paiement désactivé pour l'instant (PAYMENTS_ENABLED)
+export function PremiumModal(props: Props) {
+  if (!PAYMENTS_ENABLED) return null;
+  return <PremiumModalInner {...props} />;
+}

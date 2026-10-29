@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  StatusBar, Image, Alert, Modal, TextInput, ActivityIndicator, Animated,
+  StatusBar, Image, Alert, Modal, TextInput, ActivityIndicator, Animated, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -16,7 +16,7 @@ import {
 import { useTheme } from '../hooks/useTheme';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../stores';
-import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS } from '../constants';
+import { COLORS, FONT_SIZE, FONT_WEIGHT, SPACING, RADIUS, PAYMENTS_ENABLED } from '../constants';
 import * as api from '../services/api';
 import { PremiumModal } from '../components/profile/PremiumModal';
 import type { ProfileStackParams } from '../navigation/types';
@@ -193,7 +193,7 @@ export function ProfileScreen() {
   const { t, lang }  = useTranslation();
   const navigation   = useNavigation<Nav>();
   const insets       = useSafeAreaInsets();
-  const { user, isAuthenticated, loading: authLoading, logout, setUser } = useAuthStore() as any;
+  const { user, isAuthenticated, loading: authLoading, logout, setUser, deleteAccount } = useAuthStore() as any;
 
   // Feedback centralisé (bandeau inline)
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -319,6 +319,20 @@ export function ProfileScreen() {
     finally  { setEmailLoading(false); }
   }, [newEmail, user, setUser, notifySuccess, t]);
 
+  // ── Suppression de compte ─────────────────────────────────────────────────
+  const handleDeleteAccount = useCallback(() => {
+    Alert.alert(t.profile.deleteAccountTitle, t.profile.deleteAccountMsg, [
+      { text: t.common.cancel, style: 'cancel' },
+      {
+        text: t.profile.deleteAccountConfirm, style: 'destructive',
+        onPress: async () => {
+          try { await deleteAccount(); }
+          catch { Alert.alert(t.profile.deleteAccountError); }
+        },
+      },
+    ]);
+  }, [deleteAccount, t]);
+
   // ── Déconnexion ───────────────────────────────────────────────────────────
   const handleLogout = useCallback(() => {
     Alert.alert(t.profile.logoutConfirmTitle, t.profile.logoutConfirmMsg, [
@@ -409,6 +423,7 @@ export function ProfileScreen() {
               <InfoRow label={t.profile.editEmail}    value={user.email ?? '—'}    onPress={openEmailEdit}    theme={theme} last />
             </View>
 
+            {PAYMENTS_ENABLED && (<>
             {/* ── SECTION ABONNEMENT ────────────────────────────────────── */}
             <SectionLabel theme={theme}>{t.profile.subscription}</SectionLabel>
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -483,13 +498,16 @@ export function ProfileScreen() {
                       <Text style={[styles.featureText, { color: row.ok ? theme.text : theme.text3 }]}>{row.label}</Text>
                     </View>
                   ))}
-                  <TouchableOpacity style={styles.premiumBtn} activeOpacity={0.85} onPress={() => setPremiumOpen(true)}>
-                    <Icon name="arrow-up" size={14} color="#fff" />
-                    <Text style={styles.premiumBtnText}>{t.profile.upgradePremium}</Text>
-                  </TouchableOpacity>
+                  {Platform.OS !== 'ios' && (
+                    <TouchableOpacity style={styles.premiumBtn} activeOpacity={0.85} onPress={() => setPremiumOpen(true)}>
+                      <Icon name="arrow-up" size={14} color="#fff" />
+                      <Text style={styles.premiumBtnText}>{t.profile.upgradePremium}</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </View>
+            </>)}
 
             {/* ── SECTION PRÉFÉRENCES ───────────────────────────────────── */}
             <SectionLabel theme={theme}>{t.profile.sectionPrefs}</SectionLabel>
@@ -509,6 +527,16 @@ export function ProfileScreen() {
             >
               <Icon name="log-out-outline" size={19} color={COLORS.error} />
               <Text style={[styles.logoutText, { color: COLORS.error }]}>{t.profile.logout}</Text>
+            </TouchableOpacity>
+
+            {/* ── SUPPRESSION DE COMPTE ─────────────────────────────────── */}
+            <TouchableOpacity
+              style={[styles.logoutCard, { backgroundColor: theme.surface, borderColor: 'rgba(255,59,48,0.25)' }]}
+              onPress={handleDeleteAccount}
+              activeOpacity={0.7}
+            >
+              <Icon name="trash-outline" size={19} color={COLORS.error} />
+              <Text style={[styles.logoutText, { color: COLORS.error }]}>{t.profile.deleteAccount}</Text>
             </TouchableOpacity>
           </>
         ) : (

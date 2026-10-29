@@ -129,7 +129,12 @@ export default {
     logoutConfirmTitle: 'Sign out',
     logoutConfirmMsg:   'Are you sure you want to sign out?',
     logoutConfirm:  'Sign out',
-    version:        'BF1 TV © 2026  ·  Version 1.0.8',
+    deleteAccount:        'Delete my account',
+    deleteAccountTitle:   'Delete account',
+    deleteAccountMsg:     'This action is permanent. Your account and data (favorites, comments, settings) will be deleted.',
+    deleteAccountConfirm: 'Delete',
+    deleteAccountError:   'Unable to delete the account. Please try again.',
+    version:        'BF1 TV © 2026  ·  Version 1.0.9',
     // Sections
     sectionAccount:   'Account',
     sectionPrefs:     'Preferences',

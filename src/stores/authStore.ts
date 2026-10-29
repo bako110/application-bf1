@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { http } from '../services/api/http';
 import * as api from '../services/api';
-import { SUB_HIERARCHY } from '../constants';
+import { SUB_HIERARCHY, PAYMENTS_ENABLED } from '../constants';
 
 interface User {
   id: string;
@@ -25,6 +25,8 @@ interface AuthStore {
   login:            (identifier: string, password: string) => Promise<void>;
   register:         (username: string, email: string, password: string) => Promise<void>;
   loginWithGoogle:  (token: string, user: any) => Promise<void>;
+  loginWithApple:   (identityToken: string, fullName?: string | null, email?: string | null) => Promise<void>;
+  deleteAccount:    () => Promise<void>;
   logout:           () => Promise<void>;
   refreshUser:      () => Promise<void>;
   setUser:          (u: User) => void;
@@ -95,6 +97,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     });
   },
 
+  async loginWithApple(identityToken, fullName, email) {
+    const res = await api.loginWithAppleToken(identityToken, fullName, email);
+    let fullUser = res.user;
+    try {
+      const me = await api.refreshUser();
+      if (me) fullUser = me;
+    } catch {}
+    set({ token: res.access_token, user: fullUser, isAuthenticated: true });
+  },
+
+  async deleteAccount() {
+    await api.deleteAccount();
+    set({ token: null, user: null, isAuthenticated: false });
+  },
+
   async logout() {
     await api.logout();
     set({ token: null, user: null, isAuthenticated: false });
@@ -110,7 +127,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setUser(u) { set({ user: u }); },
 
   canAccess(required) {
-    if (!required) return true;
+    if (!PAYMENTS_ENABLED || !required) return true;
     const { user, isAuthenticated } = get();
     if (!isAuthenticated || !user) return false;
     const userLevel     = SUB_HIERARCHY[user.subscription_category ?? ''] ?? 0;

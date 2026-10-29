@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
   Animated, Modal, Image,
 } from 'react-native';
+import { appleAuth } from '@invertase/react-native-apple-authentication';
 import {
   GoogleSignin,
   statusCodes,
@@ -166,7 +167,7 @@ export function LoginScreen() {
   const navigation        = useNavigation<Nav>();
   const route             = useRoute<Route>();
   const insets            = useSafeAreaInsets();
-  const { login, loginWithGoogle, loading } = useAuthStore();
+  const { login, loginWithGoogle, loginWithApple, loading } = useAuthStore() as any;
 
   const [email, setEmail]         = useState('');
   const [password, setPassword]   = useState('');
@@ -202,6 +203,7 @@ export function LoginScreen() {
       // Paramètres du projet → Général → ton app Web → OAuth 2.0 client ID
       // ou dans Google Cloud Console → APIs → Identifiants → Client OAuth Web
       webClientId: '726626343005-3pm4efn4tuaj67s80timeo018rdnv89d.apps.googleusercontent.com',
+      iosClientId: '1059019203717-1ldr5t9h7sf3sqgpth1mdr7lis48pun8.apps.googleusercontent.com',
       offlineAccess: true,
     });
   }, []);
@@ -241,6 +243,23 @@ export function LoginScreen() {
       }
     }
   }, [loginWithGoogle, route.params?.redirect]);
+
+  const handleApple = useCallback(async () => {
+    try {
+      const res = await appleAuth.performRequest({
+        requestedOperation: appleAuth.Operation.LOGIN,
+        requestedScopes: [appleAuth.Scope.FULL_NAME, appleAuth.Scope.EMAIL],
+      });
+      if (!res.identityToken) throw new Error('Token Apple introuvable');
+      const fullName = [res.fullName?.givenName, res.fullName?.familyName].filter(Boolean).join(' ') || null;
+      await loginWithApple(res.identityToken, fullName, res.email);
+      goToRedirectOrProfile(route.params?.redirect, navigation);
+    } catch (err: any) {
+      if (err?.code !== appleAuth.Error.CANCELED) {
+        setErrors({ general: err?.message || 'Erreur de connexion Apple' });
+      }
+    }
+  }, [loginWithApple, route.params?.redirect]);
 
   const handleCancelGoogle = useCallback(() => {
     setGoogleOverlay(false);
@@ -375,6 +394,20 @@ export function LoginScreen() {
             <Text style={[styles.dividerText, { color: theme.text3 }]}>ou</Text>
             <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
           </View>
+
+          {/* Bouton Apple (iOS) */}
+          {Platform.OS === 'ios' && appleAuth.isSupported && (
+            <TouchableOpacity
+              style={[styles.googleBtn, { backgroundColor: isDark ? '#fff' : '#000', borderColor: theme.border, marginBottom: 12 }]}
+              onPress={handleApple}
+              activeOpacity={0.8}
+            >
+              <Icon name="logo-apple" size={20} color={isDark ? '#000' : '#fff'} />
+              <Text style={[styles.googleBtnText, { color: isDark ? '#000' : '#fff' }]}>
+                Continuer avec Apple
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Bouton Google */}
           <TouchableOpacity

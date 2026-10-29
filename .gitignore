@@ -82,3 +82,8 @@ yarn-error.log
 *.mobileprovision
 ios_p12_password.txt
 *.b64
+
+# Clés Apple / signature (ne jamais committer)
+*.p8
+*.b64
+*.csr

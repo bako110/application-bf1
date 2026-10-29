@@ -139,7 +139,12 @@ export default {
     logoutConfirmTitle: 'Déconnexion',
     logoutConfirmMsg:   'Voulez-vous vraiment vous déconnecter ?',
     logoutConfirm:  'Déconnecter',
-    version:        'BF1 TV © 2026  ·  Version 1.0.8',
+    deleteAccount:        'Supprimer mon compte',
+    deleteAccountTitle:   'Supprimer le compte',
+    deleteAccountMsg:     'Cette action est définitive. Votre compte et vos données (favoris, commentaires, paramètres) seront supprimés.',
+    deleteAccountConfirm: 'Supprimer',
+    deleteAccountError:   'Impossible de supprimer le compte. Réessayez.',
+    version:        'BF1 TV © 2026  ·  Version 1.0.9',
     // Sections
     sectionAccount:   'Compte',
     sectionPrefs:     'Préférences',

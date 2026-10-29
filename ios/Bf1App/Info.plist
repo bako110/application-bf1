@@ -22,6 +22,15 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.1059019203717-1ldr5t9h7sf3sqgpth1mdr7lis48pun8</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -44,8 +53,6 @@
 			</dict>
 		</dict>
 	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>BF1 TV utilise votre position pour personnaliser le contenu.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>BF1 TV a besoin d'accéder à vos photos pour changer votre avatar.</string>
 	<key>NSCameraUsageDescription</key>

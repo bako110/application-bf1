@@ -198,3 +198,7 @@ export const SUB_BADGE = {
   standard: { label: 'Standard', color: 'linear-gradient(135deg,#9C27B0,#7B1FA2)' },
   premium:  { label: 'Premium',  color: 'linear-gradient(135deg,#FF6F00,#F57C00)' },
 } as const;
+
+// Paiement / abonnements désactivés pour l'instant (tout le contenu est accessible, aucun écran de paiement).
+// Repasser à true quand le système de paiement (IAP) sera en place.
+export const PAYMENTS_ENABLED = false;

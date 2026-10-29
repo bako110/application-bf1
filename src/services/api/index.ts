@@ -70,6 +70,26 @@ export async function loginWithGoogleIdToken(idToken: string) {
   return res;
 }
 
+export async function loginWithAppleToken(identityToken: string, fullName?: string | null, email?: string | null) {
+  const res = await http.post<any>('/users/auth/apple', {
+    identity_token: identityToken, full_name: fullName ?? null, email: email ?? null,
+  });
+  if (res.access_token) {
+    http.setToken(res.access_token);
+    http.clearCache();
+    await AsyncStorage.multiSet([
+      ['bf1_token', res.access_token],
+      ['bf1_user',  JSON.stringify(res.user)],
+    ]);
+  }
+  return res;
+}
+
+export async function deleteAccount() {
+  await http.delete<any>('/users/me');
+  await logout();
+}
+
 export async function suggestUsername(email: string): Promise<string | null> {
   try {
     const res = await http.post<any>('/username/suggest', { email });
