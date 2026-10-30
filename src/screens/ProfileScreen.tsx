@@ -358,6 +358,9 @@ export function ProfileScreen() {
   }
 
   const displayName = user?.username ?? user?.name ?? t.profile.userFallback;
+  // Email relais Apple (masqué par l'utilisateur) : inutile à afficher
+  const isRelayEmail = !!user?.email && user.email.endsWith('@privaterelay.appleid.com');
+  const shownEmail = user?.email && !isRelayEmail ? user.email : null;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -395,8 +398,8 @@ export function ProfileScreen() {
               </TouchableOpacity>
 
               <Text style={[styles.identName, { color: theme.text }]} numberOfLines={1}>{displayName}</Text>
-              {!!user.email && (
-                <Text style={[styles.identEmail, { color: theme.text3 }]} numberOfLines={1}>{user.email}</Text>
+              {!!shownEmail && (
+                <Text style={[styles.identEmail, { color: theme.text3 }]} numberOfLines={1}>{shownEmail}</Text>
               )}
 
               <View style={[styles.badgeWrap, { backgroundColor: badge.bg }]}>
@@ -420,7 +423,7 @@ export function ProfileScreen() {
             <SectionLabel theme={theme}>{t.profile.sectionAccount}</SectionLabel>
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, padding: 0 }]}>
               <InfoRow label={t.profile.editUsername} value={displayName}          onPress={openUsernameEdit} theme={theme} />
-              <InfoRow label={t.profile.editEmail}    value={user.email ?? '—'}    onPress={openEmailEdit}    theme={theme} last />
+              <InfoRow label={t.profile.editEmail}    value={shownEmail ?? '—'}       onPress={openEmailEdit}    theme={theme} last />
             </View>
 
             {PAYMENTS_ENABLED && (<>
