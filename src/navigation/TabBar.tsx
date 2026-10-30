@@ -25,7 +25,7 @@ const TABS: TabConfig[] = [
 ];
 
 export function TabBar({ state, navigation }: BottomTabBarProps) {
-  const { theme }                    = useTheme();
+  const { theme, isDark }            = useTheme();
   const { t }                        = useTranslation();
   const insets                       = useSafeAreaInsets();
   const { isFullscreen, isWatchScreenOpen, setOnLiveTab } = useLiveStore();
@@ -39,15 +39,17 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   if (isFullscreen || isWatchScreenOpen) return null;
 
   return (
-    <View style={[
-      styles.container,
-      {
-        backgroundColor: theme.tabBar.bg,
-        paddingBottom:   Math.max(insets.bottom, 0),
-        borderTopColor:  COLORS.primary,
-      },
-    ]}>
-      <View style={styles.tabs}>
+    <View
+      style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}
+      pointerEvents="box-none"
+    >
+      <View style={[
+        styles.tabs,
+        {
+          backgroundColor: isDark ? 'rgba(18,18,18,0.90)' : 'rgba(255,255,255,0.92)',
+          borderColor:     isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
+        },
+      ]}>
         {TABS.map(tab => {
           const route     = state.routes.find(r => r.name === tab.key);
           if (!route) return null;
@@ -85,14 +87,16 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
               activeOpacity={0.7}
               style={styles.tabItem}
             >
-              <Icon
-                name={isFocused ? tab.iconActive : tab.icon}
-                size={22}
-                color={color}
-              />
-              <Text style={[styles.label, { color }]} numberOfLines={1}>
-                {tab.label(t)}
-              </Text>
+              <View style={[styles.tabPill, isFocused && styles.tabPillActive]}>
+                <Icon
+                  name={isFocused ? tab.iconActive : tab.icon}
+                  size={22}
+                  color={color}
+                />
+                <Text style={[styles.label, { color }]} numberOfLines={1}>
+                  {tab.label(t)}
+                </Text>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -102,27 +106,42 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
+  // Zone transparente autour de la barre flottante
   container: {
-    borderTopWidth: 1.5,
-    shadowColor:    COLORS.primary,
-    shadowOffset:   { width: 0, height: -4 },
-    shadowOpacity:  0.2,
-    shadowRadius:   15,
-    elevation:      12,
+    backgroundColor:   'transparent',
+    paddingHorizontal: 16,
+    paddingTop:        6,
   },
+  // Barre « pilule » arrondie, semi-transparente
   tabs: {
     flexDirection:  'row',
-    alignItems:     'flex-start',
+    alignItems:     'center',
     justifyContent: 'space-around',
-    paddingTop:     6,
-    paddingBottom:  4,
+    borderRadius:   30,
+    borderWidth:    1,
+    paddingVertical:   6,
+    paddingHorizontal: 6,
+    shadowColor:    '#000',
+    shadowOffset:   { width: 0, height: 6 },
+    shadowOpacity:  0.25,
+    shadowRadius:   14,
+    elevation:      14,
   },
   tabItem: {
     flex:           1,
     alignItems:     'center',
-    justifyContent: 'flex-start',
-    gap:            2,
-    paddingTop:     2,
+    justifyContent: 'center',
+  },
+  tabPill: {
+    alignItems:        'center',
+    justifyContent:    'center',
+    gap:               2,
+    paddingVertical:   6,
+    paddingHorizontal: 14,
+    borderRadius:      22,
+  },
+  tabPillActive: {
+    backgroundColor: 'rgba(226,62,62,0.16)',
   },
   label: {
     fontSize:   10,

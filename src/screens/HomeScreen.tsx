@@ -383,8 +383,6 @@ export function HomeScreen() {
                 key={item.id}
                 title={item.title}
                 image={item.thumbnail || item.image_url || item.image || null}
-                duration={item.duration_minutes ?? item.duration}
-                date={item.created_at}
                 subscription={item.subscription}
                 isLocked={locked}
                 onPress={locked ? () => openPaywall(item.subscription) : () => goDetail(item, 'archive')}

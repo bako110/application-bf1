@@ -298,6 +298,11 @@ export function ShowDetailScreen() {
   const { theme, isDark } = useTheme();
   const { t }             = useTranslation();
   const navigation        = useNavigation<Nav>();
+
+  // Le geste « glisser pour revenir » du stack intercepte le défilement horizontal des vidéos similaires
+  useEffect(() => {
+    (navigation as any).setOptions?.({ gestureEnabled: false });
+  }, [navigation]);
   const route             = useRoute<Route>();
   const insets            = useSafeAreaInsets();
   const { isAuthenticated, canAccess, user } = useAuthStore();
@@ -776,6 +781,7 @@ export function ShowDetailScreen() {
               <FlatList
                 data={related as any[]}
                 horizontal
+                nestedScrollEnabled
                 keyExtractor={(item: any, i) => String(item.id ?? i)}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.relScroll}
